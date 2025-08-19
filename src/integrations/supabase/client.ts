@@ -5,6 +5,12 @@ import type { Database } from './types';
 const SUPABASE_URL = "https://puvyqwrqbvqrovogavev.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1dnlxd3JxYnZxcm92b2dhdmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUyODQ1ODAsImV4cCI6MjA3MDg2MDU4MH0.kbh419Vq7N4Mrr9eeC1mrtmo5YRN58R3V4xrvSLdEOw";
 
+console.log('Supabase client configuration:', {
+  url: SUPABASE_URL,
+  key: SUPABASE_PUBLISHABLE_KEY ? 'Key present' : 'Key missing',
+  databaseTypes: typeof Database
+});
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
@@ -13,5 +19,16 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
+  }
+});
+
+console.log('Supabase client created successfully');
+
+// Test basic connection
+supabase.auth.getSession().then(({ data, error }) => {
+  if (error) {
+    console.error('Supabase connection test failed:', error);
+  } else {
+    console.log('Supabase connection test successful');
   }
 });

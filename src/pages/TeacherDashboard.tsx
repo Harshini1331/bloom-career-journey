@@ -36,9 +36,11 @@ import {
   Download,
   Bell,
   Shield,
-  Heart
+  Heart,
+  FileText
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import AssessmentResponsesView from '@/components/teacher/AssessmentResponsesView';
 
 interface Student {
   id: string;
@@ -341,10 +343,14 @@ export default function TeacherDashboard() {
         </div>
 
         <Tabs defaultValue="students" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 bg-white shadow-md">
+          <TabsList className="grid w-full grid-cols-6 bg-white shadow-md">
             <TabsTrigger value="students" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               My Students
+            </TabsTrigger>
+            <TabsTrigger value="assessments" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Assessments
             </TabsTrigger>
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
@@ -463,6 +469,10 @@ export default function TeacherDashboard() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="assessments" className="space-y-4">
+            <AssessmentResponsesView />
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-4">

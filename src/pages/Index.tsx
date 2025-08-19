@@ -3,19 +3,27 @@ import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { GraduationCap, BookOpen, Users, Target, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useEffect } from 'react';
 
 const Index = () => {
   const { user, userProfile, loading } = useAuth();
+
+  useEffect(() => {
+    console.log('Index component mounted');
+    console.log('Auth state:', { user, userProfile, loading });
+  }, [user, userProfile, loading]);
 
   // Redirect authenticated users to their appropriate dashboard
   if (user && userProfile && !loading) {
     const redirectPath = userProfile.role === 'admin' ? '/admin' 
                         : userProfile.role === 'teacher' ? '/teacher'
                         : '/student';
+    console.log('Redirecting to:', redirectPath);
     return <Navigate to={redirectPath} replace />;
   }
 
   if (loading) {
+    console.log('Showing loading state');
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -23,6 +31,7 @@ const Index = () => {
     );
   }
 
+  console.log('Rendering Index component content');
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10">
       {/* Hero Section */}

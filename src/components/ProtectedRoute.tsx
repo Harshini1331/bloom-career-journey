@@ -4,10 +4,10 @@ import { LoaderCircle } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  roles?: ('admin' | 'teacher' | 'student')[];
+  allowedRoles?: ('admin' | 'teacher' | 'student')[];
 }
 
-export function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
+export default function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
   const { user, loading, userProfile } = useAuth();
   const location = useLocation();
 
@@ -23,7 +23,7 @@ export function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  if (roles && !roles.includes(userProfile.role)) {
+  if (allowedRoles && !allowedRoles.includes(userProfile.role)) {
     // Redirect to appropriate dashboard based on role
     const redirectPath = userProfile.role === 'admin' ? '/admin' 
                         : userProfile.role === 'teacher' ? '/teacher'
