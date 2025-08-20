@@ -435,7 +435,7 @@ export default function StudentDashboard() {
     return (completedAssessments / totalAssessments) * 100;
   };
 
-  return (
+    return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       {/* Professional Header */}
       <div className="bg-white border-b border-gray-200 shadow-sm">
@@ -445,9 +445,9 @@ export default function StudentDashboard() {
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
                 <Crown className="w-6 h-6 text-white" />
-              </div>
+        </div>
               <h1 className="text-xl font-bold text-gray-800">CareerCompass</h1>
-            </div>
+      </div>
 
             {/* Profile Dropdown */}
             <DropdownMenu>
@@ -467,7 +467,7 @@ export default function StudentDashboard() {
                   <div className="flex items-center space-x-2">
                     <User className="w-4 h-4" />
                     <span>My Profile</span>
-                  </div>
+          </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => {
@@ -483,14 +483,14 @@ export default function StudentDashboard() {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">
-                  <LogOut className="w-4 h-4 mr-2" />
+            <LogOut className="w-4 h-4 mr-2" />
                   Logout
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+        </div>
           </div>
         </div>
-      </div>
 
       <div className="container mx-auto px-4 py-8">
         {/* Welcome Section */}
@@ -507,12 +507,12 @@ export default function StudentDashboard() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-gray-800">Your Journey Progress</h2>
               <Badge variant="secondary">{Math.round(getOverallProgress())}% Complete</Badge>
-            </div>
+                          </div>
             <Progress value={getOverallProgress()} className="h-3" />
             <div className="flex justify-between text-sm text-gray-600 mt-2">
               <span>5 Assessments Total</span>
               <span>{Math.round(getOverallProgress())}% Complete</span>
-            </div>
+                        </div>
           </CardContent>
         </Card>
 
@@ -539,8 +539,8 @@ export default function StudentDashboard() {
               {!getCompletionStatus('inspiration') && (
                 <Badge variant="secondary" className="mt-2">Start Here</Badge>
               )}
-            </CardContent>
-          </Card>
+                    </CardContent>
+                  </Card>
 
           {/* 2. My Dreams - Unlocked after Inspiration */}
           <Card
@@ -593,8 +593,8 @@ export default function StudentDashboard() {
               {!isAssessmentUnlocked('school_learning') && (
                 <Badge variant="outline" className="mt-2">Locked 🔒</Badge>
               )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
           {/* 4. My Role Models - Unlocked after School Learning */}
           <Card
@@ -620,8 +620,8 @@ export default function StudentDashboard() {
               {!isAssessmentUnlocked('role_models') && (
                 <Badge variant="outline" className="mt-2">Locked 🔒</Badge>
               )}
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
 
           {/* 5. My Hobbies - Unlocked after Role Models */}
           <Card
@@ -653,12 +653,12 @@ export default function StudentDashboard() {
 
         {/* Progress Summary */}
         <Card className="border-0 shadow-lg">
-          <CardHeader>
+                <CardHeader>
             <CardTitle className="text-xl text-gray-800">Assessment Progress Summary</CardTitle>
             <CardDescription>
               Track your completion status across all assessments
             </CardDescription>
-          </CardHeader>
+                </CardHeader>
           <CardContent>
             <div className="space-y-3">
               <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
@@ -684,16 +684,16 @@ export default function StudentDashboard() {
                 <Badge variant={roleModelsCompleted ? "default" : (schoolLearningCompleted ? "secondary" : "outline")}>
                   {roleModelsCompleted ? "Completed ✓" : (schoolLearningCompleted ? "Available" : "Locked 🔒")}
                 </Badge>
-              </div>
+                  </div>
               <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
                 <span className="font-medium text-orange-800">5. My Hobbies</span>
                 <Badge variant={hobbiesCompleted ? "default" : (roleModelsCompleted ? "secondary" : "outline")}>
                   {hobbiesCompleted ? "Completed ✓" : (roleModelsCompleted ? "Available" : "Locked 🔒")}
                 </Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                  </div>
+                  </div>
+                </CardContent>
+              </Card>
 
         {/* CareerChat LM Section */}
         <div className="mt-12">
@@ -706,7 +706,7 @@ export default function StudentDashboard() {
               <CardDescription className="text-purple-600">
                 Get personalized career guidance based on your assessment responses
               </CardDescription>
-            </CardHeader>
+                </CardHeader>
             <CardContent className="p-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Chat Interface Preview */}
@@ -763,11 +763,11 @@ export default function StudentDashboard() {
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                        </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
       </div>
 
       {/* Profile Editing Modal */}

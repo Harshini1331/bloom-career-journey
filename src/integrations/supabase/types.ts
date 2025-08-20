@@ -150,56 +150,67 @@ export type Database = {
           created_at?: string
         }
       }
-      student_activity_progress: {
-        Row: {
-          id: string
-          student_id: string
-          activity_id: string
-          status: string
-          results: string | null
-          completed_at: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          student_id: string
-          activity_id: string
-          status: string
-          results?: string | null
-          completed_at?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          student_id?: string
-          activity_id?: string
-          status?: string
-          results?: string | null
-          completed_at?: string | null
-          created_at?: string
-        }
-      }
+
       students: {
         Row: {
           id: string
           user_id: string
           class_id: string
           teacher_id: string
+          enrollment_date: string
+          enrollment_status: 'active' | 'inactive' | 'pending' | 'graduated' | 'transferred'
+          previous_school: string | null
+          special_needs: string | null
+          parent_guardian_name: string | null
+          parent_guardian_phone: string | null
+          parent_guardian_email: string | null
+          parent_guardian_occupation: string | null
+          family_income_range: 'below_50000' | '50000_100000' | '100000_200000' | '200000_500000' | 'above_500000' | null
+          academic_performance: 'excellent' | 'good' | 'average' | 'below_average' | 'needs_improvement' | null
+          attendance_percentage: number | null
+          notes: string | null
           created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
           user_id: string
           class_id: string
           teacher_id: string
+          enrollment_date?: string
+          enrollment_status?: 'active' | 'inactive' | 'pending' | 'graduated' | 'transferred'
+          previous_school?: string | null
+          special_needs?: string | null
+          parent_guardian_name?: string | null
+          parent_guardian_phone?: string | null
+          parent_guardian_email?: string | null
+          parent_guardian_occupation?: string | null
+          family_income_range?: 'below_50000' | '50000_100000' | '100000_200000' | '200000_500000' | 'above_500000' | null
+          academic_performance?: 'excellent' | 'good' | 'average' | 'below_average' | 'needs_improvement' | null
+          attendance_percentage?: number | null
+          notes?: string | null
           created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
           user_id?: string
           class_id?: string
           teacher_id?: string
+          enrollment_date?: string
+          enrollment_status?: 'active' | 'inactive' | 'pending' | 'graduated' | 'transferred'
+          previous_school?: string | null
+          special_needs?: string | null
+          parent_guardian_name?: string | null
+          parent_guardian_phone?: string | null
+          parent_guardian_email?: string | null
+          parent_guardian_occupation?: string | null
+          family_income_range?: 'below_50000' | '50000_100000' | '100000_200000' | '200000_500000' | 'above_500000' | null
+          academic_performance?: 'excellent' | 'good' | 'average' | 'below_average' | 'needs_improvement' | null
+          attendance_percentage?: number | null
+          notes?: string | null
           created_at?: string
+          updated_at?: string
         }
       }
       teachers: {
@@ -207,19 +218,46 @@ export type Database = {
           id: string
           user_id: string
           school_id: string
+          specialization: string | null
+          experience_years: number
+          qualification: string | null
+          bio: string | null
+          contact_phone: string | null
+          contact_email: string | null
+          is_active: boolean
+          joining_date: string
           created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
           user_id: string
           school_id: string
+          specialization?: string | null
+          experience_years?: number
+          qualification?: string | null
+          bio?: string | null
+          contact_phone?: string | null
+          contact_email?: string | null
+          is_active?: boolean
+          joining_date?: string
           created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
           user_id?: string
           school_id?: string
+          specialization?: string | null
+          experience_years?: number
+          qualification?: string | null
+          bio?: string | null
+          contact_phone?: string | null
+          contact_email?: string | null
+          is_active?: boolean
+          joining_date?: string
           created_at?: string
+          updated_at?: string
         }
       }
       users: {
@@ -230,7 +268,19 @@ export type Database = {
           full_name: string
           mobile: string | null
           email: string
+          bio: string | null
+          interests: string | null
+          career_goals: string | null
+          strengths: string | null
+          areas_for_growth: string | null
+          profile_picture_url: string | null
+          date_of_birth: string | null
+          gender: 'male' | 'female' | 'other' | 'prefer_not_to_say' | null
+          address: string | null
+          emergency_contact: string | null
+          emergency_contact_relation: string | null
           created_at: string
+          updated_at: string
         }
         Insert: {
           id: string
@@ -239,7 +289,19 @@ export type Database = {
           full_name: string
           mobile?: string | null
           email: string
+          bio?: string | null
+          interests?: string | null
+          career_goals?: string | null
+          strengths?: string | null
+          areas_for_growth?: string | null
+          profile_picture_url?: string | null
+          date_of_birth?: string | null
+          gender?: 'male' | 'female' | 'other' | 'prefer_not_to_say' | null
+          address?: string | null
+          emergency_contact?: string | null
+          emergency_contact_relation?: string | null
           created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
@@ -248,7 +310,277 @@ export type Database = {
           full_name?: string
           mobile?: string | null
           email?: string
+          bio?: string | null
+          interests?: string | null
+          career_goals?: string | null
+          strengths?: string | null
+          areas_for_growth?: string | null
+          profile_picture_url?: string | null
+          date_of_birth?: string | null
+          gender?: 'male' | 'female' | 'other' | 'prefer_not_to_say' | null
+          address?: string | null
+          emergency_contact?: string | null
+          emergency_contact_relation?: string | null
           created_at?: string
+          updated_at?: string
+        }
+      }
+      
+      counselling_activities: {
+        Row: {
+          id: string
+          title: string
+          description: string | null
+          sequence_order: number
+          category: 'self_discovery' | 'career_exploration' | 'skill_assessment' | 'goal_setting' | 'action_planning'
+          duration_minutes: number
+          difficulty_level: 'beginner' | 'intermediate' | 'advanced'
+          target_grade: '8' | '9' | '10' | '11' | '12' | 'all'
+          resource_links: Json
+          worksheet_url: string | null
+          instructions: string | null
+          learning_objectives: string[]
+          prerequisites: string[]
+          is_active: boolean
+          created_at: string
+          updated_at: string
+          created_by: string | null
+        }
+        Insert: {
+          id?: string
+          title: string
+          description?: string | null
+          sequence_order: number
+          category: 'self_discovery' | 'career_exploration' | 'skill_assessment' | 'goal_setting' | 'action_planning'
+          duration_minutes?: number
+          difficulty_level?: 'beginner' | 'intermediate' | 'advanced'
+          target_grade?: '8' | '9' | '10' | '11' | '12' | 'all'
+          resource_links?: Json
+          worksheet_url?: string | null
+          instructions?: string | null
+          learning_objectives?: string[]
+          prerequisites?: string[]
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+          created_by?: string | null
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string | null
+          sequence_order?: number
+          category?: 'self_discovery' | 'career_exploration' | 'skill_assessment' | 'goal_setting' | 'action_planning'
+          duration_minutes?: number
+          difficulty_level?: 'beginner' | 'intermediate' | 'advanced'
+          target_grade?: '8' | '9' | '10' | '11' | '12' | 'all'
+          resource_links?: Json
+          worksheet_url?: string | null
+          instructions?: string | null
+          learning_objectives?: string[]
+          prerequisites?: string[]
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+          created_by?: string | null
+        }
+      }
+      
+      student_activity_progress: {
+        Row: {
+          id: string
+          student_id: string
+          activity_id: string
+          teacher_id: string | null
+          status: 'not_started' | 'assigned' | 'in_progress' | 'completed' | 'on_hold'
+          assigned_date: string
+          started_date: string | null
+          completed_date: string | null
+          due_date: string | null
+          results_data: Json
+          counsellor_notes: string | null
+          student_feedback: string | null
+          completion_percentage: number
+          time_spent_minutes: number
+          difficulty_rating: number | null
+          enjoyment_rating: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          student_id: string
+          activity_id: string
+          teacher_id?: string | null
+          status?: 'not_started' | 'assigned' | 'in_progress' | 'completed' | 'on_hold'
+          assigned_date?: string
+          started_date?: string | null
+          completed_date?: string | null
+          due_date?: string | null
+          results_data?: Json
+          counsellor_notes?: string | null
+          student_feedback?: string | null
+          completion_percentage?: number
+          time_spent_minutes?: number
+          difficulty_rating?: number | null
+          enjoyment_rating?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          student_id?: string
+          activity_id?: string
+          teacher_id?: string | null
+          status?: 'not_started' | 'assigned' | 'in_progress' | 'completed' | 'on_hold'
+          assigned_date?: string
+          started_date?: string | null
+          completed_date?: string | null
+          due_date?: string | null
+          results_data?: Json
+          counsellor_notes?: string | null
+          student_feedback?: string | null
+          completion_percentage?: number
+          time_spent_minutes?: number
+          difficulty_rating?: number | null
+          enjoyment_rating?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      
+      student_notes: {
+        Row: {
+          id: string
+          student_id: string
+          teacher_id: string | null
+          note_type: 'observation' | 'meeting' | 'progress' | 'concern' | 'achievement' | 'follow_up'
+          title: string
+          content: string
+          is_private: boolean
+          tags: string[]
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          student_id: string
+          teacher_id?: string | null
+          note_type: 'observation' | 'meeting' | 'progress' | 'concern' | 'achievement' | 'follow_up'
+          title: string
+          content: string
+          is_private?: boolean
+          tags?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          student_id?: string
+          teacher_id?: string | null
+          note_type?: 'observation' | 'meeting' | 'progress' | 'concern' | 'achievement' | 'follow_up'
+          title?: string
+          content?: string
+          is_private?: boolean
+          tags?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      
+      student_groups: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          teacher_id: string
+          school_id: string
+          class_id: string
+          max_students: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          teacher_id: string
+          school_id: string
+          class_id: string
+          max_students?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          teacher_id?: string
+          school_id?: string
+          class_id?: string
+          max_students?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      
+      counselling_resources: {
+        Row: {
+          id: string
+          title: string
+          description: string | null
+          type: 'pdf' | 'video' | 'chart' | 'slides' | 'worksheet' | 'template' | 'guide'
+          file_url: string | null
+          thumbnail_url: string | null
+          file_size_bytes: number | null
+          duration_minutes: number | null
+          tags: string[]
+          target_audience: 'students' | 'teachers' | 'parents' | 'all'
+          grade_level: '8' | '9' | '10' | '11' | '12' | 'all'
+          is_active: boolean
+          download_count: number
+          created_at: string
+          updated_at: string
+          created_by: string | null
+        }
+        Insert: {
+          id?: string
+          title: string
+          description?: string | null
+          type: 'pdf' | 'video' | 'chart' | 'slides' | 'worksheet' | 'template' | 'guide'
+          file_url?: string | null
+          thumbnail_url?: string | null
+          file_size_bytes?: number | null
+          duration_minutes?: number | null
+          tags?: string[]
+          target_audience?: 'students' | 'teachers' | 'parents' | 'all'
+          grade_level?: '8' | '9' | '10' | '11' | '12' | 'all'
+          is_active?: boolean
+          download_count?: number
+          created_at?: string
+          updated_at?: string
+          created_by?: string | null
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string | null
+          type?: 'pdf' | 'video' | 'chart' | 'slides' | 'worksheet' | 'template' | 'guide'
+          file_url?: string | null
+          thumbnail_url?: string | null
+          file_size_bytes?: number | null
+          duration_minutes?: number | null
+          tags?: string[]
+          target_audience?: 'students' | 'teachers' | 'parents' | 'all'
+          grade_level?: '8' | '9' | '10' | '11' | '12' | 'all'
+          is_active?: boolean
+          download_count?: number
+          created_at?: string
+          updated_at?: string
+          created_by?: string | null
         }
       }
     }

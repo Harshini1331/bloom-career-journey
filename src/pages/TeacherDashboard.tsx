@@ -1,153 +1,198 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Users, 
-  MessageCircle, 
-  BookOpen, 
-  Settings, 
-  LogOut, 
+  UserPlus,
   Search,
-  CheckCircle,
-  Clock,
-  Lock,
-  Send,
-  Phone,
-  Mail,
-  TrendingUp,
-  AlertTriangle,
-  Award,
-  Calendar,
-  BarChart3,
-  Target,
-  Lightbulb,
-  Star,
+  Filter,
+  Edit,
   Eye,
   Plus,
-  Filter,
+  BookOpen, 
+  Target,
+  TrendingUp,
+  Calendar,
+  Clock,
+  Star,
+  Award,
+  GraduationCap,
+  School,
+  Home,
+  Phone,
+  Mail,
+  MapPin,
+  User,
+  LogOut,
+  Settings, 
+  ChevronDown,
+  Crown,
+  Activity,
+  BarChart3,
+  FileText,
   Download,
-  Bell,
-  Shield,
-  Heart,
-  FileText
+  Upload,
+  MoreHorizontal,
+  CheckCircle,
+  AlertCircle,
+  Clock as ClockIcon,
+  Users as UsersIcon,
+  BookOpen as BookOpenIcon,
+  Target as TargetIcon
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import AssessmentResponsesView from '@/components/teacher/AssessmentResponsesView';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface Student {
   id: string;
-  users: {
-    id: string;
+  user_id: string;
+  class_id: string;
+  teacher_id: string;
+  enrollment_date: string;
+  enrollment_status: string;
+  previous_school?: string;
+  special_needs?: string;
+  parent_guardian_name?: string;
+  parent_guardian_phone?: string;
+  parent_guardian_email?: string;
+  parent_guardian_occupation?: string;
+  family_income_range?: string;
+  academic_performance?: string;
+  attendance_percentage?: number;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  user?: {
     full_name: string;
-    mobile: string;
+    email: string;
+    mobile?: string;
   };
-  classes: {
+  class?: {
     name: string;
   };
-  progress?: Array<{
-    activity_id: string;
-    status: string;
-    activities: {
-      title: string;
-      sequence_number: number;
-    };
-  }>;
 }
 
-interface Activity {
-  id: string;
-  title: string;
-  description: string;
-  sequence_number: number;
+interface StudentStats {
+  totalStudents: number;
+  activeStudents: number;
+  recentAdditions: number;
+  averageProgress: number;
 }
 
 export default function TeacherDashboard() {
   const { userProfile, signOut } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
+
+  // State management
   const [students, setStudents] = useState<Student[]>([]);
-  const [activities, setActivities] = useState<Activity[]>([]);
+  const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
+  const [studentStats, setStudentStats] = useState<StudentStats>({
+    totalStudents: 0,
+    activeStudents: 0,
+    recentAdditions: 0,
+    averageProgress: 0
+  });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedStudent, setSelectedStudent] = useState<string>('');
-  const [selectedActivity, setSelectedActivity] = useState<string>('');
-  const [supportMessage, setSupportMessage] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [selectedGrade, setSelectedGrade] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
 
+  // Add Student Modal State
+  const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
+  const [newStudent, setNewStudent] = useState({
+    fullName: '',
+    email: '',
+    mobile: '',
+    grade: '',
+    parentName: '',
+    parentPhone: '',
+    parentEmail: '',
+    address: ''
+  });
+
+
+
+  // Filter students based on search and filters
   useEffect(() => {
-    fetchData();
-  }, []);
+    let filtered = students;
 
-  const fetchData = async () => {
+    // Search filter
+    if (searchTerm) {
+      filtered = filtered.filter(student => 
+        student.user?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        student.user?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        student.parent_guardian_name?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Grade filter
+    if (selectedGrade !== 'all') {
+      filtered = filtered.filter(student => student.class?.name === selectedGrade);
+    }
+
+    // Status filter
+    if (selectedStatus !== 'all') {
+      filtered = filtered.filter(student => student.enrollment_status === selectedStatus);
+    }
+
+    setFilteredStudents(filtered);
+  }, [students, searchTerm, selectedGrade, selectedStatus]);
+
+  const loadStudents = async () => {
     try {
-      if (!userProfile?.teacherProfile?.id) {
-        console.warn('No teacher profile found, skipping data fetch');
-        setLoading(false);
-        return;
-      }
-
-      // Fetch students assigned to this teacher
-      const { data: studentsData, error: studentsError } = await supabase
+      setLoading(true);
+      
+      // Get teacher's students with related data
+      const { data, error } = await supabase
         .from('students')
-        .select(`
-          id,
-          users:user_id(id, full_name, mobile),
-          classes:class_id(name)
-        `)
-        .eq('teacher_id', userProfile.teacherProfile.id);
-
-      if (studentsError) throw studentsError;
-
-      // Fetch activities
-      const { data: activitiesData, error: activitiesError } = await supabase
-        .from('activities')
-        .select('*')
-        .order('sequence_number');
-
-      if (activitiesError) throw activitiesError;
-
-      // Fetch progress for all students
-      const studentIds = studentsData?.map(s => s.id) || [];
-      if (studentIds.length > 0) {
-        const { data: progressData, error: progressError } = await supabase
-          .from('student_activity_progress')
           .select(`
             *,
-            activities:activity_id(title, sequence_number)
-          `)
-          .in('student_id', studentIds);
+          user:users(full_name, email, mobile),
+          class:classes(name)
+        `)
+        .eq('teacher_id', userProfile?.id)
+        .order('created_at', { ascending: false });
 
-        if (progressError) throw progressError;
+      if (error) throw error;
 
-        // Group progress by student
-        const progressByStudent = progressData?.reduce((acc, p) => {
-          if (!acc[p.student_id]) acc[p.student_id] = [];
-          acc[p.student_id].push(p);
-          return acc;
-        }, {} as Record<string, any[]>) || {};
-
-        // Add progress to students
-        const studentsWithProgress = studentsData?.map(student => ({
-          ...student,
-          progress: progressByStudent[student.id] || []
-        })) || [];
-
-        setStudents(studentsWithProgress);
-      }
-
-      setActivities(activitiesData || []);
+      setStudents(data || []);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error loading students:', error);
       toast({
         title: "Error",
-        description: "Failed to load dashboard data",
+        description: "Failed to load students. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -155,504 +200,635 @@ export default function TeacherDashboard() {
     }
   };
 
-  const unlockActivity = async (studentId: string, activityId: string) => {
+  const loadStudentStats = async () => {
     try {
-      const { error } = await supabase
-        .from('student_activity_progress')
-        .upsert({
-          student_id: studentId,
-          activity_id: activityId,
-          status: 'unlocked'
-        });
+      const totalStudents = students.length;
+      const activeStudents = students.filter(s => s.enrollment_status === 'active').length;
+      const recentAdditions = students.filter(s => {
+        const daysDiff = (Date.now() - new Date(s.created_at).getTime()) / (1000 * 60 * 60 * 24);
+        return daysDiff <= 7;
+      }).length;
 
-      if (error) throw error;
+      // Calculate average progress (placeholder for now)
+      const averageProgress = 75; // This will be calculated from assessment data later
 
-      toast({
-        title: "Activity Unlocked",
-        description: "Student can now access this activity",
+      setStudentStats({
+        totalStudents,
+        activeStudents,
+        recentAdditions,
+        averageProgress
+      });
+    } catch (error) {
+      console.error('Error loading stats:', error);
+    }
+  };
+
+  const handleAddStudent = async () => {
+    try {
+      // First create user account
+      const { data: userData, error: userError } = await supabase.auth.admin.createUser({
+        email: newStudent.email,
+        password: 'temporary123', // Will be changed by user
+        email_confirm: true,
+        user_metadata: {
+          full_name: newStudent.fullName,
+          role: 'student'
+        }
       });
 
-      fetchData(); // Refresh data
+      if (userError) throw userError;
+
+      // Create student record
+      const { error: studentError } = await supabase
+        .from('students')
+        .insert({
+          user_id: userData.user.id,
+          teacher_id: userProfile?.id,
+          class_id: newStudent.grade, // This should be a proper class ID
+          enrollment_status: 'active',
+          parent_guardian_name: newStudent.parentName,
+          parent_guardian_phone: newStudent.parentPhone,
+          parent_guardian_email: newStudent.parentEmail
+        });
+
+      if (studentError) throw studentError;
+
+      toast({
+        title: "Student Added! ✨",
+        description: `${newStudent.fullName} has been successfully enrolled.`,
+      });
+
+      setIsAddStudentOpen(false);
+      setNewStudent({
+        fullName: '',
+        email: '',
+        mobile: '',
+        grade: '',
+        parentName: '',
+        parentPhone: '',
+        parentEmail: '',
+        address: ''
+      });
+
+      // Reload students
+      loadStudents();
     } catch (error) {
-      console.error('Error unlocking activity:', error);
+      console.error('Error adding student:', error);
       toast({
         title: "Error",
-        description: "Failed to unlock activity",
+        description: "Failed to add student. Please try again.",
         variant: "destructive",
       });
     }
   };
 
-  const getStudentProgress = (student: Student) => {
-    const completed = student.progress?.filter(p => p.status === 'completed').length || 0;
-    return activities.length > 0 ? (completed / activities.length) * 100 : 0;
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate('/auth');
+      toast({
+        title: "Logged Out",
+        description: "You have been successfully logged out.",
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
-  const getOverallStats = () => {
-    const totalStudents = students.length;
-    const activeStudents = students.filter(s => getStudentProgress(s) > 0).length;
-    const highPerformers = students.filter(s => getStudentProgress(s) >= 80).length;
-    const needsAttention = students.filter(s => getStudentProgress(s) < 30).length;
+  // Load students data after functions are defined
+  useEffect(() => {
+    if (userProfile?.id) {
+      loadStudents();
+      loadStudentStats();
+    }
+  }, [userProfile]);
 
-    return { totalStudents, activeStudents, highPerformers, needsAttention };
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'bg-green-100 text-green-800';
+      case 'inactive': return 'bg-gray-100 text-gray-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'graduated': return 'bg-blue-100 text-blue-800';
+      case 'transferred': return 'bg-purple-100 text-purple-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
   };
 
-  const filteredStudents = students.filter(student => {
-    const matchesSearch = student.users.full_name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterStatus === 'all' || 
-      (filterStatus === 'high' && getStudentProgress(student) >= 80) ||
-      (filterStatus === 'medium' && getStudentProgress(student) >= 30 && getStudentProgress(student) < 80) ||
-      (filterStatus === 'low' && getStudentProgress(student) < 30);
-    
-    return matchesSearch && matchesFilter;
-  });
-
-  const sendSupportMessage = () => {
-    toast({
-      title: "Message Sent",
-      description: "Your support request has been sent to ILP support team",
-    });
-    setSupportMessage('');
-  };
-
-  const StatusIcon = ({ status }: { status: string }) => {
-    if (status === 'completed') return <CheckCircle className="w-4 h-4 text-green-500" />;
-    if (status === 'unlocked') return <Clock className="w-4 h-4 text-blue-500" />;
-    return <Lock className="w-4 h-4 text-gray-400" />;
+  const getPerformanceColor = (performance?: string) => {
+    switch (performance) {
+      case 'excellent': return 'text-green-600';
+      case 'good': return 'text-blue-600';
+      case 'average': return 'text-yellow-600';
+      case 'below_average': return 'text-orange-600';
+      case 'needs_improvement': return 'text-red-600';
+      default: return 'text-gray-600';
+    }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100">
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-green-600 mx-auto"></div>
-          <p className="mt-4 text-lg text-gray-600">Loading your teaching dashboard...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-green-600">Loading your dashboard...</p>
         </div>
       </div>
     );
   }
 
-  const stats = getOverallStats();
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50">
-      {/* Header with gradient background */}
-      <header className="bg-gradient-to-r from-green-600 to-emerald-700 text-white shadow-lg">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold">👨‍🏫 Teacher Dashboard</h1>
-              <p className="text-green-100 text-lg mt-1">
-                Welcome, {userProfile?.full_name} - {userProfile?.teacherProfile?.schools?.name}
-              </p>
-              <p className="text-green-200 text-base mt-2">
-                Guide your students on their career discovery journey! 🌟
-              </p>
+      {/* Professional Header */}
+      <div className="bg-white border-b border-gray-200 shadow-sm">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo/Brand */}
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-emerald-600 rounded-lg flex items-center justify-center">
+                <GraduationCap className="w-6 h-6 text-white" />
+              </div>
+              <h1 className="text-xl font-bold text-gray-800">Vidya Saathi</h1>
             </div>
-            <div className="flex items-center gap-4">
-              <Button variant="outline" className="border-white text-white hover:bg-white hover:text-green-600">
-                <Bell className="w-4 h-4 mr-2" />
-                Notifications
-              </Button>
-              <Button variant="outline" onClick={signOut} className="border-white text-white hover:bg-white hover:text-green-600">
-                <LogOut className="w-4 h-4 mr-2" />
-                Sign Out
-              </Button>
-            </div>
+
+            {/* Profile Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center space-x-2 hover:bg-gray-100">
+                  <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
+                    <span className="text-white font-semibold text-sm">
+                      {userProfile?.full_name?.charAt(0)?.toUpperCase() || 'T'}
+                    </span>
+                  </div>
+                  <span className="text-gray-700 font-medium">{userProfile?.full_name || 'Teacher'}</span>
+                  <ChevronDown className="w-4 h-4 text-gray-500" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end">
+                <DropdownMenuLabel className="font-semibold">
+                  <div className="flex items-center space-x-2">
+                    <User className="w-4 h-4" />
+                    <span>My Profile</span>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>
+                  <Settings className="w-4 h-4 mr-2" />
+                  Settings
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
-      </header>
+      </div>
 
-      <main className="container mx-auto px-4 py-8">
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+      <div className="container mx-auto px-4 py-8">
+        {/* Welcome Section */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-800 mb-4">Welcome, {userProfile?.full_name}!</h1>
+          <p className="text-xl text-gray-600">
+            Manage your students and guide them through their career journey
+            </p>
+          </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-50 to-blue-100">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-blue-600">Total Students</p>
-                  <p className="text-2xl font-bold text-blue-700">{stats.totalStudents}</p>
+                  <p className="text-blue-600 text-sm font-medium">Total Students</p>
+                  <p className="text-3xl font-bold text-blue-800">{studentStats.totalStudents}</p>
                 </div>
                 <Users className="w-8 h-8 text-blue-600" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-green-50 to-green-100">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-green-600">Active Students</p>
-                  <p className="text-2xl font-bold text-green-700">{stats.activeStudents}</p>
+                  <p className="text-green-600 text-sm font-medium">Active Students</p>
+                  <p className="text-3xl font-bold text-green-800">{studentStats.activeStudents}</p>
                 </div>
-                <TrendingUp className="w-8 h-8 text-green-600" />
+                <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-50 to-purple-100">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-purple-600">High Performers</p>
-                  <p className="text-2xl font-bold text-purple-700">{stats.highPerformers}</p>
+                  <p className="text-purple-600 text-sm font-medium">Recent Additions</p>
+                  <p className="text-3xl font-bold text-purple-800">{studentStats.recentAdditions}</p>
                 </div>
-                <Award className="w-8 h-8 text-purple-600" />
+                <UserPlus className="w-8 h-8 text-purple-600" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-orange-50 to-orange-100">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-orange-600">Need Attention</p>
-                  <p className="text-2xl font-bold text-orange-700">{stats.needsAttention}</p>
+                  <p className="text-orange-600 text-sm font-medium">Avg Progress</p>
+                  <p className="text-3xl font-bold text-orange-800">{studentStats.averageProgress}%</p>
                 </div>
-                <AlertTriangle className="w-8 h-8 text-orange-600" />
+                <TrendingUp className="w-8 h-8 text-orange-600" />
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 hover:shadow-lg transition-all duration-200 cursor-pointer">
-            <CardContent className="p-6 text-center">
-              <Plus className="w-12 h-12 text-blue-600 mx-auto mb-3" />
-              <h3 className="font-semibold text-blue-800 mb-2">Add New Student</h3>
-              <p className="text-sm text-blue-600">Enroll new students to your class</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 hover:shadow-lg transition-all duration-200 cursor-pointer">
-            <CardContent className="p-6 text-center">
-              <Download className="w-12 h-12 text-green-600 mx-auto mb-3" />
-              <h3 className="font-semibold text-green-800 mb-2">Export Reports</h3>
-              <p className="text-sm text-green-600">Download student progress reports</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 hover:shadow-lg transition-all duration-200 cursor-pointer">
-            <CardContent className="p-6 text-center">
-              <Settings className="w-12 h-12 text-purple-600 mx-auto mb-3" />
-              <h3 className="font-semibold text-purple-800 mb-2">Class Settings</h3>
-              <p className="text-sm text-purple-600">Configure class preferences</p>
-            </CardContent>
-          </Card>
-        </div>
-
+        {/* Main Content Tabs */}
         <Tabs defaultValue="students" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 bg-white shadow-md">
-            <TabsTrigger value="students" className="flex items-center gap-2">
+          <TabsList className="grid w-full grid-cols-4 bg-white shadow-sm">
+            <TabsTrigger value="students" className="flex items-center space-x-2">
               <Users className="w-4 h-4" />
-              My Students
+              <span>Students</span>
             </TabsTrigger>
-            <TabsTrigger value="assessments" className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Assessments
+            <TabsTrigger value="activities" className="flex items-center space-x-2">
+              <Activity className="w-4 h-4" />
+              <span>Activities</span>
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
-              Analytics
-            </TabsTrigger>
-            <TabsTrigger value="resources" className="flex items-center gap-2">
+            <TabsTrigger value="resources" className="flex items-center space-x-2">
               <BookOpen className="w-4 h-4" />
-              Resources
+              <span>Resources</span>
             </TabsTrigger>
-            <TabsTrigger value="chat" className="flex items-center gap-2">
-              <MessageCircle className="w-4 h-4" />
-              CareerLM
-            </TabsTrigger>
-            <TabsTrigger value="support" className="flex items-center gap-2">
-              <Heart className="w-4 h-4" />
-              Support
+            <TabsTrigger value="analytics" className="flex items-center space-x-2">
+              <BarChart3 className="w-4 h-4" />
+              <span>Analytics</span>
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="students" className="space-y-4">
+          {/* Students Tab */}
+          <TabsContent value="students" className="space-y-6">
+            {/* Search and Filters */}
             <Card className="border-0 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
-                <CardTitle className="text-xl text-blue-800">Student Management</CardTitle>
-                <CardDescription className="text-blue-600">
-                  Monitor and guide your students' career development progress
-                </CardDescription>
-              </CardHeader>
               <CardContent className="p-6">
-                <div className="flex gap-4 mb-6">
-                  <div className="flex-1">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+                  <div className="flex flex-col sm:flex-row gap-4 flex-1">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                       <Input
-                        placeholder="Search students by name..."
+                        placeholder="Search students by name, email, or parent..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="pl-10"
                       />
                     </div>
-                  </div>
-                  <Select value={filterStatus} onValueChange={setFilterStatus}>
-                    <SelectTrigger className="w-48">
-                      <Filter className="w-4 h-4 mr-2" />
-                      <SelectValue placeholder="Filter by progress" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Students</SelectItem>
-                      <SelectItem value="high">High Performers (80%+)</SelectItem>
-                      <SelectItem value="medium">Medium Progress (30-79%)</SelectItem>
-                      <SelectItem value="low">Need Attention (&lt;30%)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                    
+                    <Select value={selectedGrade} onValueChange={setSelectedGrade}>
+                      <SelectTrigger className="w-40">
+                        <SelectValue placeholder="Select Grade" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Grades</SelectItem>
+                        <SelectItem value="8">Grade 8</SelectItem>
+                        <SelectItem value="9">Grade 9</SelectItem>
+                        <SelectItem value="10">Grade 10</SelectItem>
+                        <SelectItem value="11">Grade 11</SelectItem>
+                        <SelectItem value="12">Grade 12</SelectItem>
+                      </SelectContent>
+                    </Select>
 
-                <div className="grid gap-4">
-                  {filteredStudents.map(student => (
-                    <Card key={student.id} className="p-4 hover:shadow-md transition-all duration-200">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
-                            {student.users.full_name.charAt(0)}
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-lg">{student.users.full_name}</h3>
-                            <p className="text-sm text-muted-foreground">
-                              {student.classes.name} • {student.users.mobile}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <Badge variant={
-                            getStudentProgress(student) >= 80 ? 'default' :
-                            getStudentProgress(student) >= 30 ? 'secondary' : 'destructive'
-                          }>
-                            {Math.round(getStudentProgress(student))}% Complete
-                          </Badge>
-                        </div>
+                    <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                      <SelectTrigger className="w-40">
+                        <SelectValue placeholder="Select Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Status</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="graduated">Graduated</SelectItem>
+                      </SelectContent>
+                    </Select>
                       </div>
                       
-                      <Progress value={getStudentProgress(student)} className="mb-3" />
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                        {activities.map(activity => {
-                          const progress = student.progress?.find(p => p.activity_id === activity.id);
-                          const status = progress?.status || 'locked';
-                          
-                          return (
-                            <div key={activity.id} className="flex items-center justify-between p-2 rounded border bg-gray-50">
-                              <div className="flex items-center gap-2">
-                                <StatusIcon status={status} />
-                                <span className="text-sm font-medium">{activity.title}</span>
-                              </div>
-                              {status === 'locked' && (
                                 <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => unlockActivity(student.id, activity.id)}
-                                  className="text-xs"
+                    onClick={() => setIsAddStudentOpen(true)}
+                    className="bg-green-600 hover:bg-green-700"
                                 >
-                                  Unlock
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Student
                                 </Button>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </Card>
-                  ))}
-                  
-                  {filteredStudents.length === 0 && (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <Users className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                      <p>No students found matching your criteria</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="assessments" className="space-y-4">
-            <AssessmentResponsesView />
-          </TabsContent>
-
-          <TabsContent value="analytics" className="space-y-4">
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card className="border-0 shadow-lg">
-                <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
-                  <CardTitle className="text-lg text-green-800">Progress Distribution</CardTitle>
-                </CardHeader>
-                <CardContent className="p-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">High Performers (80%+)</span>
-                      <Badge variant="default">{stats.highPerformers}</Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Medium Progress (30-79%)</span>
-                      <Badge variant="secondary">{stats.activeStudents - stats.highPerformers}</Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Need Attention (&lt;30%)</span>
-                      <Badge variant="destructive">{stats.needsAttention}</Badge>
-                    </div>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="border-0 shadow-lg">
-                <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
-                  <CardTitle className="text-lg text-blue-800">Activity Completion</CardTitle>
-                </CardHeader>
-                <CardContent className="p-6">
-                  <div className="space-y-3">
-                    {activities.map(activity => {
-                      const completedCount = students.filter(student => 
-                        student.progress?.some(p => p.activity_id === activity.id && p.status === 'completed')
-                      ).length;
-                      const completionRate = students.length > 0 ? (completedCount / students.length) * 100 : 0;
-                      
-                      return (
-                        <div key={activity.id} className="flex items-center justify-between">
-                          <span className="text-sm font-medium">{activity.title}</span>
-                          <div className="flex items-center gap-2">
-                            <Progress value={completionRate} className="w-20 h-2" />
-                            <span className="text-sm text-muted-foreground">{Math.round(completionRate)}%</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="resources" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 hover:shadow-lg transition-all duration-200">
+            {/* Students List */}
+            <Card className="border-0 shadow-lg">
                 <CardHeader>
-                  <CardTitle className="text-blue-800">Career Charts</CardTitle>
-                  <CardDescription className="text-blue-600">Visual career pathway guides</CardDescription>
+                <CardTitle className="text-xl text-gray-800">Student Management</CardTitle>
+                <CardDescription>
+                  Manage your enrolled students and track their progress
+                </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-8 text-blue-600">
-                    <Target className="w-12 h-12 mx-auto mb-3 opacity-70" />
-                    <p>Career charts coming soon...</p>
+                {filteredStudents.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No students found</h3>
+                    <p className="text-gray-500 mb-4">
+                      {searchTerm || selectedGrade !== 'all' || selectedStatus !== 'all' 
+                        ? 'Try adjusting your search or filters'
+                        : 'Get started by adding your first student'
+                      }
+                    </p>
+                    {!searchTerm && selectedGrade === 'all' && selectedStatus === 'all' && (
+                      <Button onClick={() => setIsAddStudentOpen(true)} className="bg-green-600 hover:bg-green-700">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Your First Student
+                      </Button>
+                    )}
                   </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="text-left py-3 px-4 font-medium text-gray-700">Student</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-700">Grade</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-700">Status</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-700">Performance</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-700">Enrolled</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-700">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredStudents.map((student) => (
+                          <tr key={student.id} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="py-4 px-4">
+                              <div>
+                                <p className="font-medium text-gray-900">{student.user?.full_name}</p>
+                                <p className="text-sm text-gray-500">{student.user?.email}</p>
+                                {student.parent_guardian_name && (
+                                  <p className="text-xs text-gray-400">Parent: {student.parent_guardian_name}</p>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-4 px-4">
+                              <Badge variant="outline">{student.class?.name}</Badge>
+                            </td>
+                            <td className="py-4 px-4">
+                              <Badge className={getStatusColor(student.enrollment_status)}>
+                                {student.enrollment_status}
+                              </Badge>
+                            </td>
+                            <td className="py-4 px-4">
+                              <span className={getPerformanceColor(student.academic_performance)}>
+                                {student.academic_performance || 'Not set'}
+                              </span>
+                            </td>
+                            <td className="py-4 px-4">
+                              <p className="text-sm text-gray-600">
+                                {new Date(student.enrollment_date).toLocaleDateString()}
+                              </p>
+                            </td>
+                            <td className="py-4 px-4">
+                              <div className="flex space-x-2">
+                                <Button variant="ghost" size="sm">
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                                <Button variant="ghost" size="sm">
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm">
+                                      <MoreHorizontal className="w-4 h-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent>
+                                    <DropdownMenuItem>
+                                      <Activity className="w-4 h-4 mr-2" />
+                                      View Progress
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem>
+                                      <FileText className="w-4 h-4 mr-2" />
+                                      Add Note
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem>
+                                      <Target className="w-4 h-4 mr-2" />
+                                      Assign Activity
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
                 </CardContent>
               </Card>
-
-              <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 hover:shadow-lg transition-all duration-200">
-                <CardHeader>
-                  <CardTitle className="text-green-800">Video Library</CardTitle>
-                  <CardDescription className="text-green-600">Educational career videos</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8 text-green-600">
-                    <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-70" />
-                    <p>Video library coming soon...</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 hover:shadow-lg transition-all duration-200">
-                <CardHeader>
-                  <CardTitle className="text-purple-800">Slide Decks</CardTitle>
-                  <CardDescription className="text-purple-600">Presentation materials</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8 text-purple-600">
-                    <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-70" />
-                    <p>Slide decks coming soon...</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
           </TabsContent>
 
-          <TabsContent value="chat" className="space-y-4">
-            <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+          {/* Activities Tab */}
+          <TabsContent value="activities" className="space-y-6">
+            <Card className="border-0 shadow-lg">
+                <CardHeader>
+                <CardTitle className="text-xl text-gray-800">Counselling Activities</CardTitle>
+                <CardDescription>
+                  Manage and track student activities and progress
+                </CardDescription>
+                </CardHeader>
+                <CardContent>
+                <div className="text-center py-12">
+                  <Activity className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Activities Coming Soon</h3>
+                  <p className="text-gray-500">
+                    Activity management system will be implemented in the next phase
+                  </p>
+                  </div>
+                </CardContent>
+              </Card>
+          </TabsContent>
+
+          {/* Resources Tab */}
+          <TabsContent value="resources" className="space-y-6">
+            <Card className="border-0 shadow-lg">
               <CardHeader>
-                <CardTitle className="text-2xl text-purple-800">🤖 CareerLM AI Assistant</CardTitle>
-                <CardDescription className="text-purple-700 text-lg">
-                  Get AI-powered insights to better guide your students
+                <CardTitle className="text-xl text-gray-800">Counselling Resources</CardTitle>
+                <CardDescription>
+                  Access ILP career charts, slides, videos, and educational materials
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-12 text-purple-600">
-                  <MessageCircle className="w-24 h-24 mx-auto mb-6 opacity-70" />
-                  <h3 className="text-xl font-semibold mb-2">AI Chat Coming Soon!</h3>
-                  <p className="text-lg mb-4">Your AI teaching assistant will help you:</p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                    <div className="bg-white/50 p-3 rounded-lg">
-                      <Lightbulb className="w-8 h-8 mx-auto mb-2" />
-                      <p>Understand student needs</p>
-                    </div>
-                    <div className="bg-white/50 p-3 rounded-lg">
-                      <Target className="w-8 h-8 mx-auto mb-2" />
-                      <p>Create learning plans</p>
-                    </div>
-                    <div className="bg-white/50 p-3 rounded-lg">
-                      <Star className="w-8 h-8 mx-auto mb-2" />
-                      <p>Track progress effectively</p>
-                    </div>
-                  </div>
+                <div className="text-center py-12">
+                  <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Resources Coming Soon</h3>
+                  <p className="text-gray-500">
+                    Resource management system will be implemented in the next phase
+                  </p>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="support" className="space-y-4">
+          {/* Analytics Tab */}
+          <TabsContent value="analytics" className="space-y-6">
             <Card className="border-0 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-pink-50 to-rose-50">
-                <CardTitle className="text-xl text-pink-800">Contact ILP Support</CardTitle>
-                <CardDescription className="text-pink-600">
-                  Get help from our dedicated support team
+              <CardHeader>
+                <CardTitle className="text-xl text-gray-800">Student Analytics</CardTitle>
+                <CardDescription>
+                  View detailed insights and progress reports
                 </CardDescription>
               </CardHeader>
-              <CardContent className="p-6 space-y-6">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-                    <CardContent className="pt-6">
-                      <div className="flex items-center gap-3 mb-3">
-                        <Phone className="w-5 h-5 text-blue-600" />
-                        <h3 className="font-semibold">Phone Support</h3>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-2">Call us for immediate assistance</p>
-                      <p className="font-mono text-sm">+91 1800-XXX-XXXX</p>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-                    <CardContent className="pt-6">
-                      <div className="flex items-center gap-3 mb-3">
-                        <Mail className="w-5 h-5 text-green-600" />
-                        <h3 className="font-semibold">Email Support</h3>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-2">Send us your queries</p>
-                      <p className="font-mono text-sm">support@ilp.org</p>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                <div className="space-y-3">
-                  <h3 className="font-semibold text-lg">Send a Message</h3>
-                  <Textarea
-                    placeholder="Describe your issue or question..."
-                    value={supportMessage}
-                    onChange={(e) => setSupportMessage(e.target.value)}
-                    rows={4}
-                  />
-                  <Button onClick={sendSupportMessage} disabled={!supportMessage.trim()}>
-                    <Send className="w-4 h-4 mr-2" />
-                    Send Message
-                  </Button>
+              <CardContent>
+                <div className="text-center py-12">
+                  <BarChart3 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Analytics Coming Soon</h3>
+                  <p className="text-gray-500">
+                    Analytics and reporting system will be implemented in the next phase
+                  </p>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
-      </main>
+      </div>
+
+      {/* Add Student Modal */}
+      <Dialog open={isAddStudentOpen} onOpenChange={setIsAddStudentOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl text-gray-800">Add New Student</DialogTitle>
+            <DialogDescription>
+              Enroll a new student and create their account. They will receive login credentials.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6 py-4">
+            {/* Student Basic Information */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">Student Information</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Full Name *</Label>
+                  <Input
+                    id="fullName"
+                    value={newStudent.fullName}
+                    onChange={(e) => setNewStudent(prev => ({ ...prev, fullName: e.target.value }))}
+                    placeholder="Enter student's full name"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={newStudent.email}
+                    onChange={(e) => setNewStudent(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="Enter student's email"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="mobile">Mobile Number</Label>
+                  <Input
+                    id="mobile"
+                    value={newStudent.mobile}
+                    onChange={(e) => setNewStudent(prev => ({ ...prev, mobile: e.target.value }))}
+                    placeholder="Enter mobile number"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="grade">Grade *</Label>
+                  <Select value={newStudent.grade} onValueChange={(value) => setNewStudent(prev => ({ ...prev, grade: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Grade" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="8">Grade 8</SelectItem>
+                      <SelectItem value="9">Grade 9</SelectItem>
+                      <SelectItem value="10">Grade 10</SelectItem>
+                      <SelectItem value="11">Grade 11</SelectItem>
+                      <SelectItem value="12">Grade 12</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* Parent/Guardian Information */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">Parent/Guardian Information</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="parentName">Parent/Guardian Name</Label>
+                  <Input
+                    id="parentName"
+                    value={newStudent.parentName}
+                    onChange={(e) => setNewStudent(prev => ({ ...prev, parentName: e.target.value }))}
+                    placeholder="Enter parent/guardian name"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="parentPhone">Parent/Guardian Phone</Label>
+                  <Input
+                    id="parentPhone"
+                    value={newStudent.parentPhone}
+                    onChange={(e) => setNewStudent(prev => ({ ...prev, parentPhone: e.target.value }))}
+                    placeholder="Enter parent/guardian phone"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="parentEmail">Parent/Guardian Email</Label>
+                  <Input
+                    id="parentEmail"
+                    type="email"
+                    value={newStudent.parentEmail}
+                    onChange={(e) => setNewStudent(prev => ({ ...prev, parentEmail: e.target.value }))}
+                    placeholder="Enter parent/guardian email"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="address">Address</Label>
+                  <Input
+                    id="address"
+                    value={newStudent.address}
+                    onChange={(e) => setNewStudent(prev => ({ ...prev, address: e.target.value }))}
+                    placeholder="Enter address"
+                  />
+                </div>
+              </div>
+            </div>
+
+            
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button variant="outline" onClick={() => setIsAddStudentOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAddStudent}
+              className="bg-green-600 hover:bg-green-700"
+              disabled={!newStudent.fullName || !newStudent.email || !newStudent.grade}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Student
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
