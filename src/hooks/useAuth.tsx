@@ -113,14 +113,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         hint: (insertError as any)?.hint,
       });
 
-      // 2) If FK violation on school_id (23503), retry without school_id
+      // 2) If FK violation on school_id (23503), retry without school_id (last resort)
       const code = (insertError as any)?.code;
       const message = (insertError as any)?.message || '';
-      let minimalPayload = { ...userData };
+      let minimalPayload = { ...userData } as any;
 
       if (code === '23503' && message.includes('school_id')) {
         console.warn('Retrying insert without school_id due to FK violation');
-        delete (minimalPayload as any).school_id;
+        /* remove school_id for retry */
+        delete minimalPayload.school_id;
         const retry = await supabase.from('users').insert(minimalPayload);
         if (!retry.error) {
           console.log('User profile created successfully on retry without school_id');
@@ -137,6 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           password_hash: userData.password_hash || 'handled_by_auth',
           role: userData.role,
           full_name: userData.full_name,
+          school_id: userData.school_id || null,
         };
         const retry = await supabase.from('users').insert(minimalPayload);
         if (!retry.error) {
@@ -158,6 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             full_name: userData.full_name,
             email: userData.email,
             mobile: userData.mobile,
+            school_id: userData.school_id || null,
           },
           { onConflict: 'id' }
         );
@@ -229,9 +232,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let userError: any = null;
       while (attempts < 4) {
         const { data, error } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', userId)
+        .from('users')
+        .select('*')
+        .eq('id', userId)
           .maybeSingle();
         userData = data;
         userError = error;
@@ -255,37 +258,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         // Fetch role-specific data (optional - don't fail if tables don't exist)
         try {
-          if (userData.role === 'student') {
+        if (userData.role === 'student') {
             console.log('Fetching student profile data for user:', userId);
             const { data: studentData, error: studentError } = await supabase
-              .from('students')
+            .from('students')
               .select('*')
-              .eq('user_id', userId)
-              .single();
-            
+            .eq('user_id', userId)
+            .single();
+          
             if (studentError) {
               console.warn('Could not fetch student data:', studentError);
               // Set userProfile with empty studentProfile to avoid undefined errors
               setUserProfile({ ...userData, studentProfile: null });
             } else {
               console.log('Student data fetched successfully:', studentData);
-              setUserProfile({ ...userData, studentProfile: studentData });
+          setUserProfile({ ...userData, studentProfile: studentData });
             }
-          } else if (userData.role === 'teacher') {
+        } else if (userData.role === 'teacher') {
             console.log('Fetching teacher profile data for user:', userId);
             const { data: teacherData, error: teacherError } = await supabase
-              .from('teachers')
+            .from('teachers')
               .select('*')
-              .eq('user_id', userId)
-              .single();
-            
+            .eq('user_id', userId)
+            .single();
+          
             if (teacherError) {
               console.warn('Could not fetch teacher data:', teacherError);
               // Set userProfile with empty teacherProfile to avoid undefined errors
               setUserProfile({ ...userData, teacherProfile: null });
             } else {
               console.log('Teacher data fetched successfully:', teacherData);
-              setUserProfile({ ...userData, teacherProfile: teacherData });
+          setUserProfile({ ...userData, teacherProfile: teacherData });
             }
           } else {
             // For other roles, just set the basic user profile
@@ -322,7 +325,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         // Try to fetch email from profile by mobile, but handle 406 (no row) gracefully
         const { data: userByMobile, error: userByMobileError } = await supabase
-          .from('users')
+        .from('users')
           .select('email')
           .eq('mobile', identifier)
           .maybeSingle();
@@ -448,7 +451,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         try {
           const { data, error } = await supabase
-            .from('users')
+        .from('users')
             .select('id')
             .eq('mobile', finalMobile)
             .maybeSingle();
@@ -467,10 +470,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (existingUserByMobile) {
           console.log('Mobile already exists:', finalMobile);
-          return { error: { message: 'Mobile number already registered' } };
+        return { error: { message: 'Mobile number already registered' } };
         }
       }
-      
+
       // Create Supabase auth user
       console.log('Creating Supabase auth user with email:', finalEmail);
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -502,10 +505,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Insert into custom users table
         console.log('Inserting user profile into database');
         const userProfileData: any = {
-          id: authData.user.id,
-          password_hash: 'handled_by_auth',
-          role,
-          full_name: fullName,
+            id: authData.user.id,
+            password_hash: 'handled_by_auth',
+            role,
+            full_name: fullName,
           school_id: schoolId,
         };
         
@@ -612,10 +615,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         } catch (signInError) {
           console.error('Auto sign-in error:', signInError);
-          toast({
-            title: "Registration successful",
+        toast({
+          title: "Registration successful",
             description: `Welcome to CareerCompass, ${fullName}! Please sign in manually.`,
-          });
+        });
         }
       }
 

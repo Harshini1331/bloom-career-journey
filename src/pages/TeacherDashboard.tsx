@@ -132,6 +132,7 @@ export default function TeacherDashboard() {
 
   // Add Student Modal State
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
+  const [isAddExistingOpen, setIsAddExistingOpen] = useState(false);
   const [newStudent, setNewStudent] = useState({
     fullName: '',
     email: '',
@@ -149,6 +150,22 @@ export default function TeacherDashboard() {
   const [schools, setSchools] = useState<SchoolInfo[]>([]);
   const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [loadingSchools, setLoadingSchools] = useState(false);
+  const [existingQuery, setExistingQuery] = useState('');
+  const [existingResults, setExistingResults] = useState<any[]>([]);
+  const [enrollTarget, setEnrollTarget] = useState<{ userId: string; name: string } | null>(null);
+  const [enrollClassId, setEnrollClassId] = useState<string>('');
+  const [enrolling, setEnrolling] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isProgressOpen, setIsProgressOpen] = useState(false);
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  const [progressSummary, setProgressSummary] = useState<{[k:string]: {count:number; last?: string}}>({});
+  const [activityTimeline, setActivityTimeline] = useState<Array<{id:string; title:string; seq:number; status:string; completed_at?: string}>>([]);
+  const [activities, setActivities] = useState<Array<{id:string; title:string; sequence_number:number}>>([]);
+  const [activityStudentId, setActivityStudentId] = useState<string>('');
+  const [activityProgressMap, setActivityProgressMap] = useState<Record<string, {status:string; completed_at?: string; results?: string}>>({});
+  const [activityNotesMap, setActivityNotesMap] = useState<Record<string, string>>({});
+  const [activitySaving, setActivitySaving] = useState<Record<string, boolean>>({});
 
 
 
@@ -182,10 +199,10 @@ export default function TeacherDashboard() {
     try {
       setLoading(true);
       
-      // First get the teacher's school_id
+      // First get the teacher row
       const { data: teacherData, error: teacherError } = await supabase
         .from('teachers')
-        .select('school_id')
+        .select('id, school_id')
         .eq('user_id', userProfile?.id)
         .single();
 
@@ -199,7 +216,7 @@ export default function TeacherDashboard() {
           user:users(full_name, email, mobile),
           class:classes(name)
         `)
-        .eq('teacher_id', userProfile?.id)
+        .eq('teacher_id', teacherData.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -441,8 +458,55 @@ export default function TeacherDashboard() {
       loadStudents();
       loadStudentStats();
       loadSchools(); // Load schools for add student modal
+      // Preload activities for Activities tab
+      supabase.from('activities').select('id, title, sequence_number').order('sequence_number')
+        .then(({ data, error }) => { if (!error) setActivities(data || []); });
     }
   }, [userProfile]);
+
+  const loadProgressForStudent = async (studentId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('student_activity_progress')
+        .select('activity_id, status, completed_at, results')
+        .eq('student_id', studentId);
+      if (error) throw error;
+      const map: Record<string, {status:string; completed_at?: string; results?: string}> = {};
+      const notes: Record<string, string> = {};
+      (data||[]).forEach((p:any)=>{ map[p.activity_id] = { status: p.status, completed_at: p.completed_at || undefined, results: p.results || undefined }; if (p.results) notes[p.activity_id] = p.results; });
+      setActivityProgressMap(map);
+      setActivityNotesMap(notes);
+    } catch (err) {
+      console.error('Load progress error:', err);
+      setActivityProgressMap({});
+      setActivityNotesMap({});
+    }
+  };
+
+  useEffect(() => {
+    if (activityStudentId) {
+      loadProgressForStudent(activityStudentId);
+    }
+  }, [activityStudentId]);
+
+  const upsertProgress = async (activityId: string, data: Partial<{status:string; completed_at:string|null; results:string|null}>) => {
+    if (!activityStudentId) return;
+    setActivitySaving(prev => ({ ...prev, [activityId]: true }));
+    try {
+      const payload: any = { student_id: activityStudentId, activity_id: activityId, status: activityProgressMap[activityId]?.status || 'unlocked', completed_at: activityProgressMap[activityId]?.completed_at || null, results: activityProgressMap[activityId]?.results || null, ...data };
+      const { error } = await supabase
+        .from('student_activity_progress')
+        .upsert(payload, { onConflict: 'student_id,activity_id' as any });
+      if (error) throw error;
+      await loadProgressForStudent(activityStudentId);
+      toast({ title: 'Saved', description: 'Activity updated' });
+    } catch (err) {
+      console.error('Update progress error:', err);
+      toast({ title: 'Save failed', description: 'Could not update activity', variant: 'destructive' });
+    } finally {
+      setActivitySaving(prev => ({ ...prev, [activityId]: false }));
+    }
+  };
 
   // Load classes when school is selected in add student modal
   useEffect(() => {
@@ -496,7 +560,7 @@ export default function TeacherDashboard() {
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-emerald-600 rounded-lg flex items-center justify-center">
                 <GraduationCap className="w-6 h-6 text-white" />
-              </div>
+          </div>
               <h1 className="text-xl font-bold text-gray-800">Vidya Saathi</h1>
             </div>
 
@@ -511,14 +575,14 @@ export default function TeacherDashboard() {
                   </div>
                   <span className="text-gray-700 font-medium">{userProfile?.full_name || 'Teacher'}</span>
                   <ChevronDown className="w-4 h-4 text-gray-500" />
-                </Button>
+          </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end">
                 <DropdownMenuLabel className="font-semibold">
                   <div className="flex items-center space-x-2">
                     <User className="w-4 h-4" />
                     <span>My Profile</span>
-                  </div>
+        </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>
@@ -633,7 +697,7 @@ export default function TeacherDashboard() {
                         className="pl-10"
                       />
                     </div>
-                    
+
                     <Select value={selectedGrade} onValueChange={setSelectedGrade}>
                       <SelectTrigger className="w-40">
                         <SelectValue placeholder="Select Grade" />
@@ -660,7 +724,7 @@ export default function TeacherDashboard() {
                         <SelectItem value="graduated">Graduated</SelectItem>
                       </SelectContent>
                     </Select>
-                      </div>
+                  </div>
                       
                                 <Button
                     onClick={() => setIsAddStudentOpen(true)}
@@ -669,7 +733,11 @@ export default function TeacherDashboard() {
                     <Plus className="w-4 h-4 mr-2" />
                     Add Student
                                 </Button>
-                  </div>
+                                <Button onClick={() => setIsAddExistingOpen(true)} variant="outline">
+                                  <Search className="w-4 h-4 mr-2" />
+                                  Add Existing Student
+                                </Button>
+                </div>
                 </CardContent>
               </Card>
 
@@ -696,9 +764,9 @@ export default function TeacherDashboard() {
                       <Button onClick={() => setIsAddStudentOpen(true)} className="bg-green-600 hover:bg-green-700">
                         <Plus className="w-4 h-4 mr-2" />
                         Add Your First Student
-                      </Button>
-                    )}
-                  </div>
+                                </Button>
+                              )}
+                        </div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full">
@@ -722,7 +790,7 @@ export default function TeacherDashboard() {
                                 {student.parent_guardian_name && (
                                   <p className="text-xs text-gray-400">Parent: {student.parent_guardian_name}</p>
                                 )}
-                              </div>
+                      </div>
                             </td>
                             <td className="py-4 px-4">
                               <Badge variant="outline">{student.class?.name}</Badge>
@@ -730,7 +798,7 @@ export default function TeacherDashboard() {
                             <td className="py-4 px-4">
                               <Badge className={getStatusColor(student.enrollment_status)}>
                                 {student.enrollment_status}
-                              </Badge>
+                        </Badge>
                             </td>
                             <td className="py-4 px-4">
                               <span className={getPerformanceColor(student.academic_performance)}>
@@ -744,7 +812,32 @@ export default function TeacherDashboard() {
                             </td>
                             <td className="py-4 px-4">
                               <div className="flex space-x-2">
-                                <Button variant="ghost" size="sm">
+                                <Button variant="ghost" size="sm" onClick={async ()=>{ 
+                                  setSelectedStudent(student); 
+                                  try {
+                                    // Load timeline by joining activities with progress
+                                    const { data: acts, error: actsErr } = await supabase
+                                      .from('activities')
+                                      .select('id, title, sequence_number')
+                                      .order('sequence_number');
+                                    if (actsErr) throw actsErr;
+                                    const { data: prog, error: progErr } = await supabase
+                                      .from('student_activity_progress')
+                                      .select('activity_id, status, completed_at')
+                                      .eq('student_id', student.id);
+                                    if (progErr) throw progErr;
+                                    const m = new Map((prog||[]).map((p:any)=>[p.activity_id, p]));
+                                    const timeline = (acts||[]).map((a:any)=>{
+                                      const p = m.get(a.id);
+                                      return { id: a.id, title: a.title, seq: a.sequence_number, status: p?.status || 'locked', completed_at: p?.completed_at || null };
+                                    });
+                                    setActivityTimeline(timeline);
+                                  } catch(err){
+                                    console.error('Timeline load error:', err);
+                                    setActivityTimeline([]);
+                                  }
+                                  setIsDetailsOpen(true); 
+                                }}>
                                   <Eye className="w-4 h-4" />
                                 </Button>
                                 <Button variant="ghost" size="sm">
@@ -757,9 +850,91 @@ export default function TeacherDashboard() {
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent>
-                                    <DropdownMenuItem>
+                                    <DropdownMenuItem onClick={async ()=>{
+                                      setSelectedStudent(student);
+                                      try {
+                                        const { data, error } = await supabase
+                                          .from('assessment_responses')
+                                          .select('assessment_type, completed_at')
+                                          .eq('student_id', student.id);
+                                        if (error) throw error;
+                                        const summary: {[k:string]: {count:number; last?: string}} = {};
+                                        (data||[]).forEach((r:any)=>{
+                                          const t = r.assessment_type;
+                                          if(!summary[t]) summary[t] = {count:0, last: undefined};
+                                          summary[t].count += 1;
+                                          if (!summary[t].last || new Date(r.completed_at) > new Date(summary[t].last!)) {
+                                            summary[t].last = r.completed_at;
+                                          }
+                                        });
+                                        setProgressSummary(summary);
+                                        setIsProgressOpen(true);
+                                      } catch (err) {
+                                        console.error('Load progress error:', err);
+                                        toast({ title: 'Failed to load progress', variant: 'destructive' });
+                                      }
+                                    }}>
                                       <Activity className="w-4 h-4 mr-2" />
                                       View Progress
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="text-red-600"
+                                      onClick={async ()=>{
+                                        if (!confirm('Unenroll this student from your list?')) return;
+                                        try {
+                                          const { error } = await supabase
+                                            .from('students')
+                                            .delete()
+                                            .eq('id', student.id);
+                                          if (error) throw error;
+                                          toast({ title: 'Student unenrolled', description: 'Student has been removed from your list.' });
+                                          loadStudents();
+                                        } catch (err) {
+                                          console.error('Unenroll error:', err);
+                                          toast({ title: 'Unenroll failed', description: 'Could not remove student', variant: 'destructive' });
+                                        }
+                                      }}
+                                    >
+                                      Remove / Unenroll
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={async ()=>{
+                                      setSelectedStudent(student);
+                                      try {
+                                        // progress summary
+                                        const { data } = await supabase
+                                          .from('assessment_responses')
+                                          .select('assessment_type, completed_at')
+                                          .eq('student_id', student.id);
+                                        const summary: {[k:string]: {count:number; last?: string}} = {};
+                                        (data||[]).forEach((r:any)=>{
+                                          const t = r.assessment_type;
+                                          if(!summary[t]) summary[t] = {count:0, last: undefined};
+                                          summary[t].count += 1;
+                                          if (!summary[t].last || new Date(r.completed_at) > new Date(summary[t].last!)) {
+                                            summary[t].last = r.completed_at;
+                                          }
+                                        });
+                                        setProgressSummary(summary);
+                                        // activity timeline
+                                        const { data: acts } = await supabase
+                                          .from('activities').select('id, title, sequence_number').order('sequence_number');
+                                        const { data: prog } = await supabase
+                                          .from('student_activity_progress')
+                                          .select('activity_id, status, completed_at')
+                                          .eq('student_id', student.id);
+                                        const m = new Map((prog||[]).map((p:any)=>[p.activity_id, p]));
+                                        const timeline = (acts||[]).map((a:any)=>{
+                                          const p = m.get(a.id);
+                                          return { id: a.id, title: a.title, seq: a.sequence_number, status: p?.status || 'locked', completed_at: p?.completed_at || null };
+                                        });
+                                        setActivityTimeline(timeline);
+                                        setIsSummaryOpen(true);
+                                      } catch (err) {
+                                        console.error('Load summary error:', err);
+                                        toast({ title: 'Failed to load summary', variant: 'destructive' });
+                                      }
+                                    }}>
+                                      <FileText className="w-4 h-4 mr-2" />
+                                      View Summary
                                     </DropdownMenuItem>
                                     <DropdownMenuItem>
                                       <FileText className="w-4 h-4 mr-2" />
@@ -771,16 +946,16 @@ export default function TeacherDashboard() {
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>
                                 </DropdownMenu>
-                              </div>
+                      </div>
                             </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
-                  </div>
+                </div>
                 )}
-                </CardContent>
-              </Card>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Activities Tab */}
@@ -792,58 +967,101 @@ export default function TeacherDashboard() {
                   Manage and track student activities and progress
                 </CardDescription>
                 </CardHeader>
-                <CardContent>
-                <div className="text-center py-12">
-                  <Activity className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Activities Coming Soon</h3>
-                  <p className="text-gray-500">
-                    Activity management system will be implemented in the next phase
-                  </p>
+                <CardContent className="space-y-4">
+                  {/* Student selector */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <div className="text-sm text-gray-600">Select Student</div>
+                      <Select value={activityStudentId} onValueChange={setActivityStudentId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose a student" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {students.map(s => (
+                            <SelectItem key={s.id} value={s.id}>{s.user?.full_name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
+
+                  {/* Activities list */}
+                  {!activityStudentId ? (
+                    <div className="text-sm text-gray-500">Pick a student to manage activities.</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {activities.map(a => {
+                        const prog = activityProgressMap[a.id] || { status: 'locked' };
+                        const isSaving = activitySaving[a.id];
+                          return (
+                          <Card key={a.id} className="border shadow-sm">
+                            <CardContent className="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                              <div>
+                                <div className="text-sm text-gray-500">#{a.sequence_number}</div>
+                                <div className="font-medium">{a.title}</div>
+                                <div className="text-xs text-gray-500">Status: <span className="font-medium">{prog.status}</span>{prog.completed_at ? ` • Completed: ${new Date(prog.completed_at).toLocaleString()}` : ''}</div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button variant="outline" size="sm" disabled={isSaving || prog.status === 'unlocked'} onClick={()=> upsertProgress(a.id, { status: 'unlocked', completed_at: null })}>Start</Button>
+                                <Button variant="outline" size="sm" disabled={isSaving || prog.status === 'completed'} onClick={()=> upsertProgress(a.id, { status: 'completed', completed_at: new Date().toISOString() })}>Complete</Button>
+                              </div>
+                            </CardContent>
+                            <CardContent className="pt-0">
+                              <div className="text-sm text-gray-600 mb-1">Notes / Results</div>
+                              <Textarea value={activityNotesMap[a.id] || ''} onChange={(e)=> setActivityNotesMap(prev=> ({ ...prev, [a.id]: e.target.value }))} placeholder="Enter results or notes for this activity" />
+                              <div className="mt-2 flex justify-end">
+                                <Button size="sm" disabled={isSaving} onClick={()=> upsertProgress(a.id, { results: activityNotesMap[a.id] || null })}>Save Notes</Button>
+                            </div>
+                            </CardContent>
+                          </Card>
+                          );
+                        })}
+                      </div>
+                  )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Resources Tab */}
           <TabsContent value="resources" className="space-y-6">
             <Card className="border-0 shadow-lg">
-              <CardHeader>
+                <CardHeader>
                 <CardTitle className="text-xl text-gray-800">Counselling Resources</CardTitle>
                 <CardDescription>
                   Access ILP career charts, slides, videos, and educational materials
                 </CardDescription>
-              </CardHeader>
-              <CardContent>
+                </CardHeader>
+                <CardContent>
                 <div className="text-center py-12">
                   <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Resources Coming Soon</h3>
                   <p className="text-gray-500">
                     Resource management system will be implemented in the next phase
                   </p>
-                </div>
-              </CardContent>
-            </Card>
+                  </div>
+                </CardContent>
+              </Card>
           </TabsContent>
 
           {/* Analytics Tab */}
           <TabsContent value="analytics" className="space-y-6">
             <Card className="border-0 shadow-lg">
-              <CardHeader>
+                <CardHeader>
                 <CardTitle className="text-xl text-gray-800">Student Analytics</CardTitle>
                 <CardDescription>
                   View detailed insights and progress reports
                 </CardDescription>
-              </CardHeader>
-              <CardContent>
+                </CardHeader>
+                <CardContent>
                 <div className="text-center py-12">
                   <BarChart3 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Analytics Coming Soon</h3>
                   <p className="text-gray-500">
                     Analytics and reporting system will be implemented in the next phase
                   </p>
-                </div>
-              </CardContent>
-            </Card>
+                  </div>
+                </CardContent>
+              </Card>
           </TabsContent>
         </Tabs>
       </div>
@@ -872,7 +1090,7 @@ export default function TeacherDashboard() {
                     onChange={(e) => setNewStudent(prev => ({ ...prev, fullName: e.target.value }))}
                     placeholder="Enter student's full name"
                   />
-                </div>
+                  </div>
                 
                 <div className="space-y-2">
                   <Label htmlFor="email">Email *</Label>
@@ -883,7 +1101,7 @@ export default function TeacherDashboard() {
                     onChange={(e) => setNewStudent(prev => ({ ...prev, email: e.target.value }))}
                     placeholder="Enter student's email"
                   />
-                </div>
+            </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="mobile">Mobile Number</Label>
@@ -1026,6 +1244,277 @@ export default function TeacherDashboard() {
               <Plus className="w-4 h-4 mr-2" />
               Add Student
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Student Details Drawer (read-only) */}
+      <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl">{selectedStudent?.user?.full_name || 'Student Details'}</DialogTitle>
+            <DialogDescription>Basic profile and current status</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <div className="text-gray-500">Name</div>
+                <div className="font-medium">{selectedStudent?.user?.full_name}</div>
+              </div>
+              <div>
+                <div className="text-gray-500">Mobile</div>
+                <div className="font-medium">{selectedStudent?.user?.mobile || '—'}</div>
+              </div>
+              <div>
+                <div className="text-gray-500">Email</div>
+                <div className="font-medium">{selectedStudent?.user?.email || '—'}</div>
+              </div>
+              <div>
+                <div className="text-gray-500">Class</div>
+                <div className="font-medium">{selectedStudent?.class?.name || '—'}</div>
+              </div>
+              <div>
+                <div className="text-gray-500">Status</div>
+                <div><Badge className={getStatusColor(selectedStudent?.enrollment_status || 'pending')}>{selectedStudent?.enrollment_status}</Badge></div>
+              </div>
+            </div>
+            {/* Activity timeline */}
+            <div className="pt-2">
+              <div className="text-sm font-medium mb-2">Activities</div>
+              {activityTimeline.length === 0 ? (
+                <div className="text-sm text-gray-500">No activity data yet.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-2 pr-2">Sequence</th>
+                        <th className="text-left py-2 pr-2">Title</th>
+                        <th className="text-left py-2 pr-2">Status</th>
+                        <th className="text-left py-2">Completed</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activityTimeline.map(a => (
+                        <tr key={a.id} className="border-b border-gray-100">
+                          <td className="py-2 pr-2">{a.seq}</td>
+                          <td className="py-2 pr-2">{a.title}</td>
+                          <td className="py-2 pr-2">
+                            <Badge className={getStatusColor(a.status)}>{a.status}</Badge>
+                          </td>
+                          <td className="py-2">{a.completed_at ? new Date(a.completed_at).toLocaleString() : '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={()=>{ setIsDetailsOpen(false); }}>Close</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Progress Modal */}
+      <Dialog open={isProgressOpen} onOpenChange={setIsProgressOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl">{selectedStudent?.user?.full_name || 'Student'} – Progress</DialogTitle>
+            <DialogDescription>Latest assessment status and counts</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {['inspiration','dreams','school_learning','role_models','hobbies'].map((t)=> (
+                <Card key={t} className="border shadow-sm">
+              <CardHeader>
+                    <CardTitle className="text-base capitalize">{t.replace('_',' ')}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                    <div className="text-sm text-gray-600">Submissions: <span className="font-medium">{progressSummary[t]?.count || 0}</span></div>
+                    <div className="text-sm text-gray-600">Last completed: <span className="font-medium">{progressSummary[t]?.last ? new Date(progressSummary[t]!.last!).toLocaleString() : '—'}</span></div>
+              </CardContent>
+            </Card>
+              ))}
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={()=> window.print()}>Print</Button>
+            <Button onClick={()=> setIsProgressOpen(false)}>Close</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Summary (printable) */}
+      <Dialog open={isSummaryOpen} onOpenChange={setIsSummaryOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl">{selectedStudent?.user?.full_name || 'Student'} – Summary</DialogTitle>
+            <DialogDescription>Profile, activities snapshot, and assessment highlights</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 print:space-y-2">
+            {/* Profile */}
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <div className="text-gray-500">Name</div>
+                <div className="font-medium">{selectedStudent?.user?.full_name}</div>
+              </div>
+              <div>
+                <div className="text-gray-500">Class</div>
+                <div className="font-medium">{selectedStudent?.class?.name || '—'}</div>
+              </div>
+              <div>
+                <div className="text-gray-500">Mobile</div>
+                <div className="font-medium">{selectedStudent?.user?.mobile || '—'}</div>
+              </div>
+              <div>
+                <div className="text-gray-500">Email</div>
+                <div className="font-medium">{selectedStudent?.user?.email || '—'}</div>
+              </div>
+            </div>
+
+            {/* Assessment highlights */}
+            <div>
+              <div className="text-sm font-medium mb-2">Assessment Highlights</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {['inspiration','dreams','school_learning','role_models','hobbies'].map((t)=> (
+                  <Card key={t} className="border shadow-sm">
+              <CardHeader>
+                      <CardTitle className="text-base capitalize">{t.replace('_',' ')}</CardTitle>
+              </CardHeader>
+                    <CardContent>
+                      <div className="text-sm text-gray-600">Submissions: <span className="font-medium">{progressSummary[t]?.count || 0}</span></div>
+                      <div className="text-sm text-gray-600">Last completed: <span className="font-medium">{progressSummary[t]?.last ? new Date(progressSummary[t]!.last!).toLocaleString() : '—'}</span></div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+
+            {/* Activities snapshot */}
+            <div>
+              <div className="text-sm font-medium mb-2">Activities Snapshot</div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-2 pr-2">#</th>
+                      <th className="text-left py-2 pr-2">Title</th>
+                      <th className="text-left py-2 pr-2">Status</th>
+                      <th className="text-left py-2">Completed</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activityTimeline.map(a => (
+                      <tr key={a.id} className="border-b border-gray-100">
+                        <td className="py-2 pr-2">{a.seq}</td>
+                        <td className="py-2 pr-2">{a.title}</td>
+                        <td className="py-2 pr-2"><Badge className={getStatusColor(a.status)}>{a.status}</Badge></td>
+                        <td className="py-2">{a.completed_at ? new Date(a.completed_at).toLocaleString() : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                      </div>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={()=> window.print()}>Print</Button>
+            <Button onClick={()=> setIsSummaryOpen(false)}>Close</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* Add Existing Student Modal */}
+      <Dialog open={isAddExistingOpen} onOpenChange={(v)=>{ setIsAddExistingOpen(v); setExistingResults([]); setExistingQuery(''); setEnrollTarget(null); }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl text-gray-800">Add Existing Student</DialogTitle>
+            <DialogDescription>
+              Search by mobile, email, or name and enroll the student into your class.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="flex gap-2">
+              <Input placeholder="Enter student mobile / email / name" value={existingQuery} onChange={(e)=>setExistingQuery(e.target.value)} />
+              <Button onClick={async ()=>{
+                try {
+                  const { data, error } = await supabase.rpc('search_students', { teacher_user_id: userProfile?.id, query: existingQuery });
+                  if (error) throw error;
+                  setExistingResults(data || []);
+                } catch (err) {
+                  console.error('Search error:', err);
+                  toast({ title: 'Search failed', description: 'Could not search students', variant: 'destructive' });
+                }
+              }}>
+                <Search className="w-4 h-4 mr-2" /> Search
+              </Button>
+                </div>
+
+            {existingResults.length === 0 ? (
+              <div className="text-sm text-gray-500">No student found. You can create a new one instead.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-2 px-3">Name</th>
+                      <th className="text-left py-2 px-3">Mobile / Email</th>
+                      <th className="text-left py-2 px-3">Current Class</th>
+                      <th className="text-left py-2 px-3">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {existingResults.map((row:any)=> (
+                      <tr key={row.student_user_id} className="border-b border-gray-100">
+                        <td className="py-2 px-3">{row.full_name}</td>
+                        <td className="py-2 px-3">{row.mobile || row.email}</td>
+                        <td className="py-2 px-3">{row.current_class || '—'}</td>
+                        <td className="py-2 px-3">
+                          <Button size="sm" variant="outline" onClick={()=>{ setEnrollTarget({ userId: row.student_user_id, name: row.full_name }); setEnrollClassId(''); }}>
+                            Enroll
+                  </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                </div>
+            )}
+
+            {enrollTarget && (
+              <div className="mt-4 space-y-3 rounded-md border p-3 bg-white">
+                <div className="text-sm text-gray-700">Enroll <span className="font-medium">{enrollTarget.name}</span></div>
+                <div className="flex gap-2">
+                  <Button disabled={enrolling} onClick={async ()=>{
+                    try {
+                      setEnrolling(true);
+                      const { error } = await supabase.rpc('enroll_student_by_user_id', {
+                        teacher_user_id: userProfile?.id,
+                        student_user_id: enrollTarget?.userId,
+                        class_id: null,
+                      });
+                      if (error) throw error;
+                      toast({ title: 'Student enrolled', description: 'Student has been linked to you.' });
+                      setIsAddExistingOpen(false);
+                      setEnrollTarget(null);
+                      loadStudents();
+                    } catch (err) {
+                      console.error('Enroll error:', err);
+                      toast({ title: 'Enrollment failed', description: 'Could not enroll student', variant: 'destructive' });
+                    } finally {
+                      setEnrolling(false);
+                    }
+                  }}>
+                    Confirm Enroll
+                  </Button>
+                  <Button variant="ghost" onClick={()=> setEnrollTarget(null)}>Cancel</Button>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={()=> setIsAddExistingOpen(false)}>Close</Button>
           </div>
         </DialogContent>
       </Dialog>
