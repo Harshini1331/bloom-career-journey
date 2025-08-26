@@ -74,7 +74,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import ResourceManager from '@/components/ResourceManager';
+import ChatbotDialog from '@/components/ChatbotDialog';
+import ContactIlpDialog from '@/components/ContactIlpDialog';
 
 interface Student {
   id: string;
@@ -170,41 +171,11 @@ export default function TeacherDashboard() {
   const [activitySaving, setActivitySaving] = useState<Record<string, boolean>>({});
   const [assessmentAnswers, setAssessmentAnswers] = useState<any[]>([]);
 
-  // Resources dialog for per-activity quick view
-  const [activityResOpen, setActivityResOpen] = useState(false);
-  const [activityResLoading, setActivityResLoading] = useState(false);
-  const [activityResList, setActivityResList] = useState<Array<{id:string; title:string; type:string; file_url:string|null}>>([]);
-  const [activityResTag, setActivityResTag] = useState<string>('');
+  // Help center dialogs
+  const [chatOpen, setChatOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
 
-  const inferTagForActivity = (a: { title: string; sequence_number: number }) => {
-    if (/inspiration/i.test(a.title) || a.sequence_number === 1) return 'inspiration';
-    if (/dreams/i.test(a.title) || a.sequence_number === 2) return 'dreams';
-    if (/school/i.test(a.title) || a.sequence_number === 3) return 'school_learning';
-    if (/role\s*models?/i.test(a.title) || a.sequence_number === 4) return 'role_models';
-    if (/hobbies?/i.test(a.title) || a.sequence_number === 5) return 'hobbies';
-    return 'inspiration';
-  };
-
-  const openActivityResources = async (tag: string) => {
-    try {
-      setActivityResTag(tag);
-      setActivityResOpen(true);
-      setActivityResLoading(true);
-      const { data, error } = await supabase
-        .from('counselling_resources')
-        .select('id,title,type,file_url,is_active,tags,created_at')
-        .contains('tags', [tag])
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      setActivityResList((data as any || []).map((r:any)=> ({ id: r.id, title: r.title, type: r.type, file_url: r.file_url })));
-    } catch (err) {
-      console.error('Load activity resources error:', err);
-      setActivityResList([]);
-    } finally {
-      setActivityResLoading(false);
-    }
-  };
+  // Removed per-activity resources quick view
 
   
 
@@ -630,9 +601,13 @@ export default function TeacherDashboard() {
         </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={()=> setChatOpen(true)}>
                   <Settings className="w-4 h-4 mr-2" />
-                  Settings
+                  AI Chatbot
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={()=> setContactOpen(true)}>
+                  <Settings className="w-4 h-4 mr-2" />
+                  Contact ILP
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">
@@ -1043,7 +1018,6 @@ export default function TeacherDashboard() {
                               <div className="flex items-center gap-2">
                                 <Button variant="outline" size="sm" disabled={isSaving || prog.status === 'unlocked'} onClick={()=> upsertProgress(a.id, { status: 'unlocked', completed_at: null })}>Start</Button>
                                 <Button variant="outline" size="sm" disabled={isSaving || prog.status === 'completed'} onClick={()=> upsertProgress(a.id, { status: 'completed', completed_at: new Date().toISOString() })}>Complete</Button>
-                                <Button variant="outline" size="sm" onClick={()=> openActivityResources(inferTagForActivity(a))}>Resources</Button>
                               </div>
                             </CardContent>
                             <CardContent className="pt-0">
@@ -1072,7 +1046,13 @@ export default function TeacherDashboard() {
                 </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ResourceManager />
+                <div className="text-center py-12">
+                  <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Resources Coming Soon</h3>
+                  <p className="text-gray-500">
+                    Resource management system will be implemented in the next phase
+                  </p>
+                  </div>
                 </CardContent>
               </Card>
           </TabsContent>
@@ -1100,33 +1080,9 @@ export default function TeacherDashboard() {
         </Tabs>
       </div>
 
-      {/* Activity Resources Dialog */}
-      <Dialog open={activityResOpen} onOpenChange={setActivityResOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Resources</DialogTitle>
-            <DialogDescription>Links tagged for this activity ({activityResTag.replace('_',' ')})</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            {activityResLoading ? (
-              <div className="text-sm text-gray-600">Loading…</div>
-            ) : activityResList.length === 0 ? (
-              <div className="text-sm text-gray-600">No resources yet for this activity.</div>
-            ) : (
-              activityResList.map(r => (
-                <div key={r.id} className="flex items-center justify-between">
-                  <div className="text-sm text-gray-800">
-                    {r.title} <span className="text-xs text-gray-500">({r.type})</span>
-                  </div>
-                  {r.file_url && (
-                    <Button size="sm" variant="outline" onClick={()=> window.open(r.file_url!, '_blank')}>Open</Button>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Help Center */}
+      <ChatbotDialog open={chatOpen} onOpenChange={setChatOpen} />
+      <ContactIlpDialog open={contactOpen} onOpenChange={setContactOpen} />
 
       {/* Add Student Modal */}
       <Dialog open={isAddStudentOpen} onOpenChange={setIsAddStudentOpen}>
