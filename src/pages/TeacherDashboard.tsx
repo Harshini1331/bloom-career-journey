@@ -77,6 +77,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ChatbotDialog from '@/components/ChatbotDialog';
 import ContactIlpDialog from '@/components/ContactIlpDialog';
 
+// Marker: Help Center (AI Chatbot + Contact ILP) is integrated – redeploy check
+
 interface Student {
   id: string;
   user_id: string;
