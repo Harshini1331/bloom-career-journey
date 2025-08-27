@@ -519,16 +519,9 @@ export default function StudentDashboard() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end">
-                <DropdownMenuLabel className="font-semibold">
-                  <div className="flex items-center space-x-2">
-                    <User className="w-4 h-4" />
-                    <span>My Profile</span>
-          </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => setIsProfileOpen(true)}>
                   <Edit className="w-4 h-4 mr-2" />
-                  Edit Profile
+                  My Profile
                 </DropdownMenuItem>
                 <DropdownMenuItem>
                   <Settings className="w-4 h-4 mr-2" />
