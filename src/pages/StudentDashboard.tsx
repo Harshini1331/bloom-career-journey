@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -69,6 +69,51 @@ export default function StudentDashboard() {
     areasForGrowth: ''
   });
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // CareerChat LM state (no persistence)
+  type ChatMsg = { id: string; role: 'user' | 'model'; text: string };
+  const [ccMessages, setCcMessages] = useState<ChatMsg[]>([]);
+  const [ccInput, setCcInput] = useState('');
+  const [ccLoading, setCcLoading] = useState(false);
+  const ccApiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
+  const ccListRef = useRef<HTMLDivElement | null>(null);
+  const ccCanSend = useMemo(() => !!ccInput.trim() && !ccLoading, [ccInput, ccLoading]);
+
+  const ccScrollToBottom = () => {
+    requestAnimationFrame(() => {
+      ccListRef.current?.scrollTo({ top: ccListRef.current.scrollHeight, behavior: 'smooth' });
+    });
+  };
+
+  const handleCareerChatSend = async () => {
+    if (!ccCanSend) return;
+    const content = ccInput.trim();
+    setCcInput('');
+    setCcMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'user', text: content }]);
+    ccScrollToBottom();
+
+    if (!ccApiKey) {
+      setCcMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'model', text: 'Gemini API key is not configured. Please set VITE_GEMINI_API_KEY.' }]);
+      return;
+    }
+    setCcLoading(true);
+    try {
+      const history = ccMessages.map(m => ({ role: m.role === 'user' ? 'user' : 'model', parts: [{ text: m.text }] }));
+      const body = { contents: [...history, { role: 'user', parts: [{ text: content }] }] };
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${ccApiKey}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const data = await res.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No response.';
+      setCcMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'model', text }]);
+      ccScrollToBottom();
+    } catch (err) {
+      setCcMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'model', text: 'Failed to get a response. Please try again later.' }]);
+    } finally {
+      setCcLoading(false);
+    }
+  };
 
   // Load profile data when modal opens
   const loadProfileData = async () => {
@@ -729,9 +774,9 @@ export default function StudentDashboard() {
                 </CardHeader>
             <CardContent className="p-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Chat Interface Preview */}
+                {/* Chat Interface */}
                 <div className="space-y-4">
-                  <div className="bg-gray-50 rounded-lg p-4 min-h-[200px]">
+                  <div className="bg-gray-50 rounded-lg p-4 min-h-[200px]" ref={ccListRef}>
                     <div className="flex items-center gap-2 mb-3">
                       <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
                         <Bot className="w-4 h-4 text-white" />
@@ -741,20 +786,27 @@ export default function StudentDashboard() {
                     <p className="text-gray-600 text-sm">
                       Hello! I'm here to help guide your career journey. Based on your assessments, I can provide personalized advice and suggestions.
                     </p>
+                    {ccMessages.map(m => (
+                      <div key={m.id} className="mt-3">
+                        <div className="text-xs text-gray-500 mb-1">{m.role === 'user' ? 'You' : 'CareerBot'}</div>
+                        <div className="text-sm text-gray-700 whitespace-pre-wrap break-words bg-white border rounded p-2">
+                          {m.text}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                   <div className="flex gap-2">
                     <Input 
                       placeholder="Ask me about your career path..." 
                       className="flex-1"
-                      disabled
+                      value={ccInput}
+                      onChange={(e)=> setCcInput(e.target.value)}
                     />
-                    <Button disabled className="bg-purple-600 hover:bg-purple-700">
-                      <MessageSquare className="w-4 h-4" />
+                    <Button onClick={handleCareerChatSend} disabled={!ccCanSend} className="bg-purple-600 hover:bg-purple-700">
+                      {ccLoading ? '...' : <MessageSquare className="w-4 h-4" />}
                     </Button>
                   </div>
-                  <p className="text-xs text-gray-500 text-center">
-                    AI-powered career guidance coming in Phase 2 ✨
-                  </p>
+                  <p className="text-xs text-gray-500 text-center">AI-powered career guidance</p>
                 </div>
 
                 {/* Quick Actions */}
