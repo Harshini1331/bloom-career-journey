@@ -1042,7 +1042,7 @@ export default function TeacherDashboard() {
                   ) : (
                     <div className="space-y-3">
                       {activities.map(a => {
-                        const prog = activityProgressMap[a.id] || { status: 'locked' };
+                        const prog = activityProgressMap[a.id] || { status: 'unlocked' };
                         const isSaving = activitySaving[a.id];
                           return (
                           <Card key={a.id} className="border shadow-sm">
@@ -1056,13 +1056,25 @@ export default function TeacherDashboard() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  disabled={isSaving || prog.status === 'unlocked'}
+                                  disabled={isSaving}
                                   onClick={async ()=>{
                                     await upsertProgress(a.id, { status: 'unlocked', completed_at: null });
                                     await openAnswersForActivity(a);
                                   }}
                                 >Start</Button>
-                                <Button variant="outline" size="sm" disabled={isSaving || prog.status === 'completed'} onClick={()=> upsertProgress(a.id, { status: 'completed', completed_at: new Date().toISOString() })}>Complete</Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={isSaving || prog.status === 'completed'}
+                                  onClick={()=> upsertProgress(a.id, { status: 'completed', completed_at: new Date().toISOString() })}
+                                >Complete</Button>
+                                {prog.status === 'completed' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={()=> upsertProgress(a.id, { status: 'unlocked', completed_at: null })}
+                                  >Reopen</Button>
+                                )}
                               </div>
                             </CardContent>
                             <CardContent className="pt-0">
