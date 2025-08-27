@@ -798,6 +798,7 @@ export default function TeacherDashboard() {
                                   Import CSV
                                 </Button>
                 </div>
+                <div className="text-xs text-gray-500 mt-2">Temporary password for new student accounts: <span className="font-semibold">temporary123</span></div>
                 </CardContent>
               </Card>
 

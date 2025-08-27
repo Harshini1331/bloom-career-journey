@@ -32,29 +32,38 @@ export default function ImportStudentsDialog({ open, onOpenChange, classes, teac
   const [importing, setImporting] = useState(false);
 
   const classMap = useMemo(() => new Map(classes.map(c => [c.class_id, c.class_name])), [classes]);
+  const nameToId = useMemo(() => new Map(classes.map(c => [c.class_name.toLowerCase(), c.class_id])), [classes]);
 
   const onFile = async (file: File) => {
     const text = await file.text();
     const parsed = parseCSV(text);
     const errs: string[] = [];
-    const validated = parsed.filter((r, idx) => {
-      if (!r.full_name) { errs.push(`Row ${idx+2}: missing full_name`); return false; }
-      if (!r.contact) { errs.push(`Row ${idx+2}: missing contact`); return false; }
-      if (!r.class_id || !classMap.has(r.class_id)) { errs.push(`Row ${idx+2}: invalid class_id`); return false; }
-      return true;
+    const normalized: Array<Record<string,string>> = [];
+    parsed.forEach((r, idx) => {
+      if (!r.full_name) { errs.push(`Row ${idx+2}: missing full_name`); return; }
+      if (!r.contact) { errs.push(`Row ${idx+2}: missing contact`); return; }
+      // accept class_id or class_name
+      let classId = r.class_id?.trim();
+      if (!classId) {
+        const className = (r.class_name || '').toLowerCase();
+        classId = nameToId.get(className) || '';
+      }
+      if (!classId || !classMap.has(classId)) { errs.push(`Row ${idx+2}: invalid class (provide class_id or class_name)`); return; }
+      normalized.push({ full_name: r.full_name, contact: r.contact, class_id: classId });
     });
-    setRows(validated);
+    setRows(normalized);
     setErrors(errs);
   };
 
   const downloadTemplate = () => {
-    const csv = 'full_name,contact,class_id\n';
+    const csv = 'full_name,contact,class_name\n';
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = 'students_template.csv'; a.click();
     URL.revokeObjectURL(url);
   };
+
 
   const doImport = async () => {
     if (rows.length === 0) return;
@@ -102,7 +111,7 @@ export default function ImportStudentsDialog({ open, onOpenChange, classes, teac
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Import Students (CSV)</DialogTitle>
-          <DialogDescription>Columns: full_name, contact, class_id</DialogDescription>
+          <DialogDescription>Columns: full_name, contact, class_name (we map name → id)</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div className="flex gap-2">
@@ -110,6 +119,16 @@ export default function ImportStudentsDialog({ open, onOpenChange, classes, teac
             <label className="inline-flex items-center gap-2">
               <input type="file" accept=".csv" onChange={(e)=> e.target.files && onFile(e.target.files[0])} />
             </label>
+          </div>
+          <div className="text-xs text-gray-500">
+            Example (CSV):
+            <pre className="bg-gray-50 border rounded p-2 mt-1 whitespace-pre-wrap">{`full_name,contact,class_name\nAsha Kumar,asha@example.com,Class 8\nRavi M,+919876543210,Class 9`}</pre>
+          </div>
+          <div className="text-xs text-gray-500">
+            Available classes:
+            <div className="mt-1 whitespace-pre-wrap">
+              {classes.map(c => `${c.class_name} (id: ${c.class_id})`).join('\n')}
+            </div>
           </div>
           {rows.length > 0 && (
             <div className="text-sm text-gray-700">Ready to import: {rows.length} rows</div>
