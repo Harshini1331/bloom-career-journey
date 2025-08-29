@@ -282,35 +282,28 @@ export default function TeacherDashboard() {
 
       if (teacherError) throw teacherError;
 
-      // First create user account with school_id
+      // Create user record directly in users table
       const isEmail = /@/.test(newStudent.contact);
-      const { data: userData, error: userError } = await supabase.auth.admin.createUser({
-        email: isEmail ? newStudent.contact : undefined,
-        phone: !isEmail ? newStudent.contact : undefined,
-        password: 'temporary123', // Will be changed by user
-        email_confirm: isEmail ? true : undefined,
-        phone_confirm: !isEmail ? true : undefined,
-        user_metadata: {
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .insert({
           full_name: newStudent.fullName,
-          role: 'student'
-        }
-      });
+          email: isEmail ? newStudent.contact : null,
+          mobile: !isEmail ? newStudent.contact : null,
+          school_id: teacherData.school_id,
+          role: 'student',
+          password_hash: 'temporary123' // This will be a placeholder - students will set real password on first login
+        })
+        .select()
+        .single();
 
       if (userError) throw userError;
-
-      // Update user with school_id
-      const { error: userUpdateError } = await supabase
-        .from('users')
-        .update({ school_id: teacherData.school_id, email: isEmail ? newStudent.contact : null, mobile: !isEmail ? newStudent.contact : null })
-        .eq('id', userData.user.id);
-
-      if (userUpdateError) throw userUpdateError;
 
       // Create student record
       const { error: studentError } = await supabase
         .from('students')
         .insert({
-          user_id: userData.user.id,
+          user_id: userData.id,
           teacher_id: teacherData.id, // must reference teachers.id for RLS to allow updates
           class_id: null,
           enrollment_status: 'active'

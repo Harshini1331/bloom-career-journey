@@ -32,7 +32,7 @@ export default function ContactIlpDialog({ open, onOpenChange }: ContactIlpDialo
         message,
         status: 'open' as const,
       };
-      const { error } = await supabase.from('ilp_queries').insert(payload as any);
+      const { error } = await supabase.from('ilp_queries').insert(payload);
       if (error) throw error;
       setNotice('Your query has been submitted. The ILP team will respond.');
       setSubject('');

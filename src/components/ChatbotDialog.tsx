@@ -65,7 +65,7 @@ export default function ChatbotDialog({ open, onOpenChange }: ChatbotDialogProps
       const modelMessage: Message = { id: crypto.randomUUID(), role: 'model', text };
       setMessages(prev => [...prev, modelMessage]);
       scrollToBottom();
-    } catch (err: any) {
+    } catch (err) {
       const fail: Message = { id: crypto.randomUUID(), role: 'model', text: 'Failed to get a response. Please try again later.' };
       setMessages(prev => [...prev, fail]);
     } finally {

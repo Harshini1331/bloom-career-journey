@@ -315,67 +315,84 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (identifier: string, password: string) => {
     try {
+      console.log('SignIn attempt with identifier:', identifier);
+      
       // Determine if identifier is email or mobile
       const isEmail = identifier.includes('@');
+      let emailForAuth: string;
 
-      // Resolve email to use for auth
-      let emailForAuth: string | null = null;
       if (isEmail) {
         emailForAuth = identifier;
       } else {
-        // Try to fetch email from profile by mobile, but handle 406 (no row) gracefully
+        // For mobile numbers, try to find the user's email
         const { data: userByMobile, error: userByMobileError } = await supabase
-        .from('users')
+          .from('users')
           .select('email')
           .eq('mobile', identifier)
           .maybeSingle();
-        if (userByMobile && userByMobile.email) {
+        
+        if (userByMobileError) {
+          console.error('Error looking up user by mobile:', userByMobileError);
+          // Fall back to generated email pattern
+          emailForAuth = `${identifier}@internal.app`;
+        } else if (userByMobile && userByMobile.email) {
           emailForAuth = userByMobile.email;
         } else {
-          // Fall back to the generated email pattern used at sign-up
+          // Fall back to generated email pattern
           emailForAuth = `${identifier}@internal.app`;
         }
       }
 
+      console.log('Attempting sign in with email:', emailForAuth);
+
       const { data: signInData, error } = await supabase.auth.signInWithPassword({
-        email: emailForAuth as string,
+        email: emailForAuth,
         password,
       });
 
       if (error) {
+        console.error('Sign in error:', error);
         toast({
           title: "Sign in failed",
-          description: "Invalid email/mobile or password",
+          description: error.message || "Invalid email/mobile or password",
           variant: "destructive",
         });
+        return { error };
       }
 
-      // Ensure a user profile row exists after sign-in
-      if (!error && signInData?.user) {
-        const authedUser = signInData.user;
-        // Check if profile row exists
+      if (signInData?.user) {
+        console.log('Sign in successful for user:', signInData.user.id);
+        
+        // Ensure user profile exists in our custom users table
         const { data: profileRow } = await supabase
           .from('users')
-          .select('id')
-          .eq('id', authedUser.id)
+          .select('id, role, full_name, email, mobile')
+          .eq('id', signInData.user.id)
           .maybeSingle();
+        
         if (!profileRow) {
-          const payload: any = {
-            id: authedUser.id,
-            password_hash: 'handled_by_auth',
-            role: (authedUser.user_metadata?.role as any) || 'student',
-            full_name: authedUser.user_metadata?.full_name || 'User',
-            email: emailForAuth,
-          };
-          if (!isEmail) payload.mobile = identifier;
-          await supabase
+          console.log('Creating missing user profile for:', signInData.user.id);
+          // Create profile if it doesn't exist
+          const { error: profileError } = await supabase
             .from('users')
-            .upsert(payload, { onConflict: 'id' as any });
+            .insert({
+              id: signInData.user.id,
+              password_hash: 'handled_by_auth',
+              role: signInData.user.user_metadata?.role || 'student',
+              full_name: signInData.user.user_metadata?.full_name || 'User',
+              email: emailForAuth,
+              mobile: !isEmail ? identifier : null
+            });
+          
+          if (profileError) {
+            console.error('Error creating user profile:', profileError);
+          }
         }
       }
 
-      return { error };
+      return { error: null };
     } catch (error) {
+      console.error('Sign in exception:', error);
       return { error };
     }
   };
@@ -400,7 +417,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: err };
       }
       
-      // If no email is provided, we need to generate one for Supabase auth
+      // Handle email/mobile logic
       let finalEmail = email;
       let finalMobile = mobile;
       
@@ -416,33 +433,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Check if email already exists
       console.log('Checking if email exists:', finalEmail);
-      let existingUserByEmail = null;
-      let emailCheckError = null;
+      const { data: existingUserByEmail, error: emailCheckError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', finalEmail)
+        .maybeSingle();
       
-      try {
-        const { data, error } = await supabase
-          .from('users')
-          .select('id')
-          .eq('email', finalEmail)
-          .maybeSingle();
-        
-        existingUserByEmail = data;
-        emailCheckError = error;
-      } catch (error) {
-        console.log('Email check failed, continuing with registration:', error);
-        // Continue with registration even if email check fails
-      }
-
-      if (emailCheckError && emailCheckError.code !== 'PGRST116') {
-        // If the error is about the column not existing, the migration hasn't been applied
-        if (emailCheckError.message && emailCheckError.message.includes('column "email" does not exist')) {
-          console.log('Email column does not exist - migration not applied, using mobile-only approach');
-          // Fall back to mobile-only registration
-          finalEmail = `${finalMobile || 'user'}@internal.app`;
-        } else {
-          console.error('Error checking email:', emailCheckError);
-          // Don't return error, continue with registration
-        }
+      if (emailCheckError) {
+        console.error('Error checking email:', emailCheckError);
+        return { error: { message: 'Failed to check email availability' } };
       }
 
       if (existingUserByEmail) {
@@ -453,31 +452,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Check if mobile already exists (if provided)
       if (finalMobile) {
         console.log('Checking if mobile exists:', finalMobile);
-        let existingUserByMobile = null;
-        let mobileCheckError = null;
+        const { data: existingUserByMobile, error: mobileCheckError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('mobile', finalMobile)
+          .maybeSingle();
         
-        try {
-          const { data, error } = await supabase
-        .from('users')
-            .select('id')
-            .eq('mobile', finalMobile)
-            .maybeSingle();
-          
-          existingUserByMobile = data;
-          mobileCheckError = error;
-        } catch (error) {
-          console.log('Mobile check failed, continuing with registration:', error);
-          // Continue with registration even if mobile check fails
-        }
-
-        if (mobileCheckError && mobileCheckError.code !== 'PGRST116') {
+        if (mobileCheckError) {
           console.error('Error checking mobile:', mobileCheckError);
-          // Don't return error, continue with registration
+          return { error: { message: 'Failed to check mobile availability' } };
         }
 
         if (existingUserByMobile) {
           console.log('Mobile already exists:', finalMobile);
-        return { error: { message: 'Mobile number already registered' } };
+          return { error: { message: 'Mobile number already registered' } };
         }
       }
 

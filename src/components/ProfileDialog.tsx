@@ -49,7 +49,9 @@ export default function ProfileDialog({ open, onOpenChange }: Props) {
           className: studentRes.data?.classes?.name || '',
           teacher: (studentRes.data as any)?.teachers?.users?.full_name || '',
         });
-      } catch (e) {}
+      } catch (e) {
+        // swallow optional meta fetch errors
+      }
     })();
   }, [userProfile?.id]);
 
