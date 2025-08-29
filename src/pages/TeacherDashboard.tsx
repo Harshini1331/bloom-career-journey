@@ -1211,7 +1211,7 @@ export default function TeacherDashboard() {
             <Button 
               onClick={handleAddStudent}
               className="bg-green-600 hover:bg-green-700"
-              disabled={!newStudent.fullName || !newStudent.contact || !newStudent.grade || !newStudent.schoolId || !newStudent.classId}
+              disabled={!newStudent.fullName || !newStudent.contact || !newStudent.grade}
             >
               <Plus className="w-4 h-4 mr-2" />
               Add Student
