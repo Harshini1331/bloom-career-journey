@@ -269,10 +269,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (studentError) {
               console.warn('Could not fetch student data:', studentError);
               // Set userProfile with empty studentProfile to avoid undefined errors
-              setUserProfile({ ...userData, studentProfile: null });
+              setUserProfile({ ...userData, role: 'student', studentProfile: null });
             } else {
               console.log('Student data fetched successfully:', studentData);
-          setUserProfile({ ...userData, studentProfile: studentData });
+          setUserProfile({ ...userData, role: 'student', studentProfile: studentData });
             }
         } else if (userData.role === 'teacher') {
             console.log('Fetching teacher profile data for user:', userId);
@@ -285,10 +285,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (teacherError) {
               console.warn('Could not fetch teacher data:', teacherError);
               // Set userProfile with empty teacherProfile to avoid undefined errors
-              setUserProfile({ ...userData, teacherProfile: null });
+              setUserProfile({ ...userData, role: 'teacher', teacherProfile: null });
             } else {
               console.log('Teacher data fetched successfully:', teacherData);
-          setUserProfile({ ...userData, teacherProfile: teacherData });
+          setUserProfile({ ...userData, role: 'teacher', teacherProfile: teacherData });
             }
           } else {
             // For other roles, just set the basic user profile
@@ -298,9 +298,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.warn('Error fetching role-specific data:', roleDataError);
           // Set userProfile with empty role-specific profile to avoid undefined errors
           if (userData.role === 'student') {
-            setUserProfile({ ...userData, studentProfile: null });
+            setUserProfile({ ...userData, role: 'student', studentProfile: null });
           } else if (userData.role === 'teacher') {
-            setUserProfile({ ...userData, teacherProfile: null });
+            setUserProfile({ ...userData, role: 'teacher', teacherProfile: null });
           } else {
             setUserProfile(userData);
           }
@@ -378,7 +378,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             .insert({
               id: signInData.user.id,
               password_hash: 'handled_by_auth',
-              role: signInData.user.user_metadata?.role || 'student',
+              role: signInData.user.user_metadata?.role || 'teacher',
               full_name: signInData.user.user_metadata?.full_name || 'User',
               email: emailForAuth,
               mobile: !isEmail ? identifier : null
@@ -386,6 +386,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           if (profileError) {
             console.error('Error creating user profile:', profileError);
+          }
+        } else if (!profileRow.role || profileRow.role === 'student') {
+          // If role is missing or wrong, try to infer from teacher presence
+          const { data: teacherRow } = await supabase
+            .from('teachers')
+            .select('id')
+            .eq('user_id', signInData.user.id)
+            .maybeSingle();
+          const inferredRole = teacherRow ? 'teacher' : 'student';
+          if (inferredRole !== profileRow.role) {
+            await supabase.from('users').update({ role: inferredRole }).eq('id', signInData.user.id);
           }
         }
       }
