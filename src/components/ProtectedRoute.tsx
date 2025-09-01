@@ -18,7 +18,8 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
     hasUserProfile: !!userProfile,
     userRole: userProfile?.role,
     allowedRoles,
-    currentPath: location.pathname
+    currentPath: location.pathname,
+    timestamp: new Date().toISOString()
   });
 
   if (loading) {
@@ -34,6 +35,7 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
     console.log('🔒 ProtectedRoute: Missing user or userProfile, redirecting to auth');
     console.log('🔒 User:', user);
     console.log('🔒 UserProfile:', userProfile);
+    console.log('🔒 Loading state:', loading);
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 

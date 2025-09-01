@@ -205,7 +205,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session?.user) {
           // Fetch user profile data
           setTimeout(() => {
-            fetchUserProfile(session.user.id);
+            fetchUserProfile(session.user.id, session.user as AuthUser);
           }, 0);
         } else {
           setUserProfile(null);
@@ -222,7 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user as AuthUser || null);
       
       if (session?.user) {
-        fetchUserProfile(session.user.id);
+        fetchUserProfile(session.user.id, session.user as AuthUser);
       }
       setLoading(false);
     });
@@ -230,20 +230,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchUserProfile = async (userId: string) => {
+  const fetchUserProfile = async (userId: string, userOverride?: AuthUser) => {
     try {
-      console.log('Fetching user profile for:', userId);
-      console.log('Current user state:', user);
-      console.log('User metadata:', user?.user_metadata);
+      console.log('🔍 Fetching user profile for:', userId);
+      // Use the passed user if available, otherwise fall back to state
+      const currentUser = userOverride || user;
+      console.log('Current user state:', currentUser);
+      console.log('User metadata:', currentUser?.user_metadata);
       
       // 🔧 RLS BYPASS: For custom authenticated students, create profile from auth data
-      if (user && user.user_metadata?.role === 'student') {
+      if (currentUser && currentUser.user_metadata?.role === 'student') {
         console.log('🚀 RLS BYPASS: Using existing student data from authentication');
         const studentProfile = {
           id: userId,
-          full_name: user.user_metadata.full_name,
-          email: user.user_metadata.email,
-          mobile: user.user_metadata.mobile,
+          full_name: currentUser.user_metadata.full_name,
+          email: currentUser.user_metadata.email,
+          mobile: currentUser.user_metadata.mobile,
           role: 'student',
           school_id: null,
           studentProfile: null
@@ -252,6 +254,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Set the profile immediately - this will trigger routing!
         setUserProfile(studentProfile);
         console.log('✅ Student profile set from auth data:', studentProfile);
+        
+        // Small delay to ensure React processes the state change
+        await new Promise(resolve => setTimeout(resolve, 100));
         
         // Try to fetch additional student data (optional, might fail due to RLS)
         try {
@@ -443,12 +448,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Wait for user state to be set before fetching profile
           await new Promise(resolve => setTimeout(resolve, 50));
           
-          // Now fetch the profile
-          await fetchUserProfile(studentUser.user_id);
+          // Now fetch the profile - pass the mockUser directly to avoid state race condition
+          await fetchUserProfile(studentUser.user_id, mockUser);
           console.log('📋 User profile fetched for custom auth student');
           
           // Ensure loading is false for custom auth
           setLoading(false);
+          
+          // Small delay to ensure all state changes are processed
+          await new Promise(resolve => setTimeout(resolve, 50));
           
           toast({
             title: "Sign in successful! ✨",
@@ -508,7 +516,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (signInData?.user) {
         console.log('✅ Supabase Auth successful:', signInData.user);
         setUser(signInData.user);
-        await fetchUserProfile(signInData.user.id);
+        await fetchUserProfile(signInData.user.id, signInData.user as AuthUser);
         
         toast({
           title: "Sign in successful! ✨",
