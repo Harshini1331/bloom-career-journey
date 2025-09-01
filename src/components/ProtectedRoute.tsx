@@ -11,7 +11,18 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
   const { user, loading, userProfile } = useAuth();
   const location = useLocation();
 
+  // Debug logging
+  console.log('🔒 ProtectedRoute check:', {
+    loading,
+    hasUser: !!user,
+    hasUserProfile: !!userProfile,
+    userRole: userProfile?.role,
+    allowedRoles,
+    currentPath: location.pathname
+  });
+
   if (loading) {
+    console.log('🔒 ProtectedRoute: Still loading...');
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <LoaderCircle className="w-8 h-8 animate-spin text-primary" />
@@ -20,10 +31,14 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
   }
 
   if (!user || !userProfile) {
+    console.log('🔒 ProtectedRoute: Missing user or userProfile, redirecting to auth');
+    console.log('🔒 User:', user);
+    console.log('🔒 UserProfile:', userProfile);
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
   if (allowedRoles && !allowedRoles.includes(userProfile.role)) {
+    console.log('🔒 ProtectedRoute: Role mismatch, redirecting to appropriate dashboard');
     // Redirect to appropriate dashboard based on role
     const redirectPath = userProfile.role === 'admin' ? '/admin' 
                         : userProfile.role === 'teacher' ? '/teacher'
@@ -31,5 +46,6 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
     return <Navigate to={redirectPath} replace />;
   }
 
+  console.log('🔒 ProtectedRoute: Access granted');
   return <>{children}</>;
 }

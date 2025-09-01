@@ -21,6 +21,7 @@ import {
   BookOpen
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 interface RoleModel {
   name: string;
@@ -51,6 +52,7 @@ interface RoleModelsAssessmentResponse {
 export default function MyRoleModelsAssessment() {
   const { userProfile } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [responses, setResponses] = useState<RoleModelsAssessmentResponse>({
     part1: {
       roleModel1: {
@@ -286,7 +288,7 @@ export default function MyRoleModelsAssessment() {
                     Review My Responses
                   </Button>
                   <Button 
-                    onClick={() => (window.location.href = '/student')}
+                    onClick={() => navigate('/student')}
                     className="bg-purple-600 hover:bg-purple-700"
                   >
                     Back to Dashboard

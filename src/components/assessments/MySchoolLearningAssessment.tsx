@@ -23,6 +23,7 @@ import {
   Activity
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 interface SchoolLearningAssessmentResponse {
   part1: {
@@ -100,6 +101,7 @@ export default function MySchoolLearningAssessment() {
   const [submitting, setSubmitting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [currentPart, setCurrentPart] = useState<'part1' | 'part2' | 'part3'>('part1');
+  const navigate = useNavigate();
 
   useEffect(() => {
     checkExistingResponse();
@@ -293,7 +295,7 @@ export default function MySchoolLearningAssessment() {
                     Review My Responses
                   </Button>
                   <Button 
-                    onClick={() => (window.location.href = '/student')}
+                    onClick={() => navigate('/student')}
                     className="bg-green-600 hover:bg-green-700"
                   >
                     Back to Dashboard

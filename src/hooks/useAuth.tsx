@@ -42,6 +42,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   console.log('AuthProvider initialized');
 
+  // Monitor userProfile changes for debugging
+  useEffect(() => {
+    console.log('🔄 userProfile state changed:', userProfile);
+    console.log('🔄 Current user state:', user);
+    console.log('🔄 Loading state:', loading);
+  }, [userProfile, user, loading]);
+
   // Test database connection and migration
   const testDatabase = async () => {
     try {
@@ -391,10 +398,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (identifier: string, password: string) => {
     try {
-      console.log('SignIn attempt with identifier:', identifier);
+      console.log('🔐 Sign in attempt for:', identifier);
       
-      // First, try to authenticate using our custom student authentication system
+      // First, try custom authentication for students
       try {
+        console.log('🔄 Attempting custom authentication...');
         const { data: customAuthData, error: customAuthError } = await supabase
           .rpc('authenticate_student', {
             identifier: identifier,
@@ -403,7 +411,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         if (!customAuthError && customAuthData && customAuthData.length > 0) {
           const studentUser = customAuthData[0];
-          console.log('Custom authentication successful for student:', studentUser);
+          console.log('✅ Custom authentication successful for student:', studentUser);
           
           // Create a mock Supabase user object for the student
           const mockUser: AuthUser = {
@@ -418,16 +426,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
           } as AuthUser;
           
-          // Set the user and fetch profile using the actual user_id from database
-          setUser(mockUser);
-          console.log('Mock user set:', mockUser);
-          await fetchUserProfile(studentUser.user_id); // Use user_id from function result
-          console.log('User profile fetched, current userProfile state should be updated');
+          // Create a mock session for custom auth
+          const mockSession = {
+            user: mockUser,
+            access_token: 'custom-auth-token',
+            refresh_token: 'custom-auth-refresh',
+            expires_at: Date.now() + (24 * 60 * 60 * 1000), // 24 hours from now
+            token_type: 'bearer'
+          } as Session;
           
-          // Add a small delay and check the state
-          setTimeout(() => {
-            console.log('Checking userProfile state after delay:', { userProfile });
-          }, 100);
+          // Set all the required state for custom authentication
+          setUser(mockUser);
+          setSession(mockSession);
+          console.log('👤 Mock user and session set for custom auth');
+          
+          // Wait for user state to be set before fetching profile
+          await new Promise(resolve => setTimeout(resolve, 50));
+          
+          // Now fetch the profile
+          await fetchUserProfile(studentUser.user_id);
+          console.log('📋 User profile fetched for custom auth student');
+          
+          // Ensure loading is false for custom auth
+          setLoading(false);
           
           toast({
             title: "Sign in successful! ✨",
@@ -437,7 +458,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return { error: null };
         }
       } catch (customAuthError) {
-        console.log('Custom authentication failed, trying Supabase Auth:', customAuthError);
+        console.log('❌ Custom authentication failed, trying Supabase Auth:', customAuthError);
       }
       
       // Fallback to Supabase Auth for teachers and admins
@@ -467,7 +488,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      console.log('Attempting sign in with email:', emailForAuth);
+      console.log('🔐 Attempting sign in with email:', emailForAuth);
 
       const { data: signInData, error } = await supabase.auth.signInWithPassword({
         email: emailForAuth,
@@ -475,7 +496,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (error) {
-        console.error('Sign in error:', error);
+        console.error('❌ Sign in error:', error);
         toast({
           title: "Sign in failed",
           description: error.message || "Invalid email/mobile or password",
@@ -485,7 +506,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (signInData?.user) {
-        console.log('Supabase Auth successful:', signInData.user);
+        console.log('✅ Supabase Auth successful:', signInData.user);
         setUser(signInData.user);
         await fetchUserProfile(signInData.user.id);
         
@@ -498,11 +519,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       return { error: new Error('Sign in failed') };
-    } catch (error: any) {
-      console.error('Sign in error:', error);
+    } catch (error) {
+      console.error('❌ Sign in error:', error);
       toast({
         title: "Sign in failed",
-        description: error.message || "An unexpected error occurred",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
       return { error };

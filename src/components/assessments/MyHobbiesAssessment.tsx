@@ -25,6 +25,7 @@ import {
   Award
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 interface HobbiesAssessmentResponse {
   question1: string; // What do you do in your spare time?
@@ -39,6 +40,7 @@ interface HobbiesAssessmentResponse {
 export default function MyHobbiesAssessment() {
   const { userProfile } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [responses, setResponses] = useState<HobbiesAssessmentResponse>({
     question1: '',
     question2: '',
@@ -208,7 +210,7 @@ export default function MyHobbiesAssessment() {
                     Review My Responses
                   </Button>
                   <Button 
-                    onClick={() => (window.location.href = '/student')}
+                    onClick={() => navigate('/student')}
                     className="bg-orange-600 hover:bg-orange-700"
                   >
                     Back to Dashboard

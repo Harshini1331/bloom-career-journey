@@ -17,9 +17,11 @@ import {
   Target,
   TrendingUp,
   Video,
-  Youtube
+  Youtube,
+  ArrowLeft
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 interface InspirationVideo {
   id: number;
@@ -95,6 +97,7 @@ export default function MyInspirationAssessment() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
+  const navigate = useNavigate();
 
   // 6 inspirational videos from the worksheet
   const defaultVideos: InspirationVideo[] = useMemo(() => [
@@ -325,7 +328,7 @@ export default function MyInspirationAssessment() {
                     Review My Responses
                   </Button>
                   <Button 
-                    onClick={() => (window.location.href = '/student')}
+                    onClick={() => navigate('/student')}
                     className="bg-blue-600 hover:bg-blue-700"
                   >
                     Back to Dashboard
@@ -344,15 +347,26 @@ export default function MyInspirationAssessment() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 py-8">
       <div className="container mx-auto px-4">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-blue-800 mb-2">✨ My Inspiration</h1>
-          <p className="text-blue-600 text-lg">
-            Watch inspirational videos and reflect on their impact on your life and career journey
-          </p>
-          <p className="text-gray-600 mt-2">
-            Answer the questions after watching each video to discover what inspires you most
-          </p>
+        {/* Header with Back Button */}
+        <div className="flex items-center justify-between mb-8">
+          <Button
+            variant="ghost"
+            onClick={() => navigate('/student')}
+            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Dashboard
+          </Button>
+          <div className="text-center flex-1">
+            <h1 className="text-3xl font-bold text-blue-800 mb-2">✨ My Inspiration</h1>
+            <p className="text-blue-600 text-lg">
+              Watch inspirational videos and reflect on their impact on your life and career journey
+            </p>
+            <p className="text-gray-600 mt-2">
+              Answer the questions after watching each video to discover what inspires you most
+            </p>
+          </div>
+          <div className="w-20"></div> {/* Spacer for centering */}
         </div>
 
         {/* Progress Bar */}

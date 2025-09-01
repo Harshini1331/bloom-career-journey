@@ -21,6 +21,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 interface DreamAssessmentResponse {
   part1: {
@@ -49,6 +50,7 @@ interface DreamAssessmentResponse {
 export default function MyDreamsAssessment() {
   const { userProfile } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [responses, setResponses] = useState<DreamAssessmentResponse>({
     part1: {
       question1: '',
@@ -239,7 +241,7 @@ export default function MyDreamsAssessment() {
                     Review My Responses
                   </Button>
                   <Button 
-                    onClick={() => (window.location.href = '/student')}
+                    onClick={() => navigate('/student')}
                     className="bg-blue-600 hover:bg-blue-700"
                   >
                     Back to Dashboard
