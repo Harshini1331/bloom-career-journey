@@ -85,8 +85,7 @@ export default function ProfileDialog({ open, onOpenChange }: Props) {
         .from('users')
         .update({ 
           full_name: fullName, 
-          career_goals: isTeacher ? (userProfile as any).career_goals || null : goal || null, 
-          profile_picture_url: avatarUrl 
+          career_goals: isTeacher ? (userProfile as any).career_goals || null : goal || null
         })
         .eq('id', userProfile.id);
       if (error) throw error;
