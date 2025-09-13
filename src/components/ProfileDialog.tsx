@@ -88,17 +88,26 @@ export default function ProfileDialog({ open, onOpenChange }: Props) {
       if (password) {
         if (!isTeacher) {
           // Custom-auth students: update student_auth_credentials
-          const identifierNormalized = (meta?.email ? meta?.email.toLowerCase() : meta?.mobile || null);
+          // Use the original login identifier from userProfile to ensure consistency
+          const originalEmail = (userProfile as any).email;
+          const originalMobile = (userProfile as any).mobile;
+          
+          console.log('Updating student password for:', { 
+            userId: userProfile.id, 
+            email: originalEmail, 
+            mobile: originalMobile 
+          });
+          
           const { error: credErr } = await supabase
             .from('student_auth_credentials')
-            .upsert({
-              user_id: userProfile.id,
-              email: meta?.email ? meta?.email.toLowerCase() : null,
-              mobile: meta?.mobile || null,
+            .update({
               password_hash: password,
               is_active: true
-            }, { onConflict: 'user_id' as any });
+            })
+            .eq('user_id', userProfile.id);
           if (credErr) throw credErr;
+          
+          console.log('Student password updated successfully');
         } else {
           // Supabase-auth users (teachers/admins)
           const { error: pwErr } = await supabase.auth.updateUser({ password });
