@@ -403,18 +403,25 @@ export default function ChatBubble({ role }: ChatBubbleProps) {
       {/* Chat Window */}
       {isOpen && (
         <Card className="fixed bottom-6 right-6 w-96 h-[600px] shadow-2xl z-50 flex flex-col border-0 overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex flex-row items-center justify-between space-y-0 pb-4 pt-4">
+          <CardHeader className="bg-gradient-to-r from-blue-100 to-indigo-100 border-b border-blue-200 flex flex-row items-center justify-between space-y-0 pb-4 pt-4">
             <div className="flex items-center gap-3">
               {!showStudentList && otherPartyAvatar && (
-                <Avatar className="h-10 w-10 border-2 border-white shadow-md">
-                  <AvatarImage src={otherPartyAvatar} />
-                  <AvatarFallback className="bg-white text-blue-600 font-semibold">
+                <Avatar className="h-10 w-10 border-2 border-blue-200 shadow-sm">
+                  <AvatarImage src={otherPartyAvatar} className="object-cover" />
+                  <AvatarFallback className="bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-700 font-semibold">
                     {otherPartyName.charAt(0)}
                   </AvatarFallback>
                 </Avatar>
               )}
+              {!showStudentList && !otherPartyAvatar && (
+                <Avatar className="h-10 w-10 border-2 border-blue-200 shadow-sm">
+                  <AvatarFallback className="bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-700 font-semibold">
+                    {otherPartyName?.charAt(0) || 'V'}
+                  </AvatarFallback>
+                </Avatar>
+              )}
               <div>
-                <CardTitle className="text-lg">
+                <CardTitle className="text-lg text-gray-800 font-semibold">
                   {role === 'teacher' && showStudentList 
                     ? 'Message a Student' 
                     : role === 'student' 
@@ -423,7 +430,7 @@ export default function ChatBubble({ role }: ChatBubbleProps) {
                   }
                 </CardTitle>
                 {!showStudentList && (
-                  <p className="text-xs text-blue-100">
+                  <p className="text-xs text-blue-700">
                     {role === 'student' ? 'Your Vidya Saathi' : 'Student'}
                   </p>
                 )}
@@ -440,7 +447,7 @@ export default function ChatBubble({ role }: ChatBubbleProps) {
                     setChannelId(null);
                     setMessages([]);
                   }}
-                  className="text-white hover:bg-white/20 text-sm"
+                  className="text-blue-700 hover:bg-blue-100 text-sm"
                 >
                   ← Back
                 </Button>
@@ -459,7 +466,7 @@ export default function ChatBubble({ role }: ChatBubbleProps) {
                   setMessages([]);
                   setNoTeacherAssigned(false);
                 }}
-                className="text-white hover:bg-white/20 p-1"
+                className="text-gray-600 hover:bg-blue-100 p-1"
               >
                 <X className="h-5 w-5" />
               </Button>
@@ -509,8 +516,8 @@ export default function ChatBubble({ role }: ChatBubbleProps) {
                         className="w-full justify-start gap-3 h-auto py-3 bg-white hover:bg-blue-50 hover:border-blue-300 transition-all duration-200 border-gray-200 shadow-sm"
                         onClick={() => setSelectedStudentId(student.id)}
                       >
-                        <Avatar className="h-10 w-10 border-2 border-blue-100">
-                          <AvatarImage src={student.user?.profile_picture_url} />
+                        <Avatar className="h-10 w-10 border-2 border-blue-100 flex-shrink-0">
+                          <AvatarImage src={student.user?.profile_picture_url} className="object-cover" />
                           <AvatarFallback className="bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-700 font-semibold">
                             {student.user?.full_name?.charAt(0) || 'S'}
                           </AvatarFallback>
