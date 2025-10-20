@@ -50,6 +50,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import CareerSpotlight from '@/components/CareerSpotlight';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -866,8 +867,14 @@ export default function StudentDashboard() {
             </button>
           </CardContent>
         </Card>
-        {/* CareerChat LM Section */}
-        <div className="mt-12">
+        {/* Career Spotlight + CareerChat LM Section */}
+        <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          {/* Left: Spotlight (1 col on lg) */}
+          <div className="order-2 lg:order-1">
+            <CareerSpotlight />
+          </div>
+          {/* Right: CareerChat (2 cols on lg) */}
+          <div className="order-1 lg:order-2 lg:col-span-2">
           <Card className="border-0 shadow-lg">
             <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50">
               <CardTitle className="text-2xl text-purple-800 flex items-center gap-3">
@@ -915,37 +922,12 @@ export default function StudentDashboard() {
                   <p className="text-xs text-gray-500 text-center">AI-powered career guidance</p>
                 </div>
 
-                {/* Quick Actions */}
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-gray-800 mb-3">Quick Career Insights</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
-                      <Briefcase className="w-5 h-5 text-blue-600" />
-                      <div>
-                        <p className="font-medium text-blue-800">Career Paths</p>
-                        <p className="text-sm text-blue-600">Discover potential career options</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
-                      <GraduationCap className="w-5 h-5 text-green-600" />
-                      <div>
-                        <p className="font-medium text-green-800">Skill Development</p>
-                        <p className="text-sm text-green-600">Identify skills to develop</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg">
-                      <Target className="w-5 h-5 text-orange-600" />
-                      <div>
-                        <p className="font-medium text-orange-800">Goal Setting</p>
-                        <p className="text-sm text-orange-600">Set career milestones</p>
-                      </div>
-                    </div>
-                  </div>
-                        </div>
+                {/* Quick Actions removed as requested */}
                   </div>
                 </CardContent>
               </Card>
             </div>
+          </div>
       </div>
 
       {/* Chat Bubble */}

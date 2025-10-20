@@ -7,6 +7,7 @@ import AuthPage from './pages/AuthPage';
 import AdminDashboard from './pages/AdminDashboard';
 import TeacherDashboard from './pages/TeacherDashboard';
 import StudentDashboard from './pages/StudentDashboard';
+import CareersExplore from './pages/CareersExplore';
 import StudentSummary from './pages/StudentSummary';
 import NotFound from './pages/NotFound';
 import MyInspirationAssessment from './components/assessments/MyInspirationAssessment';
@@ -177,6 +178,14 @@ function App() {
                     <StudentDashboard />
                   </ProtectedRoute>
                 } 
+              />
+              <Route
+                path="/careers"
+                element={
+                  <ProtectedRoute allowedRoles={['student']}>
+                    <CareersExplore />
+                  </ProtectedRoute>
+                }
               />
               <Route
                 path="/student/:id/summary"
