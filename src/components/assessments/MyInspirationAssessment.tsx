@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { safeObjectEntries, handleDatabaseError, validateApiResponse } from '@/utils/errorHandler';
 import { AudioRecorder } from '@/components/ui/AudioRecorder';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -109,7 +110,7 @@ interface VideoProgress {
 export default function MyInspirationAssessment() {
   const { userProfile } = useAuth();
   const { toast } = useToast();
-  const helpTexts = {
+  const [helpTexts, setHelpTexts] = useState({
     question1: 'Write about the moments or messages you enjoyed or that made you feel motivated.',
     question2: 'Mention the main lessons or ideas you got from watching or listening.',
     question3: 'Say what actions, habits, or thoughts from the video you want to try in your own life.',
@@ -117,7 +118,39 @@ export default function MyInspirationAssessment() {
     question5: 'Write about the good qualities or values in the characters that you also have.',
     question6: 'Describe what you would do or feel if you were in the same situation.',
     question7: 'Write about the part of the video/audio that motivated or inspired you the most.'
-  } as const;
+  });
+
+  // Load help texts from database
+  useEffect(() => {
+    const loadHelpTextsFromDatabase = async () => {
+      try {
+        console.log('🔄 Loading help texts from database...');
+        const { data, error } = await supabase.rpc('get_inspiration_questions');
+        
+        if (error) {
+          handleDatabaseError(error, 'InspirationAssessment - Help Texts');
+          throw error;
+        }
+        
+        if (validateApiResponse(data, 'InspirationAssessment - Help Texts')) {
+          console.log('✅ Database help texts loaded:', data);
+          const newHelpTexts: { [key: string]: string } = {};
+          data.forEach((question: any, index: number) => {
+            newHelpTexts[`question${index + 1}`] = question.help_text || '';
+          });
+          setHelpTexts(newHelpTexts);
+        } else {
+          console.log('⚠️ No help texts found in database, using fallback');
+        }
+      } catch (error) {
+        handleDatabaseError(error, 'InspirationAssessment - Help Texts');
+        console.log('🔄 Using hardcoded fallback help texts');
+        // Keep default help texts if database fails
+      }
+    };
+    
+    loadHelpTextsFromDatabase();
+  }, []);
   const [inspirationVideos, setInspirationVideos] = useState<InspirationVideo[]>([]);
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [responses, setResponses] = useState<AssessmentResponse>({
@@ -146,49 +179,146 @@ export default function MyInspirationAssessment() {
   const helpKey = (q: keyof typeof helpTexts) => `${getCurrentVideoKey()}_${q}`;
   const toggleHelp = (k: string) => setHelpOpen(prev => ({ ...prev, [k]: !prev[k] }));
 
-  // 6 inspirational videos from the worksheet
-  const defaultVideos: InspirationVideo[] = useMemo(() => [
-    {
-      id: 1,
-      title: "Inspirational Video 1",
-      url: "https://youtu.be/U7-HlfpvQIA?si=_gakjQozpgbZC2aQ",
-      youtubeId: "U7-HlfpvQIA"
-    },
-    {
-      id: 2,
-      title: "Inspirational Video 2", 
-      url: "https://www.youtube.com/watch?v=xqb1hfgfcl8",
-      youtubeId: "xqb1hfgfcl8"
-    },
-    {
-      id: 3,
-      title: "Inspirational Video 3",
-      url: "https://youtu.be/z3PYJ9MfMH4", 
-      youtubeId: "z3PYJ9MfMH4"
-    },
-    {
-      id: 4,
-      title: "Inspirational Video 4",
-      url: "https://youtu.be/X9wViEY5tPQ?si=qDOuMSUatButKwZk",
-      youtubeId: "X9wViEY5tPQ"
-    },
-    {
-      id: 5,
-      title: "Inspirational Video 5",
-      url: "https://youtu.be/PP-kmxMY1ts",
-      youtubeId: "PP-kmxMY1ts"
-    },
-    {
-      id: 6,
-      title: "Inspirational Video 6",
-      url: "https://youtu.be/GPeeZ6viNgY?si=sg4hFF33p3cF4X25",
-      youtubeId: "GPeeZ6viNgY"
-    }
-  ], []);
+  // Load videos from database
+  const [defaultVideos, setDefaultVideos] = useState<InspirationVideo[]>([]);
+  
+  useEffect(() => {
+    const loadVideosFromDatabase = async () => {
+      try {
+        console.log('🔄 Loading videos from database...');
+        const { data, error } = await supabase.rpc('get_inspiration_videos');
+        
+        if (error) {
+          handleDatabaseError(error, 'InspirationAssessment - Videos');
+          throw error;
+        }
+        
+        if (validateApiResponse(data, 'InspirationAssessment - Videos')) {
+          console.log('✅ Database videos loaded:', data.length, 'videos');
+          console.log('📊 Raw database data:', data);
+          
+          // Remove duplicates based on URL to prevent duplicate videos
+          const uniqueVideos = data.filter((video: any, index: number, self: any[]) => 
+            index === self.findIndex((v: any) => v.url === video.url)
+          );
+          
+          console.log('🔍 After deduplication:', uniqueVideos.length, 'unique videos');
+          
+          const videos: InspirationVideo[] = uniqueVideos.map((video: any, index: number) => ({
+            id: index + 1,
+            title: video.title,
+            url: video.url,
+            youtubeId: video.youtube_id || extractYouTubeId(video.url)
+          }));
+          console.log('🔄 Setting default videos:', videos.length);
+          setDefaultVideos(videos);
+        } else {
+          console.log('⚠️ No videos found in database, using fallback');
+          throw new Error('No videos found');
+        }
+      } catch (error) {
+        handleDatabaseError(error, 'InspirationAssessment - Videos');
+        console.log('🔄 Using hardcoded fallback videos');
+        // Fallback to hardcoded videos if database fails
+        setDefaultVideos([
+          {
+            id: 1,
+            title: "Inspirational Video 1",
+            url: "https://youtu.be/U7-HlfpvQIA?si=_gakjQozpgbZC2aQ",
+            youtubeId: "U7-HlfpvQIA"
+          },
+          {
+            id: 2,
+            title: "Inspirational Video 2", 
+            url: "https://www.youtube.com/watch?v=xqb1hfgfcl8",
+            youtubeId: "xqb1hfgfcl8"
+          },
+          {
+            id: 3,
+            title: "Inspirational Video 3",
+            url: "https://youtu.be/z3PYJ9MfMH4", 
+            youtubeId: "z3PYJ9MfMH4"
+          },
+          {
+            id: 4,
+            title: "Inspirational Video 4",
+            url: "https://youtu.be/X9wViEY5tPQ?si=qDOuMSUatButKwZk",
+            youtubeId: "X9wViEY5tPQ"
+          },
+          {
+            id: 5,
+            title: "Inspirational Video 5",
+            url: "https://youtu.be/PP-kmxMY1ts",
+            youtubeId: "PP-kmxMY1ts"
+          },
+          {
+            id: 6,
+            title: "Inspirational Video 6",
+            url: "https://youtu.be/GPeeZ6viNgY?si=sg4hFF33p3cF4X25",
+            youtubeId: "GPeeZ6viNgY"
+          }
+        ]);
+      }
+    };
+    
+    loadVideosFromDatabase();
+  }, []);
+
+  // Extract YouTube ID from URL
+  const extractYouTubeId = (url: string): string => {
+    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const match = url.match(regex);
+    return match ? match[1] : '';
+  };
 
   useEffect(() => {
-    setInspirationVideos(defaultVideos);
-    setLoading(false);
+    if (defaultVideos.length > 0) {
+          console.log('🔄 Setting inspiration videos:', defaultVideos.length);
+          
+          // Ensure we don't exceed 6 videos (safety check)
+          const limitedVideos = defaultVideos.slice(0, 6);
+          if (limitedVideos.length !== defaultVideos.length) {
+            console.warn('⚠️ Video count limited to 6 videos (was:', defaultVideos.length, ')');
+          }
+          
+          setInspirationVideos(limitedVideos);
+      setLoading(false);
+      
+      // Initialize responses structure if not already done
+      if (Object.keys(responses).length === 0) {
+        const initialResponses: AssessmentResponse = {};
+        defaultVideos.forEach((_, index) => {
+          const videoKey = `video${index + 1}` as keyof AssessmentResponse;
+          initialResponses[videoKey] = {
+            question1: '',
+            question2: '',
+            question3: '',
+            question4: '',
+            question5: '',
+            question6: '',
+            question7: ''
+          };
+        });
+        setResponses(initialResponses);
+      }
+      
+      // Initialize video progress
+      const initialProgress = defaultVideos.map(video => ({
+        videoId: video.id,
+        responses: {
+          question1: '',
+          question2: '',
+          question3: '',
+          question4: '',
+          question5: '',
+          question6: '',
+          question7: ''
+        },
+        isComplete: false,
+        savedAt: undefined
+      }));
+      setVideoProgress(initialProgress);
+    }
   }, [defaultVideos]);
 
   // Ensure an assessment_responses row exists and capture its id for audio uploads
@@ -280,24 +410,6 @@ export default function MyInspirationAssessment() {
     return () => clearTimeout(t);
   }, [responses, loading, isCompleted, userProfile]);
 
-  // Initialize video progress
-  useEffect(() => {
-    const initialProgress = defaultVideos.map(video => ({
-      videoId: video.id,
-      responses: {
-        question1: '',
-        question2: '',
-        question3: '',
-        question4: '',
-        question5: '',
-        question6: '',
-        question7: ''
-      },
-      isComplete: false,
-      savedAt: undefined
-    }));
-    setVideoProgress(initialProgress);
-  }, [defaultVideos]);
 
   const checkExistingResponse = useCallback(async () => {
     if (!userProfile) return;
@@ -614,6 +726,10 @@ export default function MyInspirationAssessment() {
   const getProgressPercentage = () => {
     const totalQuestions = 6 * 7; // 6 videos × 7 questions
     const answeredQuestions = Object.entries(responses).reduce((total, [videoKey, video]) => {
+      if (!video || typeof video !== 'object') {
+        return total;
+      }
+      
       const answered = Object.entries(video as Record<string, string>).filter(([q, v]) => {
         const qId = `${videoKey}_${q}`;
         return (v?.trim?.() ?? '') !== '' || !!audioAnswered[qId];
@@ -627,6 +743,11 @@ export default function MyInspirationAssessment() {
     const videoKeys: (keyof AssessmentResponse)[] = ['video1','video2','video3','video4','video5','video6'];
     return videoKeys.every((vk) => {
       const questions = responses[vk];
+      
+      if (!questions || typeof questions !== 'object') {
+        return false;
+      }
+      
       const answered = Object.entries(questions).every(([q, v]) => {
         const qId = `${vk}_${q}`;
         return (v as string).trim() !== '' || !!audioAnswered[qId];
@@ -638,6 +759,12 @@ export default function MyInspirationAssessment() {
   const isVideoComplete = (videoIndex: number) => {
     const videoKey = (`video${videoIndex + 1}`) as keyof AssessmentResponse;
     const questions = responses[videoKey];
+    
+    // Check if questions exist and is an object
+    if (!questions || typeof questions !== 'object') {
+      return false;
+    }
+    
     return Object.entries(questions).every(([q, v]) => {
       const qId = `${videoKey}_${q}`;
       return (v as string).trim() !== '' || !!audioAnswered[qId];
@@ -653,7 +780,13 @@ export default function MyInspirationAssessment() {
   const getCurrentVideoCompletionStatus = () => {
     const videoKey = getCurrentVideoKey();
     const totalQuestions = 7;
-    const answeredQuestions = Object.entries(responses[videoKey]).filter(([q, v]) => {
+    const videoResponses = responses[videoKey];
+    
+    if (!videoResponses || typeof videoResponses !== 'object') {
+      return { answered: 0, total: totalQuestions, isComplete: false };
+    }
+    
+    const answeredQuestions = Object.entries(videoResponses).filter(([q, v]) => {
       const qId = `${videoKey}_${q}`;
       return (v as string).trim() !== '' || !!audioAnswered[qId];
     }).length;
@@ -988,10 +1121,9 @@ export default function MyInspirationAssessment() {
           <div className="text-center flex-1">
             <h1 className="text-3xl font-bold text-blue-800 mb-2">✨ My Inspiration</h1>
             <p className="text-blue-600 text-lg">
-              Watch inspirational videos and reflect on their impact on your life and career journey
-            </p>
-            <p className="text-gray-600 mt-2">
-              Answer the questions after watching each video to discover what inspires you most
+              Each of us is inspired by different things. What inspires us often reflects the qualities and values
+              that we hold dear. By exploring these inspirations, we gain insight into the kind of person we
+              aspire to become and the values we want to uphold in our future careers.
             </p>
           </div>
           <div className="w-20"></div> {/* Spacer for centering */}
@@ -1007,11 +1139,11 @@ export default function MyInspirationAssessment() {
                 <div className="flex items-center gap-3 text-xs text-gray-500">
                   <div className="flex items-center gap-1">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span>{videoProgress.filter(v => v.savedAt && v.isComplete).length} saved</span>
+                    <span>{videoProgress?.filter(v => v.savedAt && v.isComplete).length || 0} saved</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                    <span>{videoProgress.filter(v => v.isComplete).length} complete</span>
+                    <span>{videoProgress?.filter(v => v.isComplete).length || 0} complete</span>
                   </div>
                 </div>
               </div>

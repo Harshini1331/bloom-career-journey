@@ -19,7 +19,17 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
     userRole: userProfile?.role,
     allowedRoles,
     currentPath: location.pathname,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    userDetails: user ? {
+      id: user.id,
+      email: user.email,
+      metadata: user.user_metadata
+    } : null,
+    profileDetails: userProfile ? {
+      id: userProfile.id,
+      role: userProfile.role,
+      full_name: userProfile.full_name
+    } : null
   });
 
   if (loading) {
@@ -36,6 +46,14 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
     console.log('🔒 User:', user);
     console.log('🔒 UserProfile:', userProfile);
     console.log('🔒 Loading state:', loading);
+    console.log('🔒 Current path:', location.pathname);
+    console.log('🔒 Allowed roles:', allowedRoles);
+    
+    // Add a small delay to prevent rapid redirects
+    setTimeout(() => {
+      console.log('🔒 Redirecting to auth after delay');
+    }, 100);
+    
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 

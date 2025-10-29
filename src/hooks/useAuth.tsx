@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 import { useToast } from '@/hooks/use-toast';
@@ -38,16 +38,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<any>(null);
-  const { toast } = useToast();
+  const [isCustomAuth, setIsCustomAuth] = useState(false);
+  const { toast} = useToast();
+  
+  // Use a ref to track if we're currently fetching a profile
+  const fetchingProfileRef = useRef<string | null>(null);
+  
+  // Use a ref to track if we have a valid authenticated state
+  const hasAuthStateRef = useRef(false);
 
   console.log('AuthProvider initialized');
 
-  // Monitor userProfile changes for debugging
+  // Restore custom auth state from localStorage
+  useEffect(() => {
+    const savedCustomAuth = localStorage.getItem('customAuth');
+    const savedUser = localStorage.getItem('customUser');
+    const savedProfile = localStorage.getItem('customProfile');
+    
+    if (savedCustomAuth === 'true' && savedUser && savedProfile) {
+      console.log('🔄 Restoring custom auth state from localStorage');
+      try {
+        const parsedUser = JSON.parse(savedUser);
+        const parsedProfile = JSON.parse(savedProfile);
+        
+        setIsCustomAuth(true);
+        setUser(parsedUser);
+        setUserProfile(parsedProfile);
+        
+        // Also restore the mock session
+        const mockSession = {
+          user: parsedUser,
+          access_token: 'custom-auth-token',
+          refresh_token: 'custom-auth-refresh',
+          expires_at: Date.now() + (24 * 60 * 60 * 1000),
+          token_type: 'bearer'
+        } as Session;
+        setSession(mockSession);
+        
+        setLoading(false);
+        console.log('✅ Custom auth state restored successfully');
+      } catch (error) {
+        console.error('❌ Failed to restore custom auth state:', error);
+        // Clear invalid data
+        localStorage.removeItem('customAuth');
+        localStorage.removeItem('customUser');
+        localStorage.removeItem('customProfile');
+      }
+    }
+  }, []);
+
+  // Monitor userProfile changes for debugging and update hasAuthStateRef
   useEffect(() => {
     console.log('🔄 userProfile state changed:', userProfile);
     console.log('🔄 Current user state:', user);
     console.log('🔄 Loading state:', loading);
-  }, [userProfile, user, loading]);
+    console.log('🔄 Custom auth state:', isCustomAuth);
+    
+    // Update the ref to track if we have valid auth state
+    const hasValidAuth = user !== null && userProfile !== null;
+    hasAuthStateRef.current = hasValidAuth;
+    console.log('🔄 hasAuthStateRef updated to:', hasValidAuth);
+  }, [userProfile, user, loading, isCustomAuth]);
 
   // Test database connection and migration
   const testDatabase = async () => {
@@ -192,32 +243,113 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     console.log('AuthProvider useEffect running');
     
+    // Check if we already restored custom auth from localStorage
+    const hasCustomAuth = localStorage.getItem('customAuth') === 'true';
+    if (hasCustomAuth) {
+      console.log('⏭️ Skipping Supabase auth setup - custom auth already restored');
+      return;
+    }
+    
     // Test database connection
     testDatabase();
+
+    // Track the last event to prevent duplicates
+    let lastEventTime = 0;
+    let lastEventType = '';
 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('Auth state change:', event, session?.user?.id);
-        setSession(session);
-        setUser(session?.user as AuthUser || null);
+        const now = Date.now();
         
-        if (session?.user) {
-          // Fetch user profile data
-          setTimeout(() => {
-            fetchUserProfile(session.user.id, session.user as AuthUser);
-          }, 0);
-        } else {
-          setUserProfile(null);
+        // Ignore duplicate events within 100ms
+        if (event === lastEventType && (now - lastEventTime) < 100) {
+          console.log(`⏭️ Ignoring duplicate ${event} event within 100ms`);
+          return;
         }
         
-        setLoading(false);
+        lastEventTime = now;
+        lastEventType = event;
+        
+        console.log('Auth state change:', event, session?.user?.id);
+        
+        // Don't interfere with custom authentication
+        if (isCustomAuth) {
+          console.log('🔄 Ignoring auth state change - custom auth in progress');
+          return;
+        }
+        
+        // Also check if we have a custom session
+        if (session?.user?.user_metadata?.role === 'student' && !session?.user?.email?.includes('@')) {
+          console.log('🔄 Ignoring auth state change - custom student session detected');
+          return;
+        }
+        
+        // Don't process SIGNED_OUT events if we have custom auth
+        if (event === 'SIGNED_OUT' && isCustomAuth) {
+          console.log('🔄 Ignoring SIGNED_OUT event - custom auth should stay active');
+          return;
+        }
+        
+        // For TOKEN_REFRESHED events, do ABSOLUTELY NOTHING if we already have user and profile
+        if (event === 'TOKEN_REFRESHED') {
+          console.log('🔄 Token refreshed event received');
+          // Check if we already have a valid authenticated state using ref (not closure)
+          if (hasAuthStateRef.current) {
+            console.log('✅ Already authenticated (hasAuthStateRef=true), ignoring TOKEN_REFRESHED completely');
+            return;
+          }
+          // Only process if we don't have auth state yet
+          console.log('⚠️ No auth state yet, updating session from TOKEN_REFRESHED');
+          if (session) {
+            setSession(session);
+            if (session.user) {
+              setUser(session.user as AuthUser);
+            }
+          }
+          return;
+        }
+        
+        // For all other events, only process SIGNED_IN
+        if (event === 'SIGNED_IN') {
+          console.log('✅ SIGNED_IN event, setting up auth state');
+          setSession(session);
+          setUser(session?.user as AuthUser || null);
+          
+          if (session?.user) {
+            setTimeout(() => {
+              fetchUserProfile(session.user.id, session.user as AuthUser);
+            }, 0);
+          }
+          setLoading(false);
+        } else if (event === 'SIGNED_OUT') {
+          console.log('❌ SIGNED_OUT event, clearing auth state');
+          setSession(null);
+          setUser(null);
+          setUserProfile(null);
+          setLoading(false);
+        } else {
+          console.log(`⏭️ Ignoring ${event} event - not SIGNED_IN or SIGNED_OUT`);
+        }
       }
     );
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       console.log('Initial session check:', session?.user?.id);
+      
+      // Don't interfere with custom authentication
+      if (isCustomAuth) {
+        console.log('🔄 Ignoring initial session check - custom auth in progress');
+        return;
+      }
+      
+      // Also check if we have a custom session
+      if (session?.user?.user_metadata?.role === 'student' && !session?.user?.email?.includes('@')) {
+        console.log('🔄 Ignoring initial session check - custom student session detected');
+        return;
+      }
+      
       setSession(session);
       setUser(session?.user as AuthUser || null);
       
@@ -228,13 +360,77 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, []); // Remove isCustomAuth dependency to prevent recreation
 
   const fetchUserProfile = async (userId: string, userOverride?: AuthUser) => {
     try {
       console.log('🔍 Fetching user profile for:', userId);
       
-      // ALWAYS fetch fresh data from database first
+      // If we're already fetching this profile, don't fetch again
+      if (fetchingProfileRef.current === userId) {
+        console.log('⏭️ Already fetching profile for this user, skipping duplicate fetch');
+        return;
+      }
+      
+      // If we already have a profile for this user, don't fetch again
+      if (userProfile && userProfile.id === userId) {
+        console.log('✅ Profile already exists for this user, skipping refetch');
+        return;
+      }
+      
+      // Mark that we're fetching this profile
+      fetchingProfileRef.current = userId;
+      
+      const currentUser = userOverride || user;
+      console.log('Current user state:', currentUser);
+      console.log('User metadata:', currentUser?.user_metadata);
+      
+      // For custom authenticated students, prioritize the auth metadata
+      if (currentUser && currentUser.user_metadata?.role === 'student') {
+        console.log('🎓 Custom student authentication detected, using auth metadata');
+        
+        const baseProfile: any = {
+          id: userId,
+          full_name: currentUser.user_metadata.full_name,
+          email: currentUser.user_metadata.email,
+          mobile: currentUser.user_metadata.mobile,
+          role: 'student',
+          state_id: null
+        };
+        
+        setUserProfile(baseProfile);
+        console.log('✅ Student profile set from auth metadata:', baseProfile);
+        
+        // Save profile to localStorage for persistence
+        localStorage.setItem('customProfile', JSON.stringify(baseProfile));
+        console.log('💾 Saved profile to localStorage');
+        
+        // Try to fetch student-specific data without blocking
+        try {
+          const { data: studentData } = await supabase
+            .from('students')
+            .select('*')
+            .eq('user_id', userId)
+            .maybeSingle();
+          
+          if (studentData) {
+            const finalProfile = { ...baseProfile, studentProfile: studentData };
+            setUserProfile(finalProfile);
+            localStorage.setItem('customProfile', JSON.stringify(finalProfile));
+            console.log('✅ Student profile updated with database data:', finalProfile);
+            console.log('💾 Saved updated profile to localStorage');
+          }
+        } catch (error) {
+          console.warn('Could not fetch student-specific data:', error);
+        }
+        
+        // Ensure the profile is set before continuing
+        console.log('🎓 Custom student profile setup complete');
+        fetchingProfileRef.current = null; // Clear the fetching flag
+        return;
+      }
+      
+      // For regular Supabase Auth users (teachers/admins), fetch from users table
       console.log('🔄 Fetching fresh profile data from database...');
       const { data: freshProfile, error: dbError } = await supabase
         .from('users')
@@ -245,14 +441,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!dbError && freshProfile) {
         console.log('✅ Fresh profile data loaded from database:', freshProfile);
         setUserProfile(freshProfile);
+        fetchingProfileRef.current = null; // Clear the fetching flag
         return;
       }
       
       // Fallback to auth data only if database fetch fails
       console.log('⚠️ Database fetch failed, falling back to auth data');
-      const currentUser = userOverride || user;
-      console.log('Current user state:', currentUser);
-      console.log('User metadata:', currentUser?.user_metadata);
       
       // General fallback: derive role from auth metadata for all roles
       if (currentUser && currentUser.user_metadata?.role) {
@@ -287,6 +481,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (teacherData) setUserProfile((prev:any) => ({ ...prev, teacherProfile: teacherData }));
           }
         } catch {}
+        fetchingProfileRef.current = null; // Clear the fetching flag
         return;
       }
       
@@ -400,6 +595,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const fallbackProfile = { id: userId, role: 'unknown' };
       setUserProfile(fallbackProfile);
       console.log('Fallback userProfile set due to error:', fallbackProfile);
+    } finally {
+      // Clear the fetching flag
+      fetchingProfileRef.current = null;
     }
   };
 
@@ -494,8 +692,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } as Session;
           setUser(mockUser);
           setSession(mockSession);
+          setIsCustomAuth(true);
+          
+          // Fetch profile and wait for it to complete
           await fetchUserProfile(studentUser.user_id, mockUser);
+          
+          // Ensure loading is set to false after profile is fetched
           setLoading(false);
+          
+          // Save custom auth state to localStorage
+          // Note: We need to save the profile in fetchUserProfile after it's set
+          localStorage.setItem('customAuth', 'true');
+          localStorage.setItem('customUser', JSON.stringify(mockUser));
+          
+          console.log('🎓 Custom student authentication complete - user and profile set');
           toast({ title: 'Sign in successful! ✨', description: `Welcome back, ${studentUser.full_name}!` });
           return { error: null };
         }
@@ -762,6 +972,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         variant: "destructive",
       });
     } else {
+      // Reset all auth state
+      setUser(null);
+      setSession(null);
+      setUserProfile(null);
+      setIsCustomAuth(false);
+      setLoading(false);
+      
+      // Clear localStorage
+      localStorage.removeItem('customAuth');
+      localStorage.removeItem('customUser');
+      localStorage.removeItem('customProfile');
+      
       toast({
         title: "Signed out",
         description: "You have been signed out successfully",

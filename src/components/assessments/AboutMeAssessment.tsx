@@ -11,6 +11,16 @@ import { useNavigate } from 'react-router-dom';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { handleDatabaseError, validateApiResponse } from '@/utils/errorHandler';
+
+interface AboutMeField {
+  field_key: string;
+  question_text: string;
+  help_text: string;
+  field_type: 'text' | 'textarea' | 'triple' | 'double';
+  section: string;
+  sequence_number: number;
+}
 
 type Triple = [string, string, string];
 type Double = [string, string];
@@ -84,6 +94,7 @@ export default function AboutMeAssessment() {
   const [submitting, setSubmitting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [helpOpen, setHelpOpen] = useState<Record<string, boolean>>({});
+  const [aboutMeFields, setAboutMeFields] = useState<AboutMeField[]>([]);
   const toggleHelp = (k: string) => setHelpOpen(prev => ({ ...prev, [k]: !prev[k] }));
   
   const getProgressPercentage = () => {
@@ -121,6 +132,34 @@ export default function AboutMeAssessment() {
     const { data } = await supabase.from('students').select('id').eq('user_id', userProfile.id).maybeSingle();
     return data?.id || null;
   }, [userProfile]);
+
+  // Load About Me fields from database
+  useEffect(() => {
+    const loadFields = async () => {
+      try {
+        console.log('🔄 Loading About Me fields from database...');
+        const { data, error } = await supabase.rpc('get_about_me_fields');
+        
+        if (error) {
+          handleDatabaseError(error, 'AboutMeAssessment - Fields');
+          throw error;
+        }
+        
+        if (validateApiResponse(data, 'AboutMeAssessment - Fields')) {
+          console.log('✅ Database fields loaded:', data.length, 'fields');
+          setAboutMeFields(data);
+        } else {
+          console.log('⚠️ No fields found in database, using fallback');
+        }
+      } catch (error) {
+        handleDatabaseError(error, 'AboutMeAssessment - Fields');
+        console.log('🔄 Using hardcoded fallback fields');
+        // Keep using hardcoded HELP object as fallback
+      }
+    };
+    
+    loadFields();
+  }, []);
 
   useEffect(() => {
     const load = async () => {

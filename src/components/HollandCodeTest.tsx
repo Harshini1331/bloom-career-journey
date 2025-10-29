@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { safeObjectEntries, handleDatabaseError, validateApiResponse } from '@/utils/errorHandler';
 
 type CategoryKey = 'R' | 'I' | 'A' | 'S' | 'E' | 'C';
 
@@ -15,70 +16,109 @@ const CATEGORY_LABELS: Record<CategoryKey, string> = {
   C: 'Conventional',
 };
 
-// Question sets adapted to match the ILP Holland test content
-const QUESTIONS: Record<CategoryKey, string[]> = {
-  R: [
-    'I like to fix a car',
-    'I like to build things',
-    'I like to take care of animals',
-    'I like working outdoors',
-    'I like to play a sport',
-    'I like to paint a room',
-    'I like to cook',
-  ],
-  I: [
-    'I like to do experiments',
-    'I like to figure out how things work',
-    'I am good with numbers and charts',
-    'I enjoy science',
-    'I like to do puzzles',
-    'I like to analyze things (problems/solutions)',
-    'I like to evaluate a crime scene',
-  ],
-  A: [
-    'I like acting in a play',
-    'I like to sing or play an instrument',
-    'I like to draw',
-    'I like to design stage sets',
-    'I like to take photographs',
-    'I enjoy creative writing',
-    'I like to read about art and music',
-  ],
-  S: [
-    'I like to get into discussions about issues',
-    'I like trying to help people solve their problems',
-    'I like helping people',
-    'I like to teach or train people',
-    'I like to meet new people',
-    'I like to volunteer for a charity',
-    'I like to work in teams',
-  ],
-  E: [
-    'I like selling things',
-    'I like to start a club',
-    'I like to take charge',
-    'I like to manage money',
-    'I like to lead',
-    'I would like to start my own business',
-    'I like to give speeches',
-  ],
-  C: [
-    'I follow a recipe',
-    'I like to organize things (files, desks/offices)',
-    'I like to create a budget',
-    'I like to follow instructions',
-    'I like to be a bank teller',
-    'I would like to work in an office',
-    'I am good at keeping records of my work',
-  ],
-};
-
 export default function HollandCodeTest({ onCompleted }: { onCompleted?: (code: string) => void }) {
   const { userProfile } = useAuth();
   // checkbox for like/interest => true/false
   const [answers, setAnswers] = useState<Record<string, boolean>>({});
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  
+  // Load questions from database
+  const [QUESTIONS, setQUESTIONS] = useState<Record<CategoryKey, string[]>>({
+    R: [
+      'I like to fix a car',
+      'I like to build things',
+      'I like to take care of animals',
+      'I like working outdoors',
+      'I like to play a sport',
+      'I like to paint a room',
+      'I like to cook',
+    ],
+    I: [
+      'I like to do experiments',
+      'I like to figure out how things work',
+      'I am good with numbers and charts',
+      'I enjoy science',
+      'I like to do puzzles',
+      'I like to analyze things (problems/solutions)',
+      'I like to evaluate a crime scene',
+    ],
+    A: [
+      'I like acting in a play',
+      'I like to sing or play an instrument',
+      'I like to draw',
+      'I like to design stage sets',
+      'I like to take photographs',
+      'I enjoy creative writing',
+      'I like to read about art and music',
+    ],
+    S: [
+      'I like to get into discussions about issues',
+      'I like trying to help people solve their problems',
+      'I like helping people',
+      'I like to teach or train people',
+      'I like to meet new people',
+      'I like to volunteer for a charity',
+      'I like to work in teams',
+    ],
+    E: [
+      'I like selling things',
+      'I like to start a club',
+      'I like to take charge',
+      'I like to manage money',
+      'I like to lead',
+      'I would like to start my own business',
+      'I like to give speeches',
+    ],
+    C: [
+      'I follow a recipe',
+      'I like to organize things (files, desks/offices)',
+      'I like to create a budget',
+      'I like to follow instructions',
+      'I like to be a bank teller',
+      'I would like to work in an office',
+      'I am good at keeping records of my work',
+    ],
+  });
+
+  // Load questions from database
+  useEffect(() => {
+    const loadQuestionsFromDatabase = async () => {
+      try {
+        console.log('🔄 Loading Holland Code questions from database...');
+        const { data, error } = await supabase.rpc('get_holland_code_questions');
+        
+        if (error) {
+          handleDatabaseError(error, 'HollandCodeTest');
+          throw error;
+        }
+        
+        if (validateApiResponse(data, 'HollandCodeTest')) {
+          console.log('✅ Database questions loaded:', data);
+          // Organize questions by category
+          const newQuestions: Record<CategoryKey, string[]> = {
+            R: [], I: [], A: [], S: [], E: [], C: []
+          };
+          
+          data.forEach((q: any) => {
+            if (newQuestions[q.category as CategoryKey]) {
+              newQuestions[q.category as CategoryKey].push(q.question_text);
+            }
+          });
+          
+          setQUESTIONS(newQuestions);
+        } else {
+          console.log('⚠️ No questions found in database, using fallback');
+        }
+      } catch (error) {
+        handleDatabaseError(error, 'HollandCodeTest');
+        console.log('🔄 Using hardcoded fallback questions');
+        // Keep default questions if database fails
+      }
+    };
+    
+    loadQuestionsFromDatabase();
+  }, []);
 
   const handleToggle = (key: string, val: boolean) => {
     setAnswers(prev => ({ ...prev, [key]: val }));
