@@ -22,8 +22,10 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { useLang } from '@/hooks/useLang';
 import { ArrowLeft } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { KannadaKeyboard } from '@/components/ui/KannadaKeyboard';
 
 interface DreamAssessmentResponse {
   part1: {
@@ -50,8 +52,10 @@ interface DreamAssessmentResponse {
 
 export default function MyDreamsAssessment() {
   const { userProfile } = useAuth();
+  const { t, lang } = useLang();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [q, setQ] = useState<Record<string, string>>({});
   const [responses, setResponses] = useState<DreamAssessmentResponse>({
     part1: {
       question1: '',
@@ -82,6 +86,33 @@ export default function MyDreamsAssessment() {
   useEffect(() => {
     checkExistingResponse();
   }, []);
+
+  useEffect(() => {
+    const loadI18n = async () => {
+      try {
+        const { data } = await supabase.rpc('get_dreams_questions_i18n', { p_lang: lang } as any);
+        const arr = Array.isArray(data) ? data : (data?.data || []);
+        const map: Record<string, string> = {};
+        (arr || []).forEach((row: any) => { if (row?.key) map[row.key] = row.text; });
+        setQ(map);
+      } catch {}
+    };
+    loadI18n();
+  }, [lang]);
+
+  // Keep URL ?lang in sync without re-rendering
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      const current = url.searchParams.get('lang');
+      if (current !== lang) {
+        url.searchParams.set('lang', lang);
+        const next = `${url.pathname}?${url.searchParams.toString()}${url.hash}`;
+        const now = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        if (next !== now) window.history.replaceState(window.history.state, '', next);
+      }
+    } catch {}
+  }, [lang]);
 
   // Auto-save draft when responses change (debounced)
   useEffect(() => {
@@ -283,7 +314,7 @@ export default function MyDreamsAssessment() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 py-8" lang={lang} dir="auto">
       <div className="container mx-auto px-4">
         <div className="mb-4">
           <Button
@@ -292,7 +323,7 @@ export default function MyDreamsAssessment() {
             className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
+            {t('backToDashboard')}
           </Button>
         </div>
         <TooltipProvider>
@@ -312,13 +343,13 @@ export default function MyDreamsAssessment() {
         <Card className="mb-6 border-0 shadow-lg">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">Your Progress</h2>
-              <Badge variant="secondary">{Math.round(getProgressPercentage())}% Complete</Badge>
+              <h2 className="text-lg font-semibold text-gray-800">{t('yourProgress')}</h2>
+              <Badge variant="secondary">{Math.round(getProgressPercentage())}% {t('completeSuffix')}</Badge>
             </div>
             <Progress value={getProgressPercentage()} className="h-3" />
             <div className="flex justify-between text-sm text-gray-600 mt-2">
               <span>Part {currentPart === 'part1' ? '1' : '2'} of 2</span>
-              <span>{Math.round(getProgressPercentage())}% Complete</span>
+              <span>{Math.round(getProgressPercentage())}% {t('completeSuffix')}</span>
             </div>
           </CardContent>
         </Card>
@@ -362,7 +393,7 @@ export default function MyDreamsAssessment() {
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    1. What dreams do you have for your future?
+                    {q['question1'] || '1. What dreams do you have for your future?'}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700">💬</button>
@@ -371,7 +402,7 @@ export default function MyDreamsAssessment() {
                     </Tooltip>
                   </label>
                   <Textarea
-                  placeholder="Write about what you wish to become or achieve in life."
+                  placeholder={q['question1'] || 'Write about what you wish to become or achieve in life.'}
                     value={responses.part1.question1}
                     onChange={(e) => handleResponseChange('part1', 'question1', e.target.value)}
                     rows={4}
@@ -382,7 +413,7 @@ export default function MyDreamsAssessment() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      2. What educational degree that you aspire to get?
+                      {q['question2'] || '2. What educational degree that you aspire to get?'}
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700">💬</button>
@@ -391,7 +422,7 @@ export default function MyDreamsAssessment() {
                       </Tooltip>
                     </label>
                     <Textarea
-                      placeholder="Mention the course or degree you want to study in the future."
+                      placeholder={q['question2'] || 'Mention the course or degree you want to study in the future.'}
                       value={responses.part1.question2}
                       onChange={(e) => handleResponseChange('part1', 'question2', e.target.value)}
                       rows={2}
@@ -401,7 +432,7 @@ export default function MyDreamsAssessment() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      3. What is your aspirational career?
+                      {q['question3'] || '3. What is your aspirational career?'}
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700">💬</button>
@@ -410,7 +441,7 @@ export default function MyDreamsAssessment() {
                       </Tooltip>
                     </label>
                     <Textarea
-                      placeholder="Write about the job or profession you wish to do when you grow up."
+                      placeholder={q['question3'] || 'Write about the job or profession you wish to do when you grow up.'}
                       value={responses.part1.question3}
                       onChange={(e) => handleResponseChange('part1', 'question3', e.target.value)}
                       rows={2}
@@ -420,7 +451,7 @@ export default function MyDreamsAssessment() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      4. A sport that you aspire to play professionally
+                      {q['question4'] || '4. A sport that you aspire to play professionally'}
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700">💬</button>
@@ -439,7 +470,7 @@ export default function MyDreamsAssessment() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      5. If you can become a writer, you will write about
+                      {q['question5'] || '5. If you can become a writer, you will write about'}
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700">💬</button>
@@ -458,7 +489,7 @@ export default function MyDreamsAssessment() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      6. The musical instrument you desire to play
+                      {q['question6'] || '6. The musical instrument you desire to play'}
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700">💬</button>
@@ -477,7 +508,7 @@ export default function MyDreamsAssessment() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      7. The college you would like to study in
+                      {q['question7'] || '7. The college you would like to study in'}
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700">💬</button>
@@ -496,7 +527,7 @@ export default function MyDreamsAssessment() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      8. If you can help anyone or anything in this world, that is
+                      {q['question8'] || '8. If you can help anyone or anything in this world, that is'}
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700">💬</button>
@@ -515,7 +546,7 @@ export default function MyDreamsAssessment() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      9. If you can live anywhere in the world, that would be in
+                      {q['question9'] || '9. If you can live anywhere in the world, that would be in'}
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700">💬</button>
@@ -534,7 +565,7 @@ export default function MyDreamsAssessment() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      10. If you can become an artiste, the art that you would choose would be
+                      {q['question10'] || '10. If you can become an artiste, the art that you would choose would be'}
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700">💬</button>
@@ -553,7 +584,7 @@ export default function MyDreamsAssessment() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      11. Others
+                      {q['question11'] || '11. Others'}
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700">💬</button>
@@ -572,7 +603,7 @@ export default function MyDreamsAssessment() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      12. Would you want to make your dream come true?
+                      {q['question12'] || '12. Would you want to make your dream come true?'}
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700">💬</button>
@@ -607,7 +638,7 @@ export default function MyDreamsAssessment() {
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    13. What do you need to make your dreams come true? (For any one of your dreams)
+                    {q['question13'] || '13. What do you need to make your dreams come true? (For any one of your dreams)'}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" aria-label="Help" className="text-green-700 hover:text-green-800">💬</button>
@@ -626,7 +657,7 @@ export default function MyDreamsAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    14. What is the first step you need to take to make your dreams come true?
+                    {q['question14'] || '14. What is the first step you need to take to make your dreams come true?'}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" aria-label="Help" className="text-green-700 hover:text-green-800">💬</button>
@@ -645,7 +676,7 @@ export default function MyDreamsAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    15. Do you have the will power and enthusiasm to make your dream a reality?
+                    {q['question15'] || '15. Do you have the will power and enthusiasm to make your dream a reality?'}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" aria-label="Help" className="text-green-700 hover:text-green-800">💬</button>
@@ -664,7 +695,7 @@ export default function MyDreamsAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    16. Are there any obstacles to reach your dream? If there are any, which ones?
+                    {q['question16'] || '16. Are there any obstacles to reach your dream? If there are any, which ones?'}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" aria-label="Help" className="text-green-700 hover:text-green-800">💬</button>
@@ -694,7 +725,7 @@ export default function MyDreamsAssessment() {
             onClick={() => setCurrentPart(currentPart === 'part1' ? 'part2' : 'part1')}
             className="border-blue-200 text-blue-700 hover:bg-blue-50"
           >
-            {currentPart === 'part1' ? 'Next: Making Dreams Reality →' : '← Back: Your Dreams'}
+            {currentPart === 'part1' ? t('nextPartMakingDreams') : t('prevYourDreams')}
           </Button>
 
           {currentPart === 'part2' && (
@@ -706,12 +737,12 @@ export default function MyDreamsAssessment() {
               {submitting ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Submitting...
+                  {t('submitting')}
                 </>
               ) : (
                 <>
                   <Star className="w-4 h-4 mr-2" />
-                  Submit Dreams Assessment
+                  {t('submitDreams')}
                 </>
               )}
             </Button>
@@ -719,6 +750,7 @@ export default function MyDreamsAssessment() {
         </div>
         </TooltipProvider>
       </div>
+      <KannadaKeyboard lang={lang} />
     </div>
   );
 }

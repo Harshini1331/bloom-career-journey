@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './hooks/useAuth';
+import { LangProvider } from './hooks/useLang';
 import { Toaster } from '@/components/ui/toaster';
 import ProtectedRoute from './components/ProtectedRoute';
 import Index from './pages/Index';
@@ -88,6 +89,7 @@ function App() {
     <ErrorBoundary>
       <Router>
         <AuthProvider>
+          <LangProvider>
           <div className="App">
             <Routes>
               <Route path="/" element={<Index />} />
@@ -103,6 +105,7 @@ function App() {
               <Route path="/database-test" element={<DatabaseTestPage />} />
               
               {/* Assessment Routes */}
+              {/* Legacy direct assessment routes (kept for backward compatibility) */}
               <Route 
                 path="/assessment/inspiration" 
                 element={
@@ -145,6 +148,56 @@ function App() {
               />
               <Route 
                 path="/assessment/hobbies" 
+                element={
+                  <ProtectedRoute allowedRoles={['student']}>
+                    <MyHobbiesAssessment />
+                  </ProtectedRoute>
+                } 
+              />
+
+              {/* Nested student assessment routes for deep-linking */}
+              <Route 
+                path="/student/assessment/inspiration" 
+                element={
+                  <ProtectedRoute allowedRoles={['student']}>
+                    <MyInspirationAssessment />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/student/assessment/about-me" 
+                element={
+                  <ProtectedRoute allowedRoles={['student']}>
+                    <AboutMeAssessment />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/student/assessment/dreams" 
+                element={
+                  <ProtectedRoute allowedRoles={['student']}>
+                    <MyDreamsAssessment />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/student/assessment/school-learning" 
+                element={
+                  <ProtectedRoute allowedRoles={['student']}>
+                    <MySchoolLearningAssessment />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/student/assessment/role-models" 
+                element={
+                  <ProtectedRoute allowedRoles={['student']}>
+                    <MyRoleModelsAssessment />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/student/assessment/hobbies" 
                 element={
                   <ProtectedRoute allowedRoles={['student']}>
                     <MyHobbiesAssessment />
@@ -209,6 +262,7 @@ function App() {
             </Routes>
             <Toaster />
           </div>
+          </LangProvider>
         </AuthProvider>
       </Router>
     </ErrorBoundary>

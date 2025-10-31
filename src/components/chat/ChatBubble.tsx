@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useLang } from '@/hooks/useLang';
+import { KannadaKeyboard } from '@/components/ui/KannadaKeyboard';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface Message {
@@ -46,6 +48,7 @@ interface ChatBubbleProps {
 export default function ChatBubble({ role }: ChatBubbleProps) {
   const { userProfile, user } = useAuth();
   const { toast } = useToast();
+  const { t, lang } = useLang();
   
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -162,8 +165,8 @@ export default function ChatBubble({ role }: ChatBubbleProps) {
     } catch (error) {
       console.error('Error initializing channel:', error);
       toast({
-        title: "Error",
-        description: "Failed to open chat. Please try again.",
+        title: lang === 'kn' ? "ದೋಷ" : "Error",
+        description: lang === 'kn' ? "ಚಾಟ್ ತೆರೆಯಲು ವಿಫಲವಾಗಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ." : "Failed to open chat. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -235,8 +238,8 @@ export default function ChatBubble({ role }: ChatBubbleProps) {
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
-        title: "Error",
-        description: "Failed to send message. Please try again.",
+        title: lang === 'kn' ? "ದೋಷ" : "Error",
+        description: lang === 'kn' ? "ಸಂದೇಶವನ್ನು ಕಳುಹಿಸಲು ವಿಫಲವಾಗಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ." : "Failed to send message. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -402,7 +405,7 @@ export default function ChatBubble({ role }: ChatBubbleProps) {
 
       {/* Chat Window */}
       {isOpen && (
-        <Card className="fixed bottom-6 right-6 w-96 h-[600px] shadow-2xl z-50 flex flex-col border-0 overflow-hidden">
+        <Card className="fixed bottom-6 right-6 w-96 h-[600px] shadow-2xl z-50 flex flex-col border-0 overflow-hidden" lang={lang} dir="auto">
           <CardHeader className="bg-gradient-to-r from-blue-100 to-indigo-100 border-b border-blue-200 flex flex-row items-center justify-between space-y-0 pb-4 pt-4">
             <div className="flex items-center gap-3">
               {!showStudentList && otherPartyAvatar && (
@@ -423,15 +426,18 @@ export default function ChatBubble({ role }: ChatBubbleProps) {
               <div>
                 <CardTitle className="text-lg text-gray-800 font-semibold">
                   {role === 'teacher' && showStudentList 
-                    ? 'Message a Student' 
+                    ? (lang === 'kn' ? 'ವಿದ್ಯಾರ್ಥಿಗೆ ಸಂದೇಶ ಕಳುಹಿಸಿ' : 'Message a Student')
                     : role === 'student' 
-                      ? otherPartyName || 'Vidya Saathi'
-                      : otherPartyName || 'Student'
+                      ? otherPartyName || (lang === 'kn' ? 'ವಿದ್ಯಾ ಸಾಥಿ' : 'Vidya Saathi')
+                      : otherPartyName || (lang === 'kn' ? 'ವಿದ್ಯಾರ್ಥಿ' : 'Student')
                   }
                 </CardTitle>
                 {!showStudentList && (
                   <p className="text-xs text-blue-700">
-                    {role === 'student' ? 'Your Vidya Saathi' : 'Student'}
+                    {role === 'student' 
+                      ? (lang === 'kn' ? 'ನಿಮ್ಮ ವಿದ್ಯಾ ಸಾಥಿ' : 'Your Vidya Saathi')
+                      : (lang === 'kn' ? 'ವಿದ್ಯಾರ್ಥಿ' : 'Student')
+                    }
                   </p>
                 )}
               </div>
@@ -449,7 +455,7 @@ export default function ChatBubble({ role }: ChatBubbleProps) {
                   }}
                   className="text-blue-700 hover:bg-blue-100 text-sm"
                 >
-                  ← Back
+                  {lang === 'kn' ? '← ಹಿಂದೆ' : '← Back'}
                 </Button>
               )}
               <Button
@@ -485,14 +491,14 @@ export default function ChatBubble({ role }: ChatBubbleProps) {
                     <MessageSquare className="h-12 w-12 text-blue-400" />
                   </div>
                   <h3 className="text-xl font-bold text-gray-800 mb-2">
-                    No Vidya Saathi Assigned Yet
+                    {lang === 'kn' ? 'ಇನ್ನೂ ವಿದ್ಯಾ ಸಾಥಿ ನಿಯೋಜಿಸಲಾಗಿಲ್ಲ' : 'No Vidya Saathi Assigned Yet'}
                   </h3>
                   <p className="text-sm text-gray-600 mb-4 leading-relaxed">
-                    You'll be able to message your Vidya Saathi once your teacher is assigned.
+                    {lang === 'kn' ? 'ನಿಮ್ಮ ಶಿಕ್ಷಕರನ್ನು ನಿಯೋಜಿಸಿದ ನಂತರ ನೀವು ನಿಮ್ಮ ವಿದ್ಯಾ ಸಾಥಿಗೆ ಸಂದೇಶ ಕಳುಹಿಸಲು ಸಾಧ್ಯವಾಗುತ್ತದೆ.' : "You'll be able to message your Vidya Saathi once your teacher is assigned."}
                   </p>
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                     <p className="text-xs text-blue-700">
-                      💡 Please contact your administrator for assistance.
+                      💡 {lang === 'kn' ? 'ದಯವಿಟ್ಟು ಸಹಾಯಕ್ಕಾಗಿ ನಿಮ್ಮ ನಿರ್ವಾಹಕರನ್ನು ಸಂಪರ್ಕಿಸಿ.' : 'Please contact your administrator for assistance.'}
                     </p>
                   </div>
                 </div>
@@ -504,8 +510,12 @@ export default function ChatBubble({ role }: ChatBubbleProps) {
                     <div className="bg-white rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4 shadow-md">
                       <MessageSquare className="h-10 w-10 text-gray-400" />
                     </div>
-                    <p className="font-medium text-gray-700">No students assigned yet</p>
-                    <p className="text-sm text-gray-500 mt-1">Students will appear here once assigned</p>
+                    <p className="font-medium text-gray-700">
+                      {lang === 'kn' ? 'ಇನ್ನೂ ವಿದ್ಯಾರ್ಥಿಗಳನ್ನು ನಿಯೋಜಿಸಲಾಗಿಲ್ಲ' : 'No students assigned yet'}
+                    </p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {lang === 'kn' ? 'ವಿದ್ಯಾರ್ಥಿಗಳನ್ನು ನಿಯೋಜಿಸಿದ ನಂತರ ಅವರು ಇಲ್ಲಿ ಕಾಣಿಸುತ್ತಾರೆ' : 'Students will appear here once assigned'}
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -537,8 +547,12 @@ export default function ChatBubble({ role }: ChatBubbleProps) {
                       <div className="bg-white rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4 shadow-md">
                         <MessageSquare className="h-10 w-10 text-blue-400" />
                       </div>
-                      <p className="text-sm font-medium text-gray-700">No messages yet</p>
-                      <p className="text-xs mt-1 text-gray-500">Start the conversation!</p>
+                      <p className="text-sm font-medium text-gray-700">
+                        {lang === 'kn' ? 'ಇನ್ನೂ ಸಂದೇಶಗಳಿಲ್ಲ' : 'No messages yet'}
+                      </p>
+                      <p className="text-xs mt-1 text-gray-500">
+                        {lang === 'kn' ? 'ಸಂಭಾಷಣೆಯನ್ನು ಪ್ರಾರಂಭಿಸಿ!' : 'Start the conversation!'}
+                      </p>
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -581,7 +595,8 @@ export default function ChatBubble({ role }: ChatBubbleProps) {
                 <div className="border-t border-gray-200 p-4 bg-gray-50">
                   <div className="flex gap-2">
                     <Input
-                      placeholder="Type your message..."
+                      lang={lang}
+                      placeholder={lang === 'kn' ? 'ನಿಮ್ಮ ಸಂದೇಶವನ್ನು ಟೈಪ್ ಮಾಡಿ...' : 'Type your message...'}
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       onKeyPress={handleKeyPress}
@@ -605,6 +620,7 @@ export default function ChatBubble({ role }: ChatBubbleProps) {
               </>
             )}
           </CardContent>
+          {lang === 'kn' && <KannadaKeyboard lang={lang} />}
         </Card>
       )}
     </>

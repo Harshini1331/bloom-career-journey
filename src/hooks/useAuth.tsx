@@ -24,7 +24,8 @@ interface AuthContextType {
     fullName: string, 
     role: 'teacher' | 'student',
     stateId: string,
-    classId?: string
+    classId?: string,
+    preferredLanguage?: 'en' | 'kn'
   ) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   userProfile: any;
@@ -422,7 +423,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: currentUser.user_metadata.email,
           mobile: currentUser.user_metadata.mobile,
           role: 'student',
-          state_id: null
+          state_id: null,
+          preferred_language: (currentUser as any)?.user_metadata?.preferred_language || 'en'
         };
         
         setUserProfile(baseProfile);
@@ -434,6 +436,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         // Try to fetch student-specific data without blocking
         try {
+          // Fetch preferred_language from users table (authoritative)
+          const { data: userRow } = await supabase
+            .from('users')
+            .select('preferred_language')
+            .eq('id', userId)
+            .maybeSingle();
+
+          if (userRow?.preferred_language) {
+            setUserProfile((prev: any) => ({
+              ...prev,
+              preferred_language: userRow.preferred_language || prev?.preferred_language || 'en',
+            }));
+            localStorage.setItem('customProfile', JSON.stringify({
+              ...(baseProfile || {}),
+              preferred_language: userRow.preferred_language || 'en',
+            }));
+          }
+
           const { data: studentData } = await supabase
             .from('students')
             .select('*')
@@ -441,7 +461,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             .maybeSingle();
           
           if (studentData) {
-            const finalProfile = { ...baseProfile, studentProfile: studentData };
+            const finalProfile = { 
+              ...(baseProfile || {}), 
+              studentProfile: studentData,
+              preferred_language: userRow?.preferred_language || baseProfile?.preferred_language || 'en',
+            };
             setUserProfile(finalProfile);
             localStorage.setItem('customProfile', JSON.stringify(finalProfile));
             console.log('✅ Student profile updated with database data:', finalProfile);
@@ -757,10 +781,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     fullName: string, 
     role: 'teacher' | 'student',
     stateId: string,
-    classId?: string
+    classId?: string,
+    preferredLanguage: 'en' | 'kn' = 'en'
   ) => {
     try {
-      console.log('Starting signUp process:', { mobile, email, fullName, role, stateId, classId });
+      console.log('Starting signUp process:', { mobile, email, fullName, role, stateId, classId, preferredLanguage });
 
       // Enforce class selection for students at the API layer too
       if (role === 'student' && !classId) {
@@ -832,6 +857,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             email: finalEmail,
             full_name: fullName,
             role,
+            preferred_language: preferredLanguage,
           }
         }
       });
@@ -857,6 +883,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             role,
             full_name: fullName,
           state_id: stateId,
+          preferred_language: preferredLanguage || 'en',
         };
         
         // Only add email and mobile if the columns exist

@@ -7,6 +7,40 @@ import { useEffect } from 'react';
 
 const Index = () => {
   const { user, userProfile, loading } = useAuth();
+  // Force English for landing page
+  const lang = 'en' as 'en' | 'kn';
+
+  const strings: Record<'en'|'kn', Record<string,string>> = {
+    en: {
+      titleBrandA: 'Career',
+      titleBrandB: 'Compass',
+      heroTitle: 'Empower Your Career Journey',
+      heroDesc: 'Navigate your career journey with confidence. Discover your passion, explore opportunities, and build the future you dream of.',
+      cta: 'Get Started',
+      sectionTitle: 'Empower Your Career Journey',
+      sectionDesc: 'Our comprehensive platform provides everything you need to discover your potential and plan your future',
+      card1: 'Self-Discovery Assessments',
+      card2: 'Expert Guidance',
+      card3: 'Career Planning',
+      cta2: 'Start Your Assessment',
+      footer: 'All rights reserved.',
+    },
+    kn: {
+      titleBrandA: 'Career',
+      titleBrandB: 'Compass',
+      heroTitle: 'ನಿಮ್ಮ ವೃತ್ತಿ ಪ್ರಯಾಣವನ್ನು ಶಕ್ತಿಗೊಳಿಸಿ',
+      heroDesc: 'ಆತ್ಮವಿಶ್ವಾಸದಿಂದ ನಿಮ್ಮ ವೃತ್ತಿ ಪ್ರಯಾಣವನ್ನು ನಿರ್ವಹಿಸಿ. ನಿಮ್ಮ ಆಸಕ್ತಿಯನ್ನು ಕಂಡುಹಿಡಿಯಿರಿ, ಅವಕಾಶಗಳನ್ನು ಅನ್ವೇಷಿಸಿ, ಮತ್ತು ನಿಮ್ಮ ಭವಿಷ್ಯವನ್ನು ನಿರ್ಮಿಸಿ.',
+      cta: 'ಪ್ರಾರಂಭಿಸಿ',
+      sectionTitle: 'ನಿಮ್ಮ ವೃತ್ತಿ ಪ್ರಯಾಣವನ್ನು ಶಕ್ತಿಗೊಳಿಸಿ',
+      sectionDesc: 'ನಿಮ್ಮ ಸಾಮರ್ಥ್ಯವನ್ನು ಕಂಡುಹಿಡಿಯಲು ಮತ್ತು ಭವಿಷ್ಯವನ್ನು ಯೋಜಿಸಲು ಅಗತ್ಯವಿರುವ ಎಲ್ಲಾ ವಿಷಯಗಳನ್ನು ನಮ್ಮ ವೇದಿಕೆ ಒದಗಿಸುತ್ತದೆ',
+      card1: 'ಸ್ವ-ಅನ್ವೇಷಣೆ ಮೌಲ್ಯಮಾಪನಗಳು',
+      card2: 'ತಜ್ಞರ ಮಾರ್ಗದರ್ಶನ',
+      card3: 'ವೃತ್ತಿ ಯೋಜನೆ',
+      cta2: 'ನಿಮ್ಮ ಮೌಲ್ಯಮಾಪನವನ್ನು ಪ್ರಾರಂಭಿಸಿ',
+      footer: 'ಎಲ್ಲ ಹಕ್ಕುಗಳು ಮೀಸಲಾಗಿದೆ.',
+    }
+  };
+  const t = (k: string) => strings[lang][k] || strings.en[k] || k;
 
   useEffect(() => {
     console.log('Index component mounted');
@@ -17,7 +51,7 @@ const Index = () => {
   if (user && userProfile && !loading) {
     const redirectPath = userProfile.role === 'admin' ? '/admin' 
                         : userProfile.role === 'teacher' ? '/teacher'
-                        : '/student';
+                        : `/student?lang=${userProfile.preferred_language || 'en'}`;
     console.log('Redirecting to:', redirectPath);
     return <Navigate to={redirectPath} replace />;
   }
@@ -43,16 +77,13 @@ const Index = () => {
                 <GraduationCap className="w-10 h-10 text-white" />
               </div>
               <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-6">
-                Career<span className="text-primary">Compass</span>
+                {t('titleBrandA')}<span className="text-primary">{t('titleBrandB')}</span>
               </h1>
-              <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
-                Navigate your career journey with confidence. Discover your passion, 
-                explore opportunities, and build the future you dream of.
-              </p>
+              <p className="text-xl text-muted-foreground mb-8 leading-relaxed">{t('heroDesc')}</p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button asChild size="lg" className="text-lg px-8">
                   <a href="/auth">
-                    Get Started
+                    {t('cta')}
                     <ArrowRight className="ml-2 w-5 h-5" />
                   </a>
                 </Button>
@@ -66,12 +97,8 @@ const Index = () => {
       <section className="py-20 bg-card/50">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-              Empower Your Career Journey
-            </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Our comprehensive platform provides everything you need to discover your potential and plan your future
-            </p>
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">{t('sectionTitle')}</h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">{t('sectionDesc')}</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
@@ -80,7 +107,7 @@ const Index = () => {
                 <div className="mx-auto w-16 h-16 bg-gradient-to-r from-primary to-accent rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <BookOpen className="w-8 h-8 text-white" />
                 </div>
-                <CardTitle className="text-xl mb-2">Self-Discovery Assessments</CardTitle>
+                <CardTitle className="text-xl mb-2">{t('card1')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <CardDescription className="text-base">
@@ -94,7 +121,7 @@ const Index = () => {
                 <div className="mx-auto w-16 h-16 bg-gradient-to-r from-primary to-accent rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <Users className="w-8 h-8 text-white" />
                 </div>
-                <CardTitle className="text-xl mb-2">Expert Guidance</CardTitle>
+                <CardTitle className="text-xl mb-2">{t('card2')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <CardDescription className="text-base">
@@ -108,7 +135,7 @@ const Index = () => {
                 <div className="mx-auto w-16 h-16 bg-gradient-to-r from-primary to-accent rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <Target className="w-8 h-8 text-white" />
                 </div>
-                <CardTitle className="text-xl mb-2">Career Planning</CardTitle>
+                <CardTitle className="text-xl mb-2">{t('card3')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <CardDescription className="text-base">
@@ -132,7 +159,7 @@ const Index = () => {
             </p>
             <Button asChild size="lg" className="text-lg px-8">
               <a href="/auth">
-                Start Your Assessment
+                {t('cta2')}
                 <ArrowRight className="ml-2 w-5 h-5" />
               </a>
             </Button>
@@ -148,9 +175,7 @@ const Index = () => {
               <GraduationCap className="w-6 h-6 text-primary" />
               <span className="text-lg font-semibold">CareerCompass</span>
             </div>
-            <p className="text-sm text-muted-foreground">
-              © 2024 CareerCompass by ILP. All rights reserved.
-            </p>
+            <p className="text-sm text-muted-foreground">© 2024 CareerCompass by ILP. {t('footer')}</p>
           </div>
         </div>
       </footer>

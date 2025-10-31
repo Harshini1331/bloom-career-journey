@@ -45,6 +45,44 @@ class AISummaryService {
   }
 
   /**
+   * Detect if text contains Kannada script (Unicode range: 0C80-0CFF)
+   */
+  private containsKannada(text: string): boolean {
+    if (!text) return false;
+    // Kannada Unicode range: 0C80-0CFF
+    return /[\u0C80-\u0CFF]/.test(text);
+  }
+
+  /**
+   * Detect if student responses are primarily in Kannada
+   */
+  private detectLanguage(responses: AssessmentResponses): 'en' | 'kn' {
+    let kannadaCount = 0;
+    let totalCount = 0;
+    
+    Object.keys(responses).forEach((key) => {
+      const videoData = responses[key];
+      
+      if (videoData && typeof videoData === 'object') {
+        const videoResponses = videoData.responses || videoData;
+        
+        Object.keys(videoResponses).forEach((qKey) => {
+          const answer = videoResponses[qKey];
+          if (answer && typeof answer === 'string' && answer.trim()) {
+            totalCount++;
+            if (this.containsKannada(answer)) {
+              kannadaCount++;
+            }
+          }
+        });
+      }
+    });
+    
+    // If more than 50% of responses contain Kannada, consider it Kannada
+    return totalCount > 0 && kannadaCount / totalCount > 0.5 ? 'kn' : 'en';
+  }
+
+  /**
    * Format student responses for the AI prompt
    */
   private formatResponses(responses: AssessmentResponses): string {
@@ -75,19 +113,33 @@ class AISummaryService {
   /**
    * Build the prompt for Gemini API
    */
-  private buildPrompt(responses: AssessmentResponses): string {
+  private buildPrompt(responses: AssessmentResponses, language: 'en' | 'kn' = 'en'): string {
     const formattedResponses = this.formatResponses(responses);
     
-    return `You are a career counselor helping a student reflect on inspirational videos they watched.
-Based on the student's responses below, generate a thoughtful, personalized summary.
+    const isKannada = language === 'kn';
+    const languageInstruction = isKannada 
+      ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Kannada (ಕನ್ನಡ).\n- You MUST generate your summary answers in Kannada (ಕನ್ನಡ) script.\n- Write all three answers in Kannada, maintaining the student\'s natural voice.\n- Use Kannada script for all text in question1, question2, and question3.\n'
+      : '';
+    
+    const questionsPrompt = isKannada
+      ? `Question 1: ಈ ವೀಡಿಯೊಗಳಿಂದ ಮತ್ತು ನಿಮ್ಮ ಸ್ವಂತ ಅನುಭವಗಳಿಂದ ನಿಮ್ಮನ್ನು ಪ್ರೇರೇಪಿಸಿದ ವಿಷಯಗಳನ್ನು ಪಟ್ಟಿ ಮಾಡಿ.
+- ವೀಡಿಯೊಗಳಿಂದ ನಿರ್ದಿಷ್ಟ ಕ್ಷಣಗಳು, ಉಲ್ಲೇಖಗಳು ಅಥವಾ ವಿಷಯಗಳನ್ನು ಗುರುತಿಸಿ
+- ವಿದ್ಯಾರ್ಥಿ ಉಲ್ಲೇಖಿಸಿದ ವೈಯಕ್ತಿಕ ಅನುಭವಗಳಿಗೆ ಸಂಪರ್ಕಿಸಿ
+- 3-5 ಪ್ರಮುಖ ತೆಗೆದುಕೊಳ್ಳುವಿಕೆಗಳೊಂದಿಗೆ ನಿರ್ದಿಷ್ಟವಾಗಿರಿ
+- ಮೊದಲ ವ್ಯಕ್ತಿಯಲ್ಲಿ ಬರೆಯಿರಿ ("ನಾನು ... ಮೂಲಕ ಪ್ರೇರೇಪಿಸಲ್ಪಟ್ಟೆನು")
 
-STUDENT RESPONSES TO 6 INSPIRATIONAL VIDEOS:
-${formattedResponses}
+Question 2: ಈ ಎಲ್ಲಾ ವೀಡಿಯೊಗಳನ್ನು ನೋಡಿದ ನಂತರ, ನೀವು ತಪ್ಪಿಸಬೇಕಾದ ನಡವಳಿಕೆಗಳು ಯಾವುವು?
+- ವೀಡಿಯೊಗಳಲ್ಲಿ ಉಲ್ಲೇಖಿಸಲಾದ ನಕಾರಾತ್ಮಕ ಮಾದರಿಗಳು, ಅಭ್ಯಾಸಗಳು ಅಥವಾ ಮನೋಭಾವಗಳನ್ನು ಗುರುತಿಸಿ
+- ಇವುಗಳನ್ನು ಏಕೆ ತಪ್ಪಿಸಬೇಕು ಎಂಬುದನ್ನು ವಿವರಿಸಿ
+- ರಚನಾತ್ಮಕ ಚೌಕಟ್ಟನ್ನು ಒದಗಿಸಿ
+- ಮೊದಲ ವ್ಯಕ್ತಿಯಲ್ಲಿ ಬರೆಯಿರಿ ("ನಾನು ... ತಪ್ಪಿಸಬೇಕು")
 
-Please generate answers to these 3 reflection questions in the student's voice (first person).
-Be specific, reference actual content from their responses, and keep the tone conversational and age-appropriate.
-
-Question 1: List the things that inspired you from these videos and from your own experiences.
+Question 3: ನಿಮ್ಮನ್ನು ಪ್ರೇರೇಪಿಸಿದ ಈ ವೀಡಿಯೊಗಳಲ್ಲಿನ ಪಾತ್ರಗಳು ಮತ್ತು ನಿಜ ಜೀವನದಲ್ಲಿ ನಿಮ್ಮನ್ನು ಪ್ರೇರೇಪಿಸಿದ ಜನರ ನಡುವಿನ ಹೋಲಿಕೆಗಳನ್ನು ಚರ್ಚಿಸಿ.
+- ಸಾಮಾನ್ಯ ವಿಷಯಗಳು, ಮೌಲ್ಯಗಳು ಅಥವಾ ಗುಣಲಕ್ಷಣಗಳನ್ನು ಹುಡುಕಿ
+- ವೀಡಿಯೊ ಪಾತ್ರಗಳನ್ನು ವಿದ್ಯಾರ್ಥಿ ಉಲ್ಲೇಖಿಸಿದ ನಿಜ ಜೀವನದ ಮಾದರಿಗಳಿಗೆ ಸಂಪರ್ಕಿಸಿ
+- ಯಾರನ್ನಾದರೂ ಪ್ರೇರೇಪಿಸುವ ಮಾದರಿಗಳನ್ನು ಗುರುತಿಸಿ
+- ಮೊದಲ ವ್ಯಕ್ತಿಯಲ್ಲಿ ಬರೆಯಿರಿ ("ನಾನು ಗಮನಿಸಿದ್ದೇನೆ ...")`
+      : `Question 1: List the things that inspired you from these videos and from your own experiences.
 - Identify specific moments, quotes, or themes from the videos
 - Connect to any personal experiences the student mentioned
 - Be specific with 3-5 key takeaways
@@ -103,7 +155,18 @@ Question 3: Discuss the similarities between the characters in these videos who 
 - Find common themes, values, or traits
 - Connect video characters to real-life role models the student mentioned
 - Identify patterns of what makes someone inspiring
-- Write in first person ("I notice that...")
+- Write in first person ("I notice that...")`;
+    
+    return `You are a career counselor helping a student reflect on inspirational videos they watched.
+Based on the student's responses below, generate a thoughtful, personalized summary.
+${languageInstruction}
+STUDENT RESPONSES TO 6 INSPIRATIONAL VIDEOS:
+${formattedResponses}
+
+Please generate answers to these 3 reflection questions in the student's voice (first person).
+Be specific, reference actual content from their responses, and keep the tone conversational and age-appropriate.
+
+${questionsPrompt}
 
 IMPORTANT: 
 - Write in the student's voice (first person)
@@ -176,7 +239,11 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
     }
 
     try {
-      const prompt = this.buildPrompt(responses);
+      // Detect language from student responses
+      const detectedLanguage = this.detectLanguage(responses);
+      console.log(`🌐 Detected language from student responses: ${detectedLanguage}`);
+      
+      const prompt = this.buildPrompt(responses, detectedLanguage);
       
       // Use exact same format as chatbot - no generationConfig initially
       const requestBody = {

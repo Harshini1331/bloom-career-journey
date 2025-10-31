@@ -24,12 +24,14 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLang } from '@/hooks/useLang';
 import { safeObjectEntries, handleDatabaseError, validateApiResponse } from '@/utils/errorHandler';
 import { AudioRecorder } from '@/components/ui/AudioRecorder';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { aiSummaryService } from '@/services/aiSummaryService';
 import { summaryDatabaseService } from '@/services/summaryDatabaseService';
 import { notificationService } from '@/services/notificationService';
+import { KannadaKeyboard } from '@/components/ui/KannadaKeyboard';
 
 interface InspirationVideo {
   id: number;
@@ -112,6 +114,7 @@ interface VideoProgress {
 
 export default function MyInspirationAssessment() {
   const { userProfile } = useAuth();
+  const { t, lang } = useLang();
   const [searchParams] = useSearchParams();
   const viewParam = searchParams.get('readonly') || searchParams.get('view');
   const readOnlyView = viewParam === '1' || viewParam === 'true';
@@ -125,26 +128,49 @@ export default function MyInspirationAssessment() {
     question6: 'Describe what you would do or feel if you were in the same situation.',
     question7: 'Write about the part of the video/audio that motivated or inspired you the most.'
   });
+  const [questionTexts, setQuestionTexts] = useState({
+    question1: '1. Which parts of this video/audio did you like most / find most inspirational?',
+    question2: '2. What can you learn from this video/audio?',
+    question3: '3. Which parts of this video/audio would you want to adopt in your personal life?',
+    question4: '4. What changes will the contents of this video/audio bring in your life?',
+    question5: '5. Which qualities of the characters in this video/audio do you identify in yourself?',
+    question6: '6. What would your reaction be if you were in the situation depicted in the video/audio?',
+    question7: '7. Write about the situation in this video/audio which you have seen, that inspired you.'
+  });
 
-  // Load help texts from database
+  // Load help texts from database using lang-aware RPC; fallback to base RPC
   useEffect(() => {
     const loadHelpTextsFromDatabase = async () => {
       try {
         console.log('🔄 Loading help texts from database...');
-        const { data, error } = await supabase.rpc('get_inspiration_questions');
-        
-        if (error) {
-          handleDatabaseError(error, 'InspirationAssessment - Help Texts');
-          throw error;
+        let list: any[] | null = null;
+        try {
+          const { data: i18nData } = await supabase.rpc('get_inspiration_questions_i18n', { p_lang: lang } as any);
+          if (Array.isArray(i18nData)) list = i18nData as any[];
+          if (i18nData && !Array.isArray(i18nData)) list = (i18nData as any) as any[];
+          const maybe = (list as any)?.data;
+          if (maybe && Array.isArray(maybe)) list = maybe;
+        } catch {}
+        if (!list) {
+          const { data, error } = await supabase.rpc('get_inspiration_questions');
+          if (error) throw error;
+          list = data as any[];
         }
         
-        if (validateApiResponse(data, 'InspirationAssessment - Help Texts')) {
-          console.log('✅ Database help texts loaded:', data);
+        if (validateApiResponse(list, 'InspirationAssessment - Help Texts')) {
+          console.log('✅ Database help texts loaded:', list);
           const newHelpTexts: { [key: string]: string } = {};
-          data.forEach((question: any, index: number) => {
-            newHelpTexts[`question${index + 1}`] = question.help_text || '';
+          const newQuestionTexts: { [key: string]: string } = {};
+          (list as any[]).forEach((row: any, index: number) => {
+            const key = `question${index + 1}`;
+            newHelpTexts[key] = row.help_text || '';
+            // Prefix number if not already included in DB text
+            const prefix = `${index + 1}. `;
+            const text = row.question_text || '';
+            newQuestionTexts[key] = text?.startsWith(prefix) ? text : `${prefix}${text}`;
           });
           setHelpTexts(newHelpTexts);
+          setQuestionTexts(prev => ({ ...prev, ...newQuestionTexts }));
         } else {
           console.log('⚠️ No help texts found in database, using fallback');
         }
@@ -156,7 +182,21 @@ export default function MyInspirationAssessment() {
     };
     
     loadHelpTextsFromDatabase();
-  }, []);
+  }, [lang]);
+
+  // Keep URL ?lang in sync without re-rendering
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      const current = url.searchParams.get('lang');
+      if (current !== lang) {
+        url.searchParams.set('lang', lang);
+        const next = `${url.pathname}?${url.searchParams.toString()}${url.hash}`;
+        const now = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        if (next !== now) window.history.replaceState(window.history.state, '', next);
+      }
+    } catch {}
+  }, [lang]);
   const [inspirationVideos, setInspirationVideos] = useState<InspirationVideo[]>([]);
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [responses, setResponses] = useState<AssessmentResponse>({
@@ -815,8 +855,8 @@ export default function MyInspirationAssessment() {
     const video = videoProgress.find(v => v.videoId === videoIndex + 1);
     if (!video || !video.isComplete) {
       toast({
-        title: "Cannot Save Yet",
-        description: "Please complete all 7 questions for this video before saving.",
+        title: lang === 'kn' ? "ಇನ್ನೂ ಉಳಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ" : "Cannot Save Yet",
+        description: lang === 'kn' ? "ಉಳಿಸುವ ಮೊದಲು ಈ ವೀಡಿಯೊಗೆ ಎಲ್ಲಾ 7 ಪ್ರಶ್ನೆಗಳನ್ನು ಪೂರ್ಣಗೊಳಿಸಿ." : "Please complete all 7 questions for this video before saving.",
         variant: "destructive",
       });
       return;
@@ -835,8 +875,8 @@ export default function MyInspirationAssessment() {
 
     if (!studentId) {
       toast({
-        title: "Error",
-        description: "Student profile not found. Please contact your teacher or support.",
+        title: t('errorSavingVideoProgress'),
+        description: lang === 'kn' ? "ವಿದ್ಯಾರ್ಥಿ ಪ್ರೊಫೈಲ್ ಕಂಡುಬಂದಿಲ್ಲ. ದಯವಿಟ್ಟು ನಿಮ್ಮ ಶಿಕ್ಷಕ ಅಥವಾ ಬೆಂಬಲವನ್ನು ಸಂಪರ್ಕಿಸಿ." : "Student profile not found. Please contact your teacher or support.",
         variant: "destructive",
       });
       return;
@@ -953,14 +993,14 @@ export default function MyInspirationAssessment() {
       ));
 
       toast({
-        title: "Video Progress Saved! 💾",
-        description: `Your responses for Video ${videoIndex + 1} have been saved.`,
+        title: t('videoProgressSaved'),
+        description: t('videoProgressSavedDesc', undefined, videoIndex + 1),
       });
     } catch (error) {
       console.error('Error saving video progress:', error);
       toast({
-        title: "Error",
-        description: "Failed to save video progress. Please try again.",
+        title: t('errorSavingVideoProgress'),
+        description: t('errorSavingVideoProgressDesc'),
         variant: "destructive",
       });
     } finally {
@@ -972,8 +1012,8 @@ export default function MyInspirationAssessment() {
     if (readOnlyView) return;
     if (!userProfile) {
       toast({
-        title: "Error",
-        description: "User profile not found. Please try logging in again.",
+        title: t('errorSavingVideoProgress'),
+        description: lang === 'kn' ? "ಬಳಕೆದಾರ ಪ್ರೊಫೈಲ್ ಕಂಡುಬಂದಿಲ್ಲ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಲಾಗಿನ್ ಮಾಡಿ." : "User profile not found. Please try logging in again.",
         variant: "destructive",
       });
       return;
@@ -981,8 +1021,8 @@ export default function MyInspirationAssessment() {
 
     if (!canSubmit()) {
       toast({
-        title: "Cannot Submit Yet",
-        description: "Please complete all 6 videos before submitting the assessment.",
+        title: lang === 'kn' ? "ಇನ್ನೂ ಸಲ್ಲಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ" : "Cannot Submit Yet",
+        description: lang === 'kn' ? "ಮೌಲ್ಯಮಾಪನವನ್ನು ಸಲ್ಲಿಸುವ ಮೊದಲು ಎಲ್ಲಾ 6 ವೀಡಿಯೊಗಳನ್ನು ಪೂರ್ಣಗೊಳಿಸಿ." : "Please complete all 6 videos before submitting the assessment.",
         variant: "destructive",
       });
       return;
@@ -1001,8 +1041,8 @@ export default function MyInspirationAssessment() {
 
     if (!studentId) {
       toast({
-        title: "Error",
-        description: "Student profile not found. Please contact your teacher or support.",
+        title: t('errorSavingVideoProgress'),
+        description: lang === 'kn' ? "ವಿದ್ಯಾರ್ಥಿ ಪ್ರೊಫೈಲ್ ಕಂಡುಬಂದಿಲ್ಲ. ದಯವಿಟ್ಟು ನಿಮ್ಮ ಶಿಕ್ಷಕ ಅಥವಾ ಬೆಂಬಲವನ್ನು ಸಂಪರ್ಕಿಸಿ." : "Student profile not found. Please contact your teacher or support.",
         variant: "destructive",
       });
       return;
@@ -1116,8 +1156,8 @@ export default function MyInspirationAssessment() {
     } catch (error) {
       console.error('Error submitting assessment:', error);
       toast({
-        title: "Error",
-        description: "Failed to submit assessment. Please try again.",
+        title: t('errorSavingVideoProgress'),
+        description: lang === 'kn' ? "ಮೌಲ್ಯಮಾಪನವನ್ನು ಸಲ್ಲಿಸಲು ವಿಫಲವಾಗಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ." : "Failed to submit assessment. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -1194,7 +1234,7 @@ export default function MyInspirationAssessment() {
   const currentVideo = inspirationVideos[currentVideoIndex];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 py-8" lang={lang} dir="auto">
       <div className="container mx-auto px-4">
         {/* Header with Back Button */}
         <div className="flex items-center justify-between mb-8">
@@ -1204,15 +1244,11 @@ export default function MyInspirationAssessment() {
             className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
+            {t('backToDashboard')}
           </Button>
           <div className="text-center flex-1">
-            <h1 className="text-3xl font-bold text-blue-800 mb-2">✨ My Inspiration</h1>
-            <p className="text-blue-600 text-lg">
-              Each of us is inspired by different things. What inspires us often reflects the qualities and values
-              that we hold dear. By exploring these inspirations, we gain insight into the kind of person we
-              aspire to become and the values we want to uphold in our future careers.
-            </p>
+            <h1 className="text-3xl font-bold text-blue-800 mb-2">{t('inspirationTitle')}</h1>
+            <p className="text-blue-600 text-lg">{t('inspirationIntro')}</p>
           </div>
           <div className="w-20"></div> {/* Spacer for centering */}
         </div>
@@ -1221,25 +1257,25 @@ export default function MyInspirationAssessment() {
         <Card className="mb-6 border-0 shadow-lg">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">Your Progress</h2>
+              <h2 className="text-lg font-semibold text-gray-800">{t('yourProgress')}</h2>
               <div className="flex items-center gap-4">
-                <Badge variant="secondary">{Math.round(getProgressPercentage())}% Complete</Badge>
+                <Badge variant="secondary">{Math.round(getProgressPercentage())}% {t('completeSuffix')}</Badge>
                 <div className="flex items-center gap-3 text-xs text-gray-500">
                   <div className="flex items-center gap-1">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span>{videoProgress?.filter(v => v.savedAt && v.isComplete).length || 0} saved</span>
+                    <span>{videoProgress?.filter(v => v.savedAt && v.isComplete).length || 0} {t('saved')}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                    <span>{videoProgress?.filter(v => v.isComplete).length || 0} complete</span>
+                    <span>{videoProgress?.filter(v => v.isComplete).length || 0} {t('complete')}</span>
                   </div>
                 </div>
               </div>
             </div>
             <Progress value={getProgressPercentage()} className="h-3" />
             <div className="flex justify-between text-sm text-gray-600 mt-2">
-              <span>Video {currentVideoIndex + 1} of {inspirationVideos.length}</span>
-              <span>{Math.round(getProgressPercentage())}% Complete</span>
+              <span>{t('videoCounter', '', currentVideoIndex + 1, inspirationVideos.length)}</span>
+              <span>{Math.round(getProgressPercentage())}% {t('completeSuffix')}</span>
             </div>
           </CardContent>
         </Card>
@@ -1247,9 +1283,9 @@ export default function MyInspirationAssessment() {
         {/* Video Navigation */}
         <Card className="mb-6 border-0 shadow-lg">
           <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
-            <CardTitle className="text-xl text-blue-800">Video Navigation</CardTitle>
+            <CardTitle className="text-xl text-blue-800">{t('videoNavigation')}</CardTitle>
             <CardDescription className="text-blue-600">
-              Click on any video to watch and answer questions - no specific order required!
+              {t('clickAnyVideo')}
             </CardDescription>
           </CardHeader>
           <CardContent className="p-6">
@@ -1262,7 +1298,7 @@ export default function MyInspirationAssessment() {
                   size="sm"
                   className={`${currentVideoIndex === index ? "bg-blue-600" : ""}`}
                 >
-                  Video {index + 1}
+                  {t('videoLabelN', '', index + 1)}
                   {isVideoComplete(index) && (
                     <CheckCircle className="w-3 h-3 ml-1 text-green-500" />
                   )}
@@ -1279,7 +1315,7 @@ export default function MyInspirationAssessment() {
                 variant="outline"
                 className="border-blue-200 text-blue-700 hover:bg-blue-50"
               >
-                ← Previous Video
+                {t('previousVideo')}
               </Button>
               <Button
                 onClick={nextVideo}
@@ -1287,7 +1323,7 @@ export default function MyInspirationAssessment() {
                 variant="outline"
                 className="border-blue-200 text-blue-700 hover:bg-blue-50"
               >
-                Next Video →
+                {t('nextVideo')}
               </Button>
             </div>
           </CardContent>
@@ -1297,10 +1333,10 @@ export default function MyInspirationAssessment() {
         <Card className="mb-6 border-0 shadow-lg">
           <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
             <CardTitle className="text-xl text-blue-800">
-              Video {currentVideoIndex + 1}: {currentVideo.title}
+              {t('videoLabelN', '', currentVideoIndex + 1)}: {currentVideo.title}
             </CardTitle>
             <CardDescription className="text-blue-600">
-              Watch this inspirational video and then answer the questions below
+              {t('watchAndAnswer')}
             </CardDescription>
           </CardHeader>
           <CardContent className="p-6">
@@ -1322,7 +1358,7 @@ export default function MyInspirationAssessment() {
                   rel="noopener noreferrer"
                   className="text-blue-600 hover:underline flex items-center gap-1"
                 >
-                  Open in YouTube <ExternalLink className="w-3 h-3" />
+                  {t('openInYouTube')} <ExternalLink className="w-3 h-3" />
                 </a>
               </div>
             </div>
@@ -1331,7 +1367,7 @@ export default function MyInspirationAssessment() {
             <TooltipProvider>
             <div className="space-y-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-800">Reflection Questions</h3>
+                <h3 className="text-lg font-semibold text-gray-800">{t('reflectionQuestions')}</h3>
                 <div className="text-sm text-gray-600">
                   {(() => {
                     const status = getCurrentVideoCompletionStatus();
@@ -1357,23 +1393,22 @@ export default function MyInspirationAssessment() {
                     </div>
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold text-blue-800 mb-2">Audio Recording Instructions</h3>
+                    <h3 className="font-semibold text-blue-800 mb-2">{t('audioRecordingInstructionsTitle')}</h3>
                     <p className="text-sm text-blue-700 mb-2">
-                      <strong>You may either type or record your answer.</strong> If recording, speak clearly for up to 2 minutes. 
-                      Recording will start when you click the 🎙️ Record button. Your answer will be saved automatically.
+                      {t('audioInstructionsLead')}
                     </p>
                     <div className="flex flex-wrap gap-2 text-xs text-blue-600">
                       <span className="flex items-center gap-1">
                         <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
-                        Speak clearly in your own words
+                        {t('audioInstructionsBullet1')}
                       </span>
                       <span className="flex items-center gap-1">
                         <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
-                        You have 2 minutes per question
+                        {t('audioInstructionsBullet2')}
                       </span>
                       <span className="flex items-center gap-1">
                         <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
-                        Recording is saved automatically
+                        {t('audioInstructionsBullet3')}
                       </span>
                     </div>
                   </div>
@@ -1385,7 +1420,7 @@ export default function MyInspirationAssessment() {
                 <div className="flex items-start justify-between mb-3">
                   <label className="block text-lg font-semibold text-gray-800 flex items-center gap-2">
                     <Star className="w-5 h-5 text-blue-500" />
-                    1. Which parts of this video/audio did you like most / find most inspirational?
+                    {questionTexts.question1}
                     <span className="text-red-500 text-sm">*</span>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -1449,7 +1484,7 @@ export default function MyInspirationAssessment() {
                   required
                 />
                 {!getCurrentVideoResponses().question1.trim() && (
-                  <p className="text-red-500 text-sm mt-1">This question is required</p>
+                  <p className="text-red-500 text-sm mt-1">{t('questionRequired')}</p>
                 )}
               </div>
 
@@ -1458,7 +1493,7 @@ export default function MyInspirationAssessment() {
                 <div className="flex items-start justify-between mb-3">
                   <label className="block text-lg font-semibold text-gray-800 flex items-center gap-2">
                     <Lightbulb className="w-5 h-5 text-green-500" />
-                    2. What can you learn from this video/audio?
+                    {questionTexts.question2}
                     <span className="text-red-500 text-sm">*</span>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -1522,7 +1557,7 @@ export default function MyInspirationAssessment() {
                   required
                 />
                 {!getCurrentVideoResponses().question2.trim() && (
-                  <p className="text-red-500 text-sm mt-1">This question is required</p>
+                  <p className="text-red-500 text-sm mt-1">{t('questionRequired')}</p>
                 )}
               </div>
 
@@ -1531,7 +1566,7 @@ export default function MyInspirationAssessment() {
                 <div className="flex items-start justify-between mb-3">
                   <label className="block text-lg font-semibold text-gray-800 flex items-center gap-2">
                     <Heart className="w-5 h-5 text-purple-500" />
-                    3. Which parts of this video/audio would you want to adopt in your personal life?
+                    {questionTexts.question3}
                     <span className="text-red-500 text-sm">*</span>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -1595,7 +1630,7 @@ export default function MyInspirationAssessment() {
                   required
                 />
                 {!getCurrentVideoResponses().question3.trim() && (
-                  <p className="text-red-500 text-sm mt-1">This question is required</p>
+                  <p className="text-red-500 text-sm mt-1">{t('questionRequired')}</p>
                 )}
               </div>
 
@@ -1604,7 +1639,7 @@ export default function MyInspirationAssessment() {
                 <div className="flex items-start justify-between mb-3">
                   <label className="block text-lg font-semibold text-gray-800 flex items-center gap-2">
                     <Target className="w-5 h-5 text-orange-500" />
-                    4. What changes will the contents of this video/audio bring in your life?
+                    {questionTexts.question4}
                     <span className="text-red-500 text-sm">*</span>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -1668,7 +1703,7 @@ export default function MyInspirationAssessment() {
                   required
                 />
                 {!getCurrentVideoResponses().question4.trim() && (
-                  <p className="text-red-500 text-sm mt-1">This question is required</p>
+                  <p className="text-red-500 text-sm mt-1">{t('questionRequired')}</p>
                 )}
               </div>
 
@@ -1677,7 +1712,7 @@ export default function MyInspirationAssessment() {
                 <div className="flex items-start justify-between mb-3">
                   <label className="block text-lg font-semibold text-gray-800 flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-pink-500" />
-                    5. Which qualities of the characters in this video/audio do you identify in yourself?
+                    {questionTexts.question5}
                     <span className="text-red-500 text-sm">*</span>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -1741,7 +1776,7 @@ export default function MyInspirationAssessment() {
                   required
                 />
                 {!getCurrentVideoResponses().question5.trim() && (
-                  <p className="text-red-500 text-sm mt-1">This question is required</p>
+                  <p className="text-red-500 text-sm mt-1">{t('questionRequired')}</p>
                 )}
               </div>
 
@@ -1750,7 +1785,7 @@ export default function MyInspirationAssessment() {
                 <div className="flex items-start justify-between mb-3">
                   <label className="block text-lg font-semibold text-gray-800 flex items-center gap-2">
                     <Play className="w-5 h-5 text-indigo-500" />
-                    6. What would your reaction be if you were in the situation depicted in the video/audio?
+                    {questionTexts.question6}
                     <span className="text-red-500 text-sm">*</span>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -1814,7 +1849,7 @@ export default function MyInspirationAssessment() {
                   required
                 />
                 {!getCurrentVideoResponses().question6.trim() && (
-                  <p className="text-red-500 text-sm mt-1">This question is required</p>
+                  <p className="text-red-500 text-sm mt-1">{t('questionRequired')}</p>
                 )}
               </div>
 
@@ -1823,7 +1858,7 @@ export default function MyInspirationAssessment() {
                 <div className="flex items-start justify-between mb-3">
                   <label className="block text-lg font-semibold text-gray-800 flex items-center gap-2">
                     <BookOpen className="w-5 h-5 text-teal-500" />
-                    7. Write about the situation in this video/audio which you have seen, that inspired you.
+                    {questionTexts.question7}
                     <span className="text-red-500 text-sm">*</span>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -1875,7 +1910,7 @@ export default function MyInspirationAssessment() {
                   )}
                 </div>
                 <Textarea
-                  placeholder="Describe the situation from the video/audio that inspired you..."
+                  placeholder={helpTexts.question7}
                   value={getCurrentVideoResponses().question7 || ''}
                   onChange={(e) => handleResponseChange(getCurrentVideoKey(), 'question7', e.target.value)}
                   readOnly={readOnlyView}
@@ -1887,7 +1922,7 @@ export default function MyInspirationAssessment() {
                   required
                 />
                 {!getCurrentVideoResponses().question7?.trim() && (
-                  <p className="text-red-500 text-sm mt-1">This question is required</p>
+                  <p className="text-red-500 text-sm mt-1">{t('questionRequired')}</p>
                 )}
               </div>
             </div>
@@ -1900,17 +1935,17 @@ export default function MyInspirationAssessment() {
                   {isVideoSaved(currentVideoIndex) ? (
                     <div className="flex items-center gap-2 text-green-600">
                       <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span>Video {currentVideoIndex + 1} saved</span>
+                      <span>{t('savedVideoN', '') || `Video ${currentVideoIndex + 1} saved`}</span>
                     </div>
                   ) : isVideoComplete(currentVideoIndex) ? (
                     <div className="flex items-center gap-2 text-yellow-600">
                       <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                      <span>Video {currentVideoIndex + 1} complete - Ready to save</span>
+                      <span>{t('videoNReadyToSave', '') || `Video ${currentVideoIndex + 1} complete - Ready to save`}</span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 text-gray-500">
                       <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
-                      <span>Complete all questions to save this video</span>
+                      <span>{t('completeAllToSave')}</span>
                     </div>
                   )}
                 </div>
@@ -1923,17 +1958,17 @@ export default function MyInspirationAssessment() {
                   {saving ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600 mr-2"></div>
-                      Saving...
+                      {t('saving')}
                     </>
                   ) : isVideoSaved(currentVideoIndex) ? (
                     <>
                       <Save className="w-4 h-4 mr-2" />
-                      Video Saved
+                      {t('videoSaved')}
                     </>
                   ) : (
                     <>
                       <Save className="w-4 h-4 mr-2" />
-                      Save Video Progress
+                      {t('saveVideoProgress')}
                     </>
                   )}
                 </Button>
@@ -1953,12 +1988,12 @@ export default function MyInspirationAssessment() {
             {submitting ? (
               <>
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-                Submitting...
+                {t('submitting')}
               </>
             ) : (
               <>
                 <Lightbulb className="w-5 h-5 mr-3" />
-                Submit Inspiration Assessment
+                {t('submitInspiration')}
               </>
             )}
           </Button>
@@ -1968,9 +2003,9 @@ export default function MyInspirationAssessment() {
         <div className="mt-12">
           <Card className="border-0 shadow-lg">
             <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100">
-              <CardTitle className="text-xl text-gray-800">All Inspirational Videos</CardTitle>
+            <CardTitle className="text-xl text-gray-800">{t('allVideosTitle')}</CardTitle>
               <CardDescription className="text-gray-600">
-                Complete all 6 videos to finish your inspiration assessment
+                {t('allVideosSubtitle')}
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6">
@@ -2024,6 +2059,7 @@ export default function MyInspirationAssessment() {
           </Card>
         </div>
       </div>
+      <KannadaKeyboard lang={lang} />
     </div>
   );
 }

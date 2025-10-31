@@ -23,8 +23,10 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { useLang } from '@/hooks/useLang';
 import { ArrowLeft } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { KannadaKeyboard } from '@/components/ui/KannadaKeyboard';
 
 interface RoleModel {
   name: string;
@@ -48,6 +50,7 @@ interface RoleModelsAssessmentResponse {
 
 export default function MyRoleModelsAssessment() {
   const { userProfile } = useAuth();
+  const { t, lang } = useLang();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [responses, setResponses] = useState<RoleModelsAssessmentResponse>({
@@ -97,10 +100,38 @@ export default function MyRoleModelsAssessment() {
   const [currentTab, setCurrentTab] = useState<'roleModel1' | 'roleModel2' | 'roleModel3'>('roleModel1');
   const [saving, setSaving] = useState(false);
   const [savedTabs, setSavedTabs] = useState<Partial<Record<keyof RoleModelsAssessmentResponse, string>>>({});
+  const [q, setQ] = useState<Record<string, string>>({});
 
   useEffect(() => {
     checkExistingResponse();
   }, []);
+
+  useEffect(() => {
+    const loadI18n = async () => {
+      try {
+        const { data } = await supabase.rpc('get_role_models_questions_i18n', { p_lang: lang } as any);
+        const arr = Array.isArray(data) ? data : (data?.data || []);
+        const map: Record<string, string> = {};
+        (arr || []).forEach((row: any) => { if (row?.key) map[row.key] = row.text; });
+        setQ(map);
+      } catch {}
+    };
+    loadI18n();
+  }, [lang]);
+
+  // Keep URL ?lang in sync without re-rendering
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      const current = url.searchParams.get('lang');
+      if (current !== lang) {
+        url.searchParams.set('lang', lang);
+        const next = `${url.pathname}?${url.searchParams.toString()}${url.hash}`;
+        const now = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        if (next !== now) window.history.replaceState(window.history.state, '', next);
+      }
+    } catch {}
+  }, [lang]);
 
   // Auto-save drafts on changes (debounced)
   useEffect(() => {
@@ -355,14 +386,14 @@ export default function MyRoleModelsAssessment() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50 py-8" lang={lang} dir="auto">
       <div className="container mx-auto px-4">
         <TooltipProvider>
         {/* Header */}
         <div className="text-center mb-8">
           <div className="text-left mb-2">
             <Button variant="ghost" onClick={() => navigate('/student')} className="text-purple-700 hover:text-purple-800 hover:bg-purple-50">
-              <ArrowLeft className="w-4 h-4 mr-2" />Back to Dashboard
+              <ArrowLeft className="w-4 h-4 mr-2" />{t('backToDashboard')}
             </Button>
           </div>
           <h1 className="text-3xl font-bold text-purple-800 mb-2">🎯 My Role Models</h1>
@@ -381,13 +412,13 @@ export default function MyRoleModelsAssessment() {
         <Card className="mb-6 border-0 shadow-lg">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">Your Progress</h2>
-              <Badge variant="secondary">{Math.round(getProgressPercentage())}% Complete</Badge>
+              <h2 className="text-lg font-semibold text-gray-800">{t('yourProgress')}</h2>
+              <Badge variant="secondary">{Math.round(getProgressPercentage())}% {t('completeSuffix')}</Badge>
             </div>
             <Progress value={getProgressPercentage()} className="h-3" />
             <div className="flex justify-between text-sm text-gray-600 mt-2">
               <span>3 Tabs • 11 questions each</span>
-              <span>{Math.round(getProgressPercentage())}% Complete</span>
+              <span>{Math.round(getProgressPercentage())}% {t('completeSuffix')}</span>
             </div>
           </CardContent>
         </Card>
@@ -441,7 +472,7 @@ export default function MyRoleModelsAssessment() {
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                        1. Name of the role model
+                        {q['rm_q1'] || '1. Name of the role model'}
                         <Tooltip><TooltipTrigger asChild><button type="button" className="text-purple-600">💬</button></TooltipTrigger><TooltipContent>Write the name of your role model</TooltipContent></Tooltip>
                       </label>
                       <Input
@@ -453,7 +484,7 @@ export default function MyRoleModelsAssessment() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                        2. Is this person from your family/school/village/acquaintance?
+                        {q['rm_q2'] || '2. Is this person from your family/school/village/acquaintance?'}
                         <Tooltip><TooltipTrigger asChild><button type="button" className="text-purple-600">💬</button></TooltipTrigger><TooltipContent>Choose where this person is from — family, school, village, or someone you know.</TooltipContent></Tooltip>
                       </label>
                       <Input
@@ -465,7 +496,7 @@ export default function MyRoleModelsAssessment() {
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                        3. Why do you admire this person? (Make a list of the special qualities of each role model)
+                        {q['rm_q3'] || '3. Why do you admire this person? (Make a list of the special qualities of each role model)'}
                         <Tooltip><TooltipTrigger asChild><button type="button" className="text-purple-600">💬</button></TooltipTrigger><TooltipContent>Write what you like or respect about this person — their good habits, values, or actions.</TooltipContent></Tooltip>
                       </label>
                       <Textarea
@@ -478,7 +509,7 @@ export default function MyRoleModelsAssessment() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                        4. What is his/her profession?
+                        {q['rm_q4'] || '4. What is his/her profession?'}
                         <Tooltip><TooltipTrigger asChild><button type="button" className="text-purple-600">💬</button></TooltipTrigger><TooltipContent>Write what kind of work or job this person does.</TooltipContent></Tooltip>
                       </label>
                       <Input
@@ -490,7 +521,7 @@ export default function MyRoleModelsAssessment() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                        5. Which of the qualities and skills possessed by these role models would you want to imbibe?
+                        {q['rm_q5'] || '5. Which of the qualities and skills possessed by these role models would you want to imbibe?'}
                         <Tooltip><TooltipTrigger asChild><button type="button" className="text-purple-600">💬</button></TooltipTrigger><TooltipContent>Write the qualities or skills you would like to learn or follow from them.</TooltipContent></Tooltip>
                       </label>
                       <Input
@@ -502,7 +533,7 @@ export default function MyRoleModelsAssessment() {
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                        6. Have you discussed your dream/career with these role models?
+                        {q['rm_q6'] || '6. Have you discussed your dream/career with these role models?'}
                         <Tooltip><TooltipTrigger asChild><button type="button" className="text-purple-600">💬</button></TooltipTrigger><TooltipContent>Write ‘Yes’ or ‘No’ and mention if you’ve talked to them about your career plans.</TooltipContent></Tooltip>
                       </label>
                       <Textarea
@@ -517,7 +548,7 @@ export default function MyRoleModelsAssessment() {
             {/* Q7–Q11 for current tab */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                7. What do they think about your dream/career?
+                {q['rm_q7'] || '7. What do they think about your dream/career?'}
                 <Tooltip><TooltipTrigger asChild><button type="button" className="text-purple-600">💬</button></TooltipTrigger><TooltipContent>Write what advice or opinion your role model shared about your dream.</TooltipContent></Tooltip>
               </label>
               <Textarea
@@ -532,7 +563,7 @@ export default function MyRoleModelsAssessment() {
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                  8. Are they willing to help with your dream/career interests?
+                {q['rm_q8'] || '8. Are they willing to help with your dream/career interests?'}
                   <Tooltip><TooltipTrigger asChild><button type="button" className="text-purple-600">💬</button></TooltipTrigger><TooltipContent>Write if this person has offered support or guidance for your dream.</TooltipContent></Tooltip>
                 </label>
                 <Input
@@ -544,7 +575,7 @@ export default function MyRoleModelsAssessment() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                  9. If so, what kind of help are you looking for?
+                {q['rm_q9'] || '9. If so, what kind of help are you looking for?'}
                   <Tooltip><TooltipTrigger asChild><button type="button" className="text-purple-600">💬</button></TooltipTrigger><TooltipContent>Write the type of help you expect — like guidance, ideas, or opportunities.</TooltipContent></Tooltip>
                 </label>
                 <Input
@@ -558,7 +589,7 @@ export default function MyRoleModelsAssessment() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                10. Are there any similarities between the qualities of your role model and your own?
+                {q['rm_q10'] || '10. Are there any similarities between the qualities of your role model and your own?'}
                 <Tooltip><TooltipTrigger asChild><button type="button" className="text-purple-600">💬</button></TooltipTrigger><TooltipContent>Write if you share any similar habits, interests, or qualities with them.</TooltipContent></Tooltip>
               </label>
               <Textarea
@@ -572,7 +603,7 @@ export default function MyRoleModelsAssessment() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                11. How will you try to incorporate the qualities or skills of these individuals in your life?
+                {q['rm_q11'] || '11. How will you try to incorporate the qualities or skills of these individuals in your life?'}
                 <Tooltip><TooltipTrigger asChild><button type="button" className="text-purple-600">💬</button></TooltipTrigger><TooltipContent>Write what steps you will take to build these good qualities in yourself.</TooltipContent></Tooltip>
               </label>
               <Textarea
@@ -603,17 +634,17 @@ export default function MyRoleModelsAssessment() {
                 {isRoleModelSaved(currentTab) ? (
                   <div className="flex items-center gap-2 text-green-600">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span>{currentTab === 'roleModel1' ? 'Role Model 1' : currentTab === 'roleModel2' ? 'Role Model 2' : 'Role Model 3'} saved</span>
+                    <span>{currentTab === 'roleModel1' ? 'Role Model 1' : currentTab === 'roleModel2' ? 'Role Model 2' : 'Role Model 3'} {t('saved')}</span>
                   </div>
                 ) : isRoleModelComplete(currentTab) ? (
                   <div className="flex items-center gap-2 text-yellow-600">
                     <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                    <span>Complete - Ready to save</span>
+                    <span>{t('videoNReadyToSave') || 'Complete - Ready to save'}</span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 text-gray-500">
                     <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
-                    <span>Complete all questions to save</span>
+                    <span>{t('completeAllToSave')}</span>
                   </div>
                 )}
               </div>
@@ -626,17 +657,17 @@ export default function MyRoleModelsAssessment() {
                 {saving ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600 mr-2"></div>
-                    Saving...
+                    {t('saving')}
                   </>
                 ) : isRoleModelSaved(currentTab) ? (
                   <>
                     <Save className="w-4 h-4 mr-2" />
-                    Saved
+                    {t('saved')}
                   </>
                 ) : (
                   <>
                     <Save className="w-4 h-4 mr-2" />
-                    Save Progress
+                    {t('saveVideoProgress')}
                   </>
                 )}
               </Button>
@@ -659,12 +690,12 @@ export default function MyRoleModelsAssessment() {
                 {submitting ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Submitting...
+                    {t('submitting')}
                   </>
                 ) : (
                   <>
                     <Users className="w-4 h-4 mr-2" />
-                    Submit Assessment
+                    {t('submitAssessment')}
                   </>
                 )}
               </Button>
@@ -672,6 +703,7 @@ export default function MyRoleModelsAssessment() {
           </div>
         </TooltipProvider>
       </div>
+      <KannadaKeyboard lang={lang} />
     </div>
   );
 }

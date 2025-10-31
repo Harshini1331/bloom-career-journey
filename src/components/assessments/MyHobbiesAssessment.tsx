@@ -26,7 +26,9 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { useLang } from '@/hooks/useLang';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { KannadaKeyboard } from '@/components/ui/KannadaKeyboard';
 
 interface HobbiesAssessmentResponse {
   question1: string; // What do you do in your spare time?
@@ -45,8 +47,10 @@ interface HobbiesAssessmentResponse {
 
 export default function MyHobbiesAssessment() {
   const { userProfile } = useAuth();
+  const { t, lang } = useLang();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [q, setQ] = useState<Record<string, string>>({});
   const [responses, setResponses] = useState<HobbiesAssessmentResponse>({
     question1: '',
     question2: '',
@@ -68,6 +72,33 @@ export default function MyHobbiesAssessment() {
   useEffect(() => {
     checkExistingResponse();
   }, []);
+
+  useEffect(() => {
+    const loadI18n = async () => {
+      try {
+        const { data } = await supabase.rpc('get_hobbies_questions_i18n', { p_lang: lang } as any);
+        const arr = Array.isArray(data) ? data : (data?.data || []);
+        const map: Record<string, string> = {};
+        (arr || []).forEach((row: any) => { if (row?.key) map[row.key] = row.text; });
+        setQ(map);
+      } catch {}
+    };
+    loadI18n();
+  }, [lang]);
+
+  // Keep URL ?lang in sync without re-rendering
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      const current = url.searchParams.get('lang');
+      if (current !== lang) {
+        url.searchParams.set('lang', lang);
+        const next = `${url.pathname}?${url.searchParams.toString()}${url.hash}`;
+        const now = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        if (next !== now) window.history.replaceState(window.history.state, '', next);
+      }
+    } catch {}
+  }, [lang]);
 
   // Auto-save drafts when answers change (debounced)
   useEffect(() => {
@@ -262,13 +293,13 @@ export default function MyHobbiesAssessment() {
   }
 
   return (
-		<div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-pink-50 py-8">
+		<div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-pink-50 py-8" lang={lang} dir="auto">
 			<div className="container mx-auto px-4">
 				<TooltipProvider>
         <div className="text-left mb-2">
           <Button variant="ghost" onClick={() => navigate('/student')} className="text-orange-700 hover:text-orange-800 hover:bg-orange-50">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 mr-2"><path fillRule="evenodd" d="M12.53 3.47a.75.75 0 010 1.06L6.31 10.75H21a.75.75 0 010 1.5H6.31l6.22 6.22a.75.75 0 11-1.06 1.06l-7.5-7.5a.75.75 0 010-1.06l7.5-7.5a.75.75 0 011.06 0z" clipRule="evenodd" /></svg>
-            Back to Dashboard
+            {t('backToDashboard')}
           </Button>
         </div>
         {/* Header */}
@@ -286,13 +317,13 @@ export default function MyHobbiesAssessment() {
         <Card className="mb-6 border-0 shadow-lg">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">Your Progress</h2>
-              <Badge variant="secondary">{Math.round(getProgressPercentage())}% Complete</Badge>
+              <h2 className="text-lg font-semibold text-gray-800">{t('yourProgress')}</h2>
+              <Badge variant="secondary">{Math.round(getProgressPercentage())}% {t('completeSuffix')}</Badge>
             </div>
             <Progress value={getProgressPercentage()} className="h-3" />
             <div className="flex justify-between text-sm text-gray-600 mt-2">
               <span>12 Questions Total</span>
-              <span>{Math.round(getProgressPercentage())}% Complete</span>
+              <span>{Math.round(getProgressPercentage())}% {t('completeSuffix')}</span>
             </div>
           </CardContent>
         </Card>
@@ -311,7 +342,7 @@ export default function MyHobbiesAssessment() {
               <div className="border-l-4 border-orange-400 pl-6">
                 <label className="block text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
                   <Palette className="w-5 h-5 text-orange-500" />
-                  1. What do you do in your spare time?
+                  {q['question1'] || '1. What do you do in your spare time?'}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button type="button" aria-label="Help" className="text-orange-600 hover:text-orange-700">💬</button>
@@ -332,7 +363,7 @@ export default function MyHobbiesAssessment() {
               <div className="border-l-4 border-pink-400 pl-6">
                 <label className="block text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
                   <Heart className="w-5 h-5 text-pink-500" />
-                  2. Do you have any hobbies? If yes, what are they?
+                  {q['question2'] || '2. Do you have any hobbies? If yes, what are they?'}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button type="button" aria-label="Help" className="text-pink-600 hover:text-pink-700">💬</button>
@@ -353,7 +384,7 @@ export default function MyHobbiesAssessment() {
               <div className="border-l-4 border-purple-400 pl-6">
                 <label className="block text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
                   <Star className="w-5 h-5 text-purple-500" />
-                  3. Based on the above answer, what hobby do you like and enjoy the most and why?
+                  {q['question3'] || '3. Based on the above answer, what hobby do you like and enjoy the most and why?'}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button type="button" aria-label="Help" className="text-purple-600 hover:text-purple-700">💬</button>
@@ -374,7 +405,7 @@ export default function MyHobbiesAssessment() {
               <div className="border-l-4 border-blue-400 pl-6">
                 <label className="block text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
                   <TrendingUp className="w-5 h-5 text-blue-500" />
-                  4. Have your hobbies ever changed?
+                  {q['question4'] || '4. Have your hobbies ever changed?'}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700">💬</button>
@@ -395,7 +426,7 @@ export default function MyHobbiesAssessment() {
               <div className="border-l-4 border-green-400 pl-6">
                 <label className="block text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
                   <Lightbulb className="w-5 h-5 text-green-500" />
-                  5. Where did the inspiration for your hobby come from? From whom?
+                  {q['question5'] || '5. Where did the inspiration for your hobby come from? From whom?'}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button type="button" aria-label="Help" className="text-green-600 hover:text-green-700">💬</button>
@@ -416,7 +447,7 @@ export default function MyHobbiesAssessment() {
               <div className="border-l-4 border-indigo-400 pl-6">
                 <label className="block text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
                   <Target className="w-5 h-5 text-indigo-500" />
-                  6. Do you know someone who has your hobby? Who?
+                  {q['question6'] || '6. Do you know someone who has your hobby? Who?'}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button type="button" aria-label="Help" className="text-indigo-600 hover:text-indigo-700">💬</button>
@@ -437,7 +468,7 @@ export default function MyHobbiesAssessment() {
               <div className="border-l-4 border-red-400 pl-6">
                 <label className="block text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
                   <Award className="w-5 h-5 text-red-500" />
-                  7. List the talents you have
+                  {q['question7'] || '7. List the talents you have'}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button type="button" aria-label="Help" className="text-red-600 hover:text-red-700">💬</button>
@@ -458,7 +489,7 @@ export default function MyHobbiesAssessment() {
               <div className="border-l-4 border-yellow-400 pl-6">
                 <label className="block text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
                   <TrendingUp className="w-5 h-5 text-yellow-500" />
-                  8. Do you practise to improve your talent?
+                  {q['question8'] || '8. Do you practise to improve your talent?'}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button type="button" aria-label="Help" className="text-yellow-600 hover:text-yellow-700">💬</button>
@@ -479,7 +510,7 @@ export default function MyHobbiesAssessment() {
               <div className="border-l-4 border-teal-400 pl-6">
                 <label className="block text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
                   <BookOpen className="w-5 h-5 text-teal-500" />
-                  9. Do you have opportunities and encouragement at school and at home to practise your hobbies?
+                  {q['question9'] || '9. Do you have opportunities and encouragement at school and at home to practise your hobbies?'}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button type="button" aria-label="Help" className="text-teal-600 hover:text-teal-700">💬</button>
@@ -500,7 +531,7 @@ export default function MyHobbiesAssessment() {
               <div className="border-l-4 border-emerald-400 pl-6">
                 <label className="block text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
                   <CheckCircle className="w-5 h-5 text-emerald-500" />
-                  10. Do any of your hobbies complement your talents?
+                  {q['question10'] || '10. Do any of your hobbies complement your talents?'}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button type="button" aria-label="Help" className="text-emerald-600 hover:text-emerald-700">💬</button>
@@ -521,7 +552,7 @@ export default function MyHobbiesAssessment() {
               <div className="border-l-4 border-sky-400 pl-6">
                 <label className="block text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
                   <Target className="w-5 h-5 text-sky-500" />
-                  11. Could you turn any of your hobbies or talents into your career? If yes, how?
+                  {q['question11'] || '11. Could you turn any of your hobbies or talents into your career? If yes, how?'}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button type="button" aria-label="Help" className="text-sky-600 hover:text-sky-700">💬</button>
@@ -542,7 +573,7 @@ export default function MyHobbiesAssessment() {
               <div className="border-l-4 border-rose-400 pl-6">
                 <label className="block text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
                   <Users className="w-5 h-5 text-rose-500" />
-                  12. Has someone you know, made a career out of their hobby or talent?
+                  {q['question12'] || '12. Has someone you know, made a career out of their hobby or talent?'}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button type="button" aria-label="Help" className="text-rose-600 hover:text-rose-700">💬</button>
@@ -573,12 +604,12 @@ export default function MyHobbiesAssessment() {
             {submitting ? (
               <>
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-                Submitting...
+                {t('submitting')}
               </>
             ) : (
               <>
                 <Palette className="w-5 h-5 mr-3" />
-                Submit Hobbies Assessment
+                {t('submitAssessment')}
               </>
             )}
           </Button>
@@ -620,6 +651,7 @@ export default function MyHobbiesAssessment() {
         </div>
 				</TooltipProvider>
 			</div>
+      <KannadaKeyboard lang={lang} />
     </div>
   );
 }

@@ -24,8 +24,10 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { useLang } from '@/hooks/useLang';
 import { ArrowLeft } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { KannadaKeyboard } from '@/components/ui/KannadaKeyboard';
 
 interface SchoolLearningAssessmentResponse {
   part1: {
@@ -64,6 +66,7 @@ interface SchoolLearningAssessmentResponse {
 
 export default function MySchoolLearningAssessment() {
   const { userProfile } = useAuth();
+  const { t, lang } = useLang();
   const { toast } = useToast();
   const [responses, setResponses] = useState<SchoolLearningAssessmentResponse>({
     part1: {
@@ -104,10 +107,38 @@ export default function MySchoolLearningAssessment() {
   const [isCompleted, setIsCompleted] = useState(false);
   const [currentPart, setCurrentPart] = useState<'part1' | 'part2' | 'part3'>('part1');
   const navigate = useNavigate();
+  const [q, setQ] = useState<Record<string, string>>({});
 
   useEffect(() => {
     checkExistingResponse();
   }, []);
+
+  useEffect(() => {
+    const loadI18n = async () => {
+      try {
+        const { data } = await supabase.rpc('get_school_learning_questions_i18n', { p_lang: lang } as any);
+        const arr = Array.isArray(data) ? data : (data?.data || []);
+        const map: Record<string, string> = {};
+        (arr || []).forEach((row: any) => { if (row?.key) map[row.key] = row.text; });
+        setQ(map);
+      } catch {}
+    };
+    loadI18n();
+  }, [lang]);
+
+  // Keep URL ?lang in sync without re-rendering
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      const current = url.searchParams.get('lang');
+      if (current !== lang) {
+        url.searchParams.set('lang', lang);
+        const next = `${url.pathname}?${url.searchParams.toString()}${url.hash}`;
+        const now = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        if (next !== now) window.history.replaceState(window.history.state, '', next);
+      }
+    } catch {}
+  }, [lang]);
 
   // Auto-save drafts on change (debounced)
   useEffect(() => {
@@ -338,14 +369,14 @@ export default function MySchoolLearningAssessment() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 py-8" lang={lang} dir="auto">
       <div className="container mx-auto px-4">
         <TooltipProvider>
         {/* Header */}
         <div className="text-center mb-8">
           <div className="text-left mb-2">
-            <Button variant="ghost" onClick={() => navigate('/student')} className="text-green-700 hover:text-green-800 hover:bg-green-50">
-              <ArrowLeft className="w-4 h-4 mr-2" />Back to Dashboard
+          <Button variant="ghost" onClick={() => navigate('/student')} className="text-green-700 hover:text-green-800 hover:bg-green-50">
+            <ArrowLeft className="w-4 h-4 mr-2" />{t('backToDashboard')}
             </Button>
           </div>
           <h1 className="text-3xl font-bold text-green-800 mb-2">🏫 My School, My Learning and I</h1>
@@ -362,13 +393,13 @@ export default function MySchoolLearningAssessment() {
         <Card className="mb-6 border-0 shadow-lg">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">Your Progress</h2>
-              <Badge variant="secondary">{Math.round(getProgressPercentage())}% Complete</Badge>
+              <h2 className="text-lg font-semibold text-gray-800">{t('yourProgress')}</h2>
+              <Badge variant="secondary">{Math.round(getProgressPercentage())}% {t('completeSuffix')}</Badge>
             </div>
             <Progress value={getProgressPercentage()} className="h-3" />
             <div className="flex justify-between text-sm text-gray-600 mt-2">
               <span>Part {currentPart === 'part1' ? '1' : currentPart === 'part2' ? '2' : '3'} of 3</span>
-              <span>{Math.round(getProgressPercentage())}% Complete</span>
+              <span>{Math.round(getProgressPercentage())}% {t('completeSuffix')}</span>
             </div>
           </CardContent>
         </Card>
@@ -422,7 +453,7 @@ export default function MySchoolLearningAssessment() {
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    1. Do you like to come to school?
+                    {q['question1'] || '1. Do you like to come to school?'}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" aria-label="Help" className="text-green-700 hover:text-green-800">💬</button>
@@ -441,7 +472,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    2. Why do you like to come to school?
+                    {q['question2'] || '2. Why do you like to come to school?'}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" aria-label="Help" className="text-green-700 hover:text-green-800">💬</button>
@@ -460,7 +491,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    3. Why don't you like coming to school?
+                    {q['question3'] || "3. Why don't you like coming to school?"}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" aria-label="Help" className="text-green-700 hover:text-green-800">💬</button>
@@ -479,7 +510,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    4. Who is your best friend at school?
+                    {q['question4'] || '4. Who is your best friend at school?'}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" aria-label="Help" className="text-green-700 hover:text-green-800">💬</button>
@@ -498,7 +529,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    5. Which is your favourite subject/topic?
+                    {q['question5'] || '5. Which is your favourite subject/topic?'}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" aria-label="Help" className="text-green-700 hover:text-green-800">💬</button>
@@ -517,7 +548,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    6. Why do you like these topics?
+                    {q['question6'] || '6. Why do you like these topics?'}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" aria-label="Help" className="text-green-700 hover:text-green-800">💬</button>
@@ -536,7 +567,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    7. Which subject(s) do you not like?
+                    {q['question7'] || '7. Which subject(s) do you not like?'}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" aria-label="Help" className="text-green-700 hover:text-green-800">💬</button>
@@ -570,7 +601,7 @@ export default function MySchoolLearningAssessment() {
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    8. Why do you not like these subjects?
+                    {q['question8'] || '8. Why do you not like these subjects?'}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" aria-label="Help" className="text-blue-700 hover:text-blue-800">💬</button>
@@ -589,7 +620,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    9. In which subject(s) do you score more marks?
+                    {q['question9'] || '9. In which subject(s) do you score more marks?'}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" aria-label="Help" className="text-blue-700 hover:text-blue-800">💬</button>
@@ -608,7 +639,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    10. In which subject(s) do you score less marks?
+                    {q['question10'] || '10. In which subject(s) do you score less marks?'}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" aria-label="Help" className="text-blue-700 hover:text-blue-800">💬</button>
@@ -627,7 +658,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    11. Which of the following learning methods do you like best?
+                    {q['question11'] || '11. Which of the following learning methods do you like best?'}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" aria-label="Help" className="text-blue-700 hover:text-blue-800">💬</button>
@@ -732,7 +763,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    12. Apart from the school curriculum, what are the other factors that attract you to the school?
+                    {q['question12'] || '12. Apart from the school curriculum, what are the other factors that attract you to the school?'}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" aria-label="Help" className="text-blue-700 hover:text-blue-800">💬</button>
@@ -766,7 +797,7 @@ export default function MySchoolLearningAssessment() {
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    13. Make a list of the school activities in which you would like to participate.
+                    {q['question13'] || '13. Make a list of the school activities in which you would like to participate.'}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" aria-label="Help" className="text-purple-700 hover:text-purple-800">💬</button>
@@ -785,7 +816,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    14. If there is something about your school that you would want to change, what would that be?
+                    {q['question14'] || '14. If there is something about your school that you would want to change, what would that be?'}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" aria-label="Help" className="text-purple-700 hover:text-purple-800">💬</button>
@@ -804,7 +835,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    15. Which is your favourite place to study? Why?
+                    {q['question15'] || '15. Which is your favourite place to study? Why?'}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" aria-label="Help" className="text-purple-700 hover:text-purple-800">💬</button>
@@ -823,7 +854,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    16. Is school important for your learning?
+                    {q['question16'] || '16. Is school important for your learning?'}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" aria-label="Help" className="text-purple-700 hover:text-purple-800">💬</button>
@@ -842,7 +873,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    17. How can schooling help you realise your dreams?
+                    {q['question17'] || '17. How can schooling help you realise your dreams?'}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" aria-label="Help" className="text-purple-700 hover:text-purple-800">💬</button>
@@ -899,12 +930,12 @@ export default function MySchoolLearningAssessment() {
                 {submitting ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Submitting...
+                    {t('submitting')}
                   </>
                 ) : (
                   <>
                     <School className="w-4 h-4 mr-2" />
-                    Submit Assessment
+                    {t('submitAssessment')}
                   </>
                 )}
               </Button>
@@ -913,6 +944,7 @@ export default function MySchoolLearningAssessment() {
         </div>
         </TooltipProvider>
       </div>
+      <KannadaKeyboard lang={lang} />
     </div>
   );
 }

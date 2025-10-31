@@ -62,7 +62,7 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
     // Redirect to appropriate dashboard based on role
     const redirectPath = userProfile.role === 'admin' ? '/admin' 
                         : userProfile.role === 'teacher' ? '/teacher'
-                        : '/student';
+                        : `/student?lang=${userProfile.preferred_language || 'en'}`;
     return <Navigate to={redirectPath} replace />;
   }
 

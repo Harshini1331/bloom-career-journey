@@ -18,6 +18,8 @@ import {
   Sparkles
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useLang } from '@/hooks/useLang';
+import { KannadaKeyboard } from '@/components/ui/KannadaKeyboard';
 import { 
   AssessmentSummary, 
   SummaryQuestions, 
@@ -44,6 +46,7 @@ export default function SummaryViewDialog({
   onSummaryUpdated
 }: SummaryViewDialogProps) {
   const { toast } = useToast();
+  const { t, lang } = useLang();
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editedSummary, setEditedSummary] = useState<SummaryQuestions>({
@@ -87,8 +90,8 @@ export default function SummaryViewDialog({
     // Validate that all fields have content
     if (!editedSummary.question1.trim() || !editedSummary.question2.trim() || !editedSummary.question3.trim()) {
       toast({
-        title: "Incomplete Summary",
-        description: "Please fill in all three questions before saving.",
+        title: lang === 'kn' ? "ಅಪೂರ್ಣ ಸಾರಾಂಶ" : "Incomplete Summary",
+        description: lang === 'kn' ? "ಉಳಿಸುವ ಮೊದಲು ಎಲ್ಲಾ ಮೂರು ಪ್ರಶ್ನೆಗಳನ್ನು ಭರ್ತಿ ಮಾಡಿ." : "Please fill in all three questions before saving.",
         variant: "destructive"
       });
       return;
@@ -104,8 +107,8 @@ export default function SummaryViewDialog({
 
       if (result.success) {
         toast({
-          title: "Summary Updated! ✨",
-          description: "Your reflection summary has been saved successfully."
+          title: lang === 'kn' ? "ಸಾರಾಂಶ ನವೀಕರಿಸಲಾಗಿದೆ! ✨" : "Summary Updated! ✨",
+          description: lang === 'kn' ? "ನಿಮ್ಮ ಪ್ರತಿಬಿಂಬ ಸಾರಾಂಶ ಯಶಸ್ವಿಯಾಗಿ ಉಳಿಸಲಾಗಿದೆ." : "Your reflection summary has been saved successfully."
         });
         setIsEditing(false);
         onSummaryUpdated?.();
@@ -115,8 +118,8 @@ export default function SummaryViewDialog({
     } catch (error) {
       console.error('Error saving summary:', error);
       toast({
-        title: "Error",
-        description: "Failed to save your changes. Please try again.",
+        title: lang === 'kn' ? "ದೋಷ" : "Error",
+        description: lang === 'kn' ? "ನಿಮ್ಮ ಬದಲಾವಣೆಗಳನ್ನು ಉಳಿಸಲು ವಿಫಲವಾಗಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ." : "Failed to save your changes. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -127,17 +130,17 @@ export default function SummaryViewDialog({
   if (!summary) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Reflection Summary</DialogTitle>
-            <DialogDescription>
-              Your reflection summary is not yet available.
-            </DialogDescription>
-          </DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" lang={lang} dir="auto">
+        <DialogHeader>
+          <DialogTitle>{lang === 'kn' ? 'ಪ್ರತಿಬಿಂಬ ಸಾರಾಂಶ' : 'Reflection Summary'}</DialogTitle>
+          <DialogDescription>
+            {lang === 'kn' ? 'ನಿಮ್ಮ ಪ್ರತಿಬಿಂಬ ಸಾರಾಂಶ ಇನ್ನೂ ಲಭ್ಯವಿಲ್ಲ.' : 'Your reflection summary is not yet available.'}
+          </DialogDescription>
+        </DialogHeader>
           <div className="p-8 text-center">
             <AlertCircle className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
             <p className="text-gray-600">
-              Your summary is being reviewed by your teacher and will be available soon.
+              {lang === 'kn' ? 'ನಿಮ್ಮ ಸಾರಾಂಶವನ್ನು ನಿಮ್ಮ ಶಿಕ್ಷಕರು ವಿಮರ್ಶೆ ಮಾಡುತ್ತಿದ್ದಾರೆ ಮತ್ತು ಶೀಘ್ರದಲ್ಲೇ ಲಭ್ಯವಾಗುತ್ತದೆ.' : 'Your summary is being reviewed by your teacher and will be available soon.'}
             </p>
           </div>
         </DialogContent>
@@ -151,16 +154,16 @@ export default function SummaryViewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" lang={lang} dir="auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <div>
               <DialogTitle className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-purple-600" />
-                Things I Was Inspired By
+                {lang === 'kn' ? 'ನನ್ನನ್ನು ಪ್ರೇರೇಪಿಸಿದ ವಿಷಯಗಳು' : 'Things I Was Inspired By'}
               </DialogTitle>
               <DialogDescription>
-                Your reflection on inspirational videos and experiences
+                {lang === 'kn' ? 'ಪ್ರೇರಣಾದಾಯಕ ವೀಡಿಯೊಗಳು ಮತ್ತು ಅನುಭವಗಳ ಬಗ್ಗೆ ನಿಮ್ಮ ಪ್ರತಿಬಿಂಬ' : 'Your reflection on inspirational videos and experiences'}
               </DialogDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -170,13 +173,13 @@ export default function SummaryViewDialog({
               {isStudentEdited && (
                 <Badge variant="outline" className="bg-blue-50">
                   <Edit3 className="h-3 w-3 mr-1" />
-                  Edited by You
+                  {lang === 'kn' ? 'ನೀವು ಸಂಪಾದಿಸಿದ್ದೀರಿ' : 'Edited by You'}
                 </Badge>
               )}
               {summary.summary_type === 'teacher_edited' && (
                 <Badge variant="outline" className="bg-purple-50">
                   <CheckCircle className="h-3 w-3 mr-1" />
-                  Reviewed by Teacher
+                  {lang === 'kn' ? 'ಶಿಕ್ಷಕರು ವಿಮರ್ಶಿಸಿದ್ದಾರೆ' : 'Reviewed by Teacher'}
                 </Badge>
               )}
             </div>
@@ -189,18 +192,19 @@ export default function SummaryViewDialog({
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Lightbulb className="h-5 w-5 text-yellow-600" />
-                1. What Inspired You?
+                {lang === 'kn' ? '1. ನಿಮ್ಮನ್ನು ಏನು ಪ್ರೇರೇಪಿಸಿತು?' : '1. What Inspired You?'}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <Label className="text-sm text-gray-600 mb-2 block">
-                List the things that inspired you from these videos and from your own experiences.
+                {lang === 'kn' ? 'ಈ ವೀಡಿಯೊಗಳಿಂದ ಮತ್ತು ನಿಮ್ಮ ಸ್ವಂತ ಅನುಭವಗಳಿಂದ ನಿಮ್ಮನ್ನು ಪ್ರೇರೇಪಿಸಿದ ವಿಷಯಗಳನ್ನು ಪಟ್ಟಿ ಮಾಡಿ.' : 'List the things that inspired you from these videos and from your own experiences.'}
               </Label>
               {isEditing ? (
                 <Textarea
+                  lang={lang}
                   value={editedSummary.question1}
                   onChange={(e) => setEditedSummary({ ...editedSummary, question1: e.target.value })}
-                  placeholder="Write about what inspired you..."
+                  placeholder={lang === 'kn' ? 'ನಿಮ್ಮನ್ನು ಏನು ಪ್ರೇರೇಪಿಸಿತು ಎಂದು ಬರೆಯಿರಿ...' : 'Write about what inspired you...'}
                   className="min-h-[150px] text-base"
                 />
               ) : (
@@ -216,18 +220,19 @@ export default function SummaryViewDialog({
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <AlertCircle className="h-5 w-5 text-red-600" />
-                2. Behaviors to Avoid
+                {lang === 'kn' ? '2. ತಪ್ಪಿಸಬೇಕಾದ ನಡವಳಿಕೆಗಳು' : '2. Behaviors to Avoid'}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <Label className="text-sm text-gray-600 mb-2 block">
-                After watching all these videos, which behaviors do you feel you should avoid?
+                {lang === 'kn' ? 'ಈ ಎಲ್ಲಾ ವೀಡಿಯೊಗಳನ್ನು ನೋಡಿದ ನಂತರ, ನೀವು ತಪ್ಪಿಸಬೇಕಾದ ನಡವಳಿಕೆಗಳು ಯಾವುವು?' : 'After watching all these videos, which behaviors do you feel you should avoid?'}
               </Label>
               {isEditing ? (
                 <Textarea
+                  lang={lang}
                   value={editedSummary.question2}
                   onChange={(e) => setEditedSummary({ ...editedSummary, question2: e.target.value })}
-                  placeholder="Write about behaviors to avoid..."
+                  placeholder={lang === 'kn' ? 'ತಪ್ಪಿಸಬೇಕಾದ ನಡವಳಿಕೆಗಳ ಬಗ್ಗೆ ಬರೆಯಿರಿ...' : 'Write about behaviors to avoid...'}
                   className="min-h-[150px] text-base"
                 />
               ) : (
@@ -243,19 +248,19 @@ export default function SummaryViewDialog({
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Users className="h-5 w-5 text-blue-600" />
-                3. Similarities Between Inspirations
+                {lang === 'kn' ? '3. ಪ್ರೇರಣೆಗಳ ನಡುವಿನ ಹೋಲಿಕೆಗಳು' : '3. Similarities Between Inspirations'}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <Label className="text-sm text-gray-600 mb-2 block">
-                Discuss the similarities between the characters in these videos who inspired you, 
-                and the people who have inspired you in real life.
+                {lang === 'kn' ? 'ನಿಮ್ಮನ್ನು ಪ್ರೇರೇಪಿಸಿದ ಈ ವೀಡಿಯೊಗಳಲ್ಲಿನ ಪಾತ್ರಗಳು ಮತ್ತು ನಿಜ ಜೀವನದಲ್ಲಿ ನಿಮ್ಮನ್ನು ಪ್ರೇರೇಪಿಸಿದ ಜನರ ನಡುವಿನ ಹೋಲಿಕೆಗಳನ್ನು ಚರ್ಚಿಸಿ.' : 'Discuss the similarities between the characters in these videos who inspired you, and the people who have inspired you in real life.'}
               </Label>
               {isEditing ? (
                 <Textarea
+                  lang={lang}
                   value={editedSummary.question3}
                   onChange={(e) => setEditedSummary({ ...editedSummary, question3: e.target.value })}
-                  placeholder="Write about the similarities..."
+                  placeholder={lang === 'kn' ? 'ಹೋಲಿಕೆಗಳ ಬಗ್ಗೆ ಬರೆಯಿರಿ...' : 'Write about the similarities...'}
                   className="min-h-[150px] text-base"
                 />
               ) : (
@@ -270,11 +275,11 @@ export default function SummaryViewDialog({
           <div className="flex items-center justify-between pt-4 border-t">
             <div className="text-sm text-gray-500">
               {summary.approved_at && (
-                <span>Approved on {new Date(summary.approved_at).toLocaleDateString()}</span>
+                <span>{lang === 'kn' ? 'ಅನುಮೋದಿಸಲಾಗಿದೆ' : 'Approved'} {new Date(summary.approved_at).toLocaleDateString()}</span>
               )}
               {isStudentEdited && summary.updated_at && (
                 <span className="ml-4">
-                  Last edited: {new Date(summary.updated_at).toLocaleDateString()}
+                  {lang === 'kn' ? 'ಕೊನೆಯ ಬಾರಿ ಸಂಪಾದಿಸಲಾಗಿದೆ' : 'Last edited'}: {new Date(summary.updated_at).toLocaleDateString()}
                 </span>
               )}
             </div>
@@ -287,7 +292,7 @@ export default function SummaryViewDialog({
                     disabled={saving}
                   >
                     <X className="h-4 w-4 mr-2" />
-                    Cancel
+                    {lang === 'kn' ? 'ರದ್ದುಮಾಡಿ' : 'Cancel'}
                   </Button>
                   <Button
                     onClick={handleSave}
@@ -295,11 +300,11 @@ export default function SummaryViewDialog({
                     className="bg-green-600 hover:bg-green-700"
                   >
                     {saving ? (
-                      <>Saving...</>
+                      <>{lang === 'kn' ? 'ಉಳಿಸಲಾಗುತ್ತಿದೆ...' : 'Saving...'}</>
                     ) : (
                       <>
                         <Save className="h-4 w-4 mr-2" />
-                        Save Changes
+                        {lang === 'kn' ? 'ಬದಲಾವಣೆಗಳನ್ನು ಉಳಿಸಿ' : 'Save Changes'}
                       </>
                     )}
                   </Button>
@@ -307,12 +312,12 @@ export default function SummaryViewDialog({
               ) : (
                 <>
                   <Button variant="outline" onClick={() => onOpenChange(false)}>
-                    Close
+                    {lang === 'kn' ? 'ಮುಚ್ಚಿ' : 'Close'}
                   </Button>
                   {canEdit && (
                     <Button onClick={handleEdit} className="bg-blue-600 hover:bg-blue-700">
                       <Edit3 className="h-4 w-4 mr-2" />
-                      Edit My Summary
+                      {lang === 'kn' ? 'ನನ್ನ ಸಾರಾಂಶವನ್ನು ಸಂಪಾದಿಸಿ' : 'Edit My Summary'}
                     </Button>
                   )}
                 </>
@@ -320,6 +325,7 @@ export default function SummaryViewDialog({
             </div>
           </div>
         </div>
+        {lang === 'kn' && <KannadaKeyboard lang={lang} />}
       </DialogContent>
     </Dialog>
   );

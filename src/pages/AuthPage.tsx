@@ -10,11 +10,36 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { BookOpen, Users, GraduationCap } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { StateInfo, SchoolClass } from '@/integrations/supabase/types';
+import { useLocation } from 'react-router-dom';
 
 export default function AuthPage() {
   console.log('AuthPage: Component rendering');
   
   const { user, userProfile, signIn, signUp } = useAuth();
+  const location = useLocation();
+  // Auth page always displays in English (registration and login must be in English)
+  const lang = 'en' as const;
+
+  // Auth page always displays in English - strings simplified to single language
+  const strings: Record<string, string> = {
+    welcome: 'Welcome',
+    signInTab: 'Sign In',
+    signUpTab: 'Sign Up',
+    emailOrMobile: 'Email or Mobile Number',
+    password: 'Password',
+    signInBtn: 'Sign In',
+    fullName: 'Full Name',
+    emailOrMobile2: 'Email Address / Mobile Number',
+    createPassword: 'Create a password',
+    role: 'Role',
+    state: 'State *',
+    class: 'Class *',
+    createAccount: 'Create Account',
+    student: 'Student',
+    teacher: 'Teacher',
+    preferredLanguage: 'Preferred language',
+  };
+  const t = (k: string) => strings[k] || k;
   const [signInForm, setSignInForm] = useState({ identifier: '', password: '' });
   const [signUpForm, setSignUpForm] = useState({ 
     identifier: '', 
@@ -22,7 +47,8 @@ export default function AuthPage() {
     fullName: '', 
     role: 'student' as 'teacher' | 'student',
     stateId: '',
-    classId: ''
+    classId: '',
+    preferredLanguage: 'en' as 'en' | 'kn'
   });
   const [loading, setLoading] = useState(false);
   const [states, setStates] = useState<StateInfo[]>([]);
@@ -147,7 +173,7 @@ export default function AuthPage() {
   if (user && userProfile) {
     const redirectPath = userProfile.role === 'admin' ? '/admin' 
                         : userProfile.role === 'teacher' ? '/teacher'
-                        : '/student';
+                        : `/student?lang=${userProfile.preferred_language || 'en'}`;
     return <Navigate to={redirectPath} replace />;
   }
 
@@ -190,7 +216,8 @@ export default function AuthPage() {
       signUpForm.fullName, 
       signUpForm.role,
       signUpForm.stateId,
-      signUpForm.classId
+      signUpForm.classId,
+      signUpForm.preferredLanguage
     );
     setLoading(false);
     if (error) {
@@ -211,20 +238,20 @@ export default function AuthPage() {
 
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle>Welcome</CardTitle>
+            <CardTitle>{t('welcome')}</CardTitle>
             <CardDescription>Sign in to your account or create a new one</CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="signin" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="signin">Sign In</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
+                <TabsTrigger value="signin">{t('signInTab')}</TabsTrigger>
+                <TabsTrigger value="signup">{t('signUpTab')}</TabsTrigger>
               </TabsList>
               
               <TabsContent value="signin">
                 <form onSubmit={handleSignIn} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signin-identifier">Email or Mobile Number</Label>
+                    <Label htmlFor="signin-identifier">{t('emailOrMobile')}</Label>
                     <Input
                       id="signin-identifier"
                       type="text"
@@ -235,7 +262,7 @@ export default function AuthPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signin-password">Password</Label>
+                    <Label htmlFor="signin-password">{t('password')}</Label>
                     <Input
                       id="signin-password"
                       type="password"
@@ -246,7 +273,7 @@ export default function AuthPage() {
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? 'Signing In...' : 'Sign In'}
+                    {loading ? 'Signing In...' : t('signInBtn')}
                   </Button>
                 </form>
               </TabsContent>
@@ -254,7 +281,7 @@ export default function AuthPage() {
               <TabsContent value="signup">
                 <form onSubmit={handleSignUp} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signup-name">Full Name</Label>
+                    <Label htmlFor="signup-name">{t('fullName')}</Label>
                     <Input
                       id="signup-name"
                       type="text"
@@ -265,7 +292,7 @@ export default function AuthPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-identifier">Email Address / Mobile Number</Label>
+                    <Label htmlFor="signup-identifier">{t('emailOrMobile2')}</Label>
                     <Input
                       id="signup-identifier"
                       type="text"
@@ -276,18 +303,18 @@ export default function AuthPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-password">Password</Label>
+                    <Label htmlFor="signup-password">{t('password')}</Label>
                     <Input
                       id="signup-password"
                       type="password"
-                      placeholder="Create a password"
+                      placeholder={t('createPassword')}
                       value={signUpForm.password}
                       onChange={(e) => setSignUpForm({ ...signUpForm, password: e.target.value })}
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="role">Role</Label>
+                    <Label htmlFor="role">{t('role')}</Label>
                     <Select value={signUpForm.role} onValueChange={(value: 'teacher' | 'student') => setSignUpForm({ ...signUpForm, role: value, classId: '', stateId: '' })}>
                       <SelectTrigger>
                         <SelectValue />
@@ -296,13 +323,13 @@ export default function AuthPage() {
                         <SelectItem value="student">
                           <div className="flex items-center gap-2">
                             <BookOpen className="w-4 h-4" />
-                            Student
+                            {t('student')}
                           </div>
                         </SelectItem>
                         <SelectItem value="teacher">
                           <div className="flex items-center gap-2">
                             <Users className="w-4 h-4" />
-                            Teacher
+                            {t('teacher')}
                           </div>
                         </SelectItem>
                       </SelectContent>
@@ -311,7 +338,7 @@ export default function AuthPage() {
 
                   {/* State Selection */}
                   <div className="space-y-2">
-                    <Label htmlFor="state">State *</Label>
+                    <Label htmlFor="state">{t('state')}</Label>
                     <Select 
                       value={signUpForm.stateId} 
                       onValueChange={(value) => setSignUpForm({ ...signUpForm, stateId: value, classId: '' })}
@@ -344,7 +371,7 @@ export default function AuthPage() {
                   {/* Class Selection - Only for Students */}
                   {signUpForm.role === 'student' && (
                     <div className="space-y-2">
-                      <Label htmlFor="class">Class *</Label>
+                      <Label htmlFor="class">{t('class')}</Label>
                       <Select 
                         value={signUpForm.classId} 
                         onValueChange={(value) => setSignUpForm({ ...signUpForm, classId: value })}
@@ -364,8 +391,25 @@ export default function AuthPage() {
                     </div>
                   )}
 
+                  {/* Preferred Language */}
+                  <div className="space-y-2">
+                    <Label htmlFor="preferred-language">{t('preferredLanguage')}</Label>
+                    <Select 
+                      value={signUpForm.preferredLanguage}
+                      onValueChange={(value: 'en' | 'kn') => setSignUpForm({ ...signUpForm, preferredLanguage: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="en">English</SelectItem>
+                        <SelectItem value="kn">Kannada</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? 'Creating Account...' : 'Create Account'}
+                    {loading ? 'Creating Account...' : t('createAccount')}
                   </Button>
                 </form>
               </TabsContent>

@@ -3,21 +3,33 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useLang } from '@/hooks/useLang';
 import { safeObjectEntries, handleDatabaseError, validateApiResponse } from '@/utils/errorHandler';
 
 type CategoryKey = 'R' | 'I' | 'A' | 'S' | 'E' | 'C';
 
-const CATEGORY_LABELS: Record<CategoryKey, string> = {
-  R: 'Realistic',
-  I: 'Investigative',
-  A: 'Artistic',
-  S: 'Social',
-  E: 'Enterprising',
-  C: 'Conventional',
+const CATEGORY_LABELS: Record<'en' | 'kn', Record<CategoryKey, string>> = {
+  en: {
+    R: 'Realistic',
+    I: 'Investigative',
+    A: 'Artistic',
+    S: 'Social',
+    E: 'Enterprising',
+    C: 'Conventional',
+  },
+  kn: {
+    R: 'ವಾಸ್ತವಿಕ',
+    I: 'ವಿಚಾರಣಾತ್ಮಕ',
+    A: 'ಕಲಾತ್ಮಕ',
+    S: 'ಸಾಮಾಜಿಕ',
+    E: 'ಉದ್ಯಮಶೀಲ',
+    C: 'ಸಾಂಪ್ರದಾಯಿಕ',
+  },
 };
 
 export default function HollandCodeTest({ onCompleted }: { onCompleted?: (code: string) => void }) {
   const { userProfile } = useAuth();
+  const { t, lang } = useLang();
   // checkbox for like/interest => true/false
   const [answers, setAnswers] = useState<Record<string, boolean>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -179,32 +191,58 @@ export default function HollandCodeTest({ onCompleted }: { onCompleted?: (code: 
   };
 
   return (
-    <Card className="border-0 shadow-lg">
+    <Card className="border-0 shadow-lg" lang={lang} dir="auto">
       <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
-        <CardTitle className="text-2xl font-bold text-blue-800">🧭 Psychometric Tests – Holland Code Assessment</CardTitle>
+        <CardTitle className="text-2xl font-bold text-blue-800">
+          {lang === 'kn' ? '🧭 ಮಾನಸಿಕ ಪರೀಕ್ಷೆಗಳು – ಹಾಲೆಂಡ್ ಕೋಡ್ ಅಸೆಸ್ಮೆಂಟ್' : '🧭 Psychometric Tests – Holland Code Assessment'}
+        </CardTitle>
       </CardHeader>
       <CardContent className="p-6">
         {/* Intro text */}
         <div className="mb-6 text-gray-700 text-sm leading-relaxed">
-          <p className="mb-2">This quiz uses the scientific Holland Code model to show you which jobs will suit your interests, talents, and aptitude.</p>
-          <p className="mb-2">Do not worry about whether you have the skills or training to do an activity, or how much money you might make. Think whether you would enjoy doing the activity or not.</p>
-          <p className="mb-2">Completing this quiz might help you identify the types of occupations in which you would have the most interest and get the most satisfaction, and it will give you a place to start your career exploration.</p>
-          <p className="mt-1">Please select all activities that you like or are interested in from each of these groups.</p>
+          <p className="mb-2">
+            {lang === 'kn' 
+              ? 'ಈ ಪ್ರಶ್ನೋತ್ತರಿ ನಿಮ್ಮ ಆಸಕ್ತಿಗಳು, ಪ್ರತಿಭೆಗಳು ಮತ್ತು ಸಾಮರ್ಥ್ಯಕ್ಕೆ ಸೂಕ್ತವಾದ ಉದ್ಯೋಗಗಳನ್ನು ತೋರಿಸಲು ವೈಜ್ಞಾನಿಕ ಹಾಲೆಂಡ್ ಕೋಡ್ ಮಾದರಿಯನ್ನು ಬಳಸುತ್ತದೆ.'
+              : 'This quiz uses the scientific Holland Code model to show you which jobs will suit your interests, talents, and aptitude.'
+            }
+          </p>
+          <p className="mb-2">
+            {lang === 'kn' 
+              ? 'ನೀವು ಚಟುವಟಿಕೆಯನ್ನು ಮಾಡಲು ಕೌಶಲ್ಯಗಳು ಅಥವಾ ತರಬೇತಿ ಹೊಂದಿದ್ದೀರಾ ಎಂಬುದರ ಬಗ್ಗೆ ಅಥವಾ ನೀವು ಎಷ್ಟು ಹಣವನ್ನು ಗಳಿಸಬಹುದು ಎಂಬುದರ ಬಗ್ಗೆ ಚಿಂತಿಸಬೇಡಿ. ನೀವು ಚಟುವಟಿಕೆಯನ್ನು ಮಾಡಲು ಆನಂದಿಸುತ್ತೀರೋ ಅಥವಾ ಇಲ್ಲವೋ ಎಂದು ಯೋಚಿಸಿ.'
+              : 'Do not worry about whether you have the skills or training to do an activity, or how much money you might make. Think whether you would enjoy doing the activity or not.'
+            }
+          </p>
+          <p className="mb-2">
+            {lang === 'kn' 
+              ? 'ಈ ಪ್ರಶ್ನೋತ್ತರಿಯನ್ನು ಪೂರ್ಣಗೊಳಿಸುವುದು ನಿಮಗೆ ಹೆಚ್ಚಿನ ಆಸಕ್ತಿ ಮತ್ತು ಹೆಚ್ಚಿನ ತೃಪ್ತಿಯನ್ನು ಪಡೆಯುವ ಉದ್ಯೋಗಗಳನ್ನು ಗುರುತಿಸಲು ಸಹಾಯ ಮಾಡಬಹುದು ಮತ್ತು ಇದು ನಿಮ್ಮ ವೃತ್ತಿ ಅನ್ವೇಷಣೆಯನ್ನು ಪ್ರಾರಂಭಿಸಲು ಒಂದು ಸ್ಥಳವನ್ನು ನಿಮಗೆ ನೀಡುತ್ತದೆ.'
+              : 'Completing this quiz might help you identify the types of occupations in which you would have the most interest and get the most satisfaction, and it will give you a place to start your career exploration.'
+            }
+          </p>
+          <p className="mt-1">
+            {lang === 'kn' 
+              ? 'ದಯವಿಟ್ಟು ಈ ಗುಂಪುಗಳಲ್ಲಿ ನೀವು ಇಷ್ಟಪಡುವ ಅಥವಾ ಆಸಕ್ತಿ ಹೊಂದಿರುವ ಎಲ್ಲಾ ಚಟುವಟಿಕೆಗಳನ್ನು ಆಯ್ಕೆಮಾಡಿ.'
+              : 'Please select all activities that you like or are interested in from each of these groups.'
+            }
+          </p>
         </div>
 
         {result ? (
           <div className="space-y-4">
             <div className="p-6 bg-green-50 border border-green-200 rounded-lg shadow-sm">
-              <div className="text-sm text-green-800">✅ Your Holland Code</div>
+              <div className="text-sm text-green-800">{lang === 'kn' ? '✅ ನಿಮ್ಮ ಹಾಲೆಂಡ್ ಕೋಡ್' : '✅ Your Holland Code'}</div>
               <div className="text-3xl font-bold text-green-900">{result}</div>
             </div>
-            <Button variant="outline" onClick={reset} className="border-blue-200 text-blue-700 hover:bg-blue-50">↻ Retake Test</Button>
+            <Button variant="outline" onClick={reset} className="border-blue-200 text-blue-700 hover:bg-blue-50">
+              {lang === 'kn' ? '↻ ಪರೀಕ್ಷೆಯನ್ನು ಮತ್ತೆ ತೆಗೆದುಕೊಳ್ಳಿ' : '↻ Retake Test'}
+            </Button>
           </div>
         ) : (
           <div className="space-y-6">
             {(Object.keys(QUESTIONS) as CategoryKey[]).map(cat => (
               <div key={cat} className="p-4 bg-white rounded-lg border shadow-sm">
-                <div className="text-xl font-semibold mb-2 text-blue-800">{CATEGORY_LABELS[cat]} ({cat})</div>
+                <div className="text-xl font-semibold mb-2 text-blue-800">
+                  {CATEGORY_LABELS[lang][cat]} ({cat})
+                </div>
                 <div className="space-y-2">
                   {QUESTIONS[cat].map((q, idx) => {
                     const k = `${cat}-${idx}`;
@@ -221,7 +259,9 @@ export default function HollandCodeTest({ onCompleted }: { onCompleted?: (code: 
             ))}
 
             <div className="flex justify-end">
-              <Button onClick={submit} disabled={submitting} className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">✨ Submit</Button>
+              <Button onClick={submit} disabled={submitting} className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+                {lang === 'kn' ? '✨ ಸಲ್ಲಿಸಿ' : '✨ Submit'}
+              </Button>
             </div>
           </div>
         )}

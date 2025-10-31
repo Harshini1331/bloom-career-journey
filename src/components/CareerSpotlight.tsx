@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import { useLang } from '@/hooks/useLang';
 
 // Attempt to discover career card images at build time.
 // Preferred: public/career_cards (accessible at /career_cards/<file>)
@@ -31,6 +32,7 @@ type SpotlightProps = {
 
 export default function CareerSpotlight({ title = 'Career Spotlight' }: SpotlightProps) {
   const navigate = useNavigate();
+  const { t, lang } = useLang();
 
   const allImages = useMemo(() => {
     const pub = Object.values(publicImages);
@@ -49,10 +51,14 @@ export default function CareerSpotlight({ title = 'Career Spotlight' }: Spotligh
     return allImages[index];
   }, [allImages]);
 
+  const displayTitle = title === 'Career Spotlight' 
+    ? (lang === 'kn' ? 'ವೃತ್ತಿ ಸ್ಪಾಟ್ಲೈಟ್' : 'Career Spotlight')
+    : title;
+
   return (
-    <Card className="border-0 shadow-lg">
+    <Card className="border-0 shadow-lg" lang={lang} dir="auto">
       <CardHeader>
-        <CardTitle className="text-xl text-gray-800">{title}</CardTitle>
+        <CardTitle className="text-xl text-gray-800">{displayTitle}</CardTitle>
       </CardHeader>
       <CardContent>
         {pickDaily ? (
@@ -60,20 +66,31 @@ export default function CareerSpotlight({ title = 'Career Spotlight' }: Spotligh
             <div className="rounded-lg overflow-hidden border bg-white">
               <img
                 src={pickDaily}
-                alt="Career card"
+                alt={lang === 'kn' ? 'ವೃತ್ತಿ ಕಾರ್ಡ್' : 'Career card'}
                 className="w-full h-auto object-cover"
                 loading="lazy"
               />
             </div>
             <div className="mt-3 flex justify-between items-center">
-              <span className="text-sm text-gray-600">New spotlight each day</span>
-              <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => navigate('/careers')}>Explore all careers</Button>
+              <span className="text-sm text-gray-600">
+                {lang === 'kn' ? 'ಪ್ರತಿದಿನ ಹೊಸ ಸ್ಪಾಟ್ಲೈಟ್' : 'New spotlight each day'}
+              </span>
+              <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => navigate('/careers')}>
+                {lang === 'kn' ? 'ಎಲ್ಲಾ ವೃತ್ತಿಗಳನ್ನು ಅನ್ವೇಷಿಸಿ' : 'Explore all careers'}
+              </Button>
             </div>
           </div>
         ) : (
           <div className="text-center py-6">
-            <div className="text-sm text-gray-600 mb-3">Career cards not found in <code>public/career_cards</code>, <code>src/assets/career_cards</code>, or <code>src/career_cards</code>.</div>
-            <Button size="sm" variant="outline" onClick={() => navigate('/careers')}>Explore all careers</Button>
+            <div className="text-sm text-gray-600 mb-3">
+              {lang === 'kn' 
+                ? 'ವೃತ್ತಿ ಕಾರ್ಡ್‌ಗಳು ಕಂಡುಬಂದಿಲ್ಲ.'
+                : 'Career cards not found in public/career_cards, src/assets/career_cards, or src/career_cards.'
+              }
+            </div>
+            <Button size="sm" variant="outline" onClick={() => navigate('/careers')}>
+              {lang === 'kn' ? 'ಎಲ್ಲಾ ವೃತ್ತಿಗಳನ್ನು ಅನ್ವೇಷಿಸಿ' : 'Explore all careers'}
+            </Button>
           </div>
         )}
       </CardContent>

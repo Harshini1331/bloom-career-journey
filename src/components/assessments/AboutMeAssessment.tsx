@@ -12,6 +12,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { handleDatabaseError, validateApiResponse } from '@/utils/errorHandler';
+import { useLang } from '@/hooks/useLang';
+import { KannadaKeyboard } from '@/components/ui/KannadaKeyboard';
 
 interface AboutMeField {
   field_key: string;
@@ -87,6 +89,7 @@ const HELP = {
 
 export default function AboutMeAssessment() {
   const { userProfile } = useAuth();
+  const { t, lang } = useLang();
   const [searchParams] = useSearchParams();
   const readOnlyView = ['1','true'].includes((searchParams.get('readonly')||searchParams.get('view')||'').toLowerCase());
   const { toast } = useToast();
@@ -135,21 +138,37 @@ export default function AboutMeAssessment() {
     return data?.id || null;
   }, [userProfile]);
 
-  // Load About Me fields from database
+  // Load About Me fields from database using lang-aware RPC (fallback to base RPC)
   useEffect(() => {
     const loadFields = async () => {
       try {
         console.log('🔄 Loading About Me fields from database...');
-        const { data, error } = await supabase.rpc('get_about_me_fields');
+        let rows: any[] | null = null;
+        try {
+          const { data: i18nData } = await supabase.rpc('get_about_me_fields_i18n', { p_lang: lang } as any);
+          if (Array.isArray(i18nData)) rows = i18nData as any[];
+          if (i18nData && !Array.isArray(i18nData)) rows = (i18nData as any) as any[]; // in case PostgREST returns jsonb
+          if (rows && typeof rows === 'object' && !Array.isArray(rows)) {
+            // some postgrest versions wrap jsonb in { data: ... }
+            const maybe = (rows as any).data;
+            if (Array.isArray(maybe)) rows = maybe;
+          }
+        } catch {}
+
+        if (!rows) {
+          const { data, error } = await supabase.rpc('get_about_me_fields');
+          if (error) throw error;
+          rows = data as any[];
+        }
         
         if (error) {
           handleDatabaseError(error, 'AboutMeAssessment - Fields');
           throw error;
         }
         
-        if (validateApiResponse(data, 'AboutMeAssessment - Fields')) {
-          console.log('✅ Database fields loaded:', data.length, 'fields');
-          setAboutMeFields(data);
+        if (validateApiResponse(rows, 'AboutMeAssessment - Fields')) {
+          console.log('✅ Database fields loaded:', (rows as any[]).length, 'fields');
+          setAboutMeFields(rows as any);
         } else {
           console.log('⚠️ No fields found in database, using fallback');
         }
@@ -161,7 +180,21 @@ export default function AboutMeAssessment() {
     };
     
     loadFields();
-  }, []);
+  }, [lang]);
+
+  // Keep URL ?lang in sync without re-rendering
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      const current = url.searchParams.get('lang');
+      if (current !== lang) {
+        url.searchParams.set('lang', lang);
+        const next = `${url.pathname}?${url.searchParams.toString()}${url.hash}`;
+        const now = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        if (next !== now) window.history.replaceState(window.history.state, '', next);
+      }
+    } catch {}
+  }, [lang]);
 
   useEffect(() => {
     const load = async () => {
@@ -267,13 +300,13 @@ export default function AboutMeAssessment() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 py-8" lang={lang} dir="auto">
       <div className="container mx-auto px-4">
         {/* Header - match My Dreams */}
         <div className="text-center mb-8">
           <div className="text-left mb-2">
             <Button variant="ghost" onClick={() => navigate('/student')} className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
-              <ArrowLeft className="w-4 h-4 mr-2" />Back to Dashboard
+              <ArrowLeft className="w-4 h-4 mr-2" />{t('backToDashboard')}
             </Button>
           </div>
           <h1 className="text-3xl font-bold text-blue-800 mb-2">🧑 About Me Assessment</h1>
@@ -284,13 +317,13 @@ export default function AboutMeAssessment() {
         <Card className="mb-6 border-0 shadow-lg">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">Your Progress</h2>
-              <Badge variant="secondary">{Math.round(getProgressPercentage())}% Complete</Badge>
+              <h2 className="text-lg font-semibold text-gray-800">{t('yourProgress')}</h2>
+              <Badge variant="secondary">{Math.round(getProgressPercentage())}% {t('completeSuffix')}</Badge>
             </div>
             <Progress value={getProgressPercentage()} className="h-3" />
             <div className="flex justify-between text-sm text-gray-600 mt-2">
               <span>Single module</span>
-              <span>{Math.round(getProgressPercentage())}% Complete</span>
+              <span>{Math.round(getProgressPercentage())}% {t('completeSuffix')}</span>
             </div>
           </CardContent>
         </Card>
@@ -398,6 +431,7 @@ export default function AboutMeAssessment() {
           </CardContent>
         </Card>
       </div>
+      <KannadaKeyboard lang={lang} />
     </div>
   );
 }

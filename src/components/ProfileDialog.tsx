@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useLang } from '@/hooks/useLang';
+import { KannadaKeyboard } from '@/components/ui/KannadaKeyboard';
 
 type Props = {
   open: boolean;
@@ -16,6 +18,7 @@ type Props = {
 export default function ProfileDialog({ open, onOpenChange }: Props) {
   const { userProfile, refreshUserProfile } = useAuth();
   const { toast } = useToast();
+  const { t, lang } = useLang();
   const isTeacher = userProfile?.role === 'teacher';
 
   const [fullName, setFullName] = useState('');
@@ -147,8 +150,8 @@ export default function ProfileDialog({ open, onOpenChange }: Props) {
           
           console.log('Student password updated successfully');
           toast({
-            title: "Password Updated! 🔐",
-            description: "Your password has been changed successfully. You can now login with your new password.",
+            title: lang === 'kn' ? "ಪಾಸ್ವರ್ಡ್ ನವೀಕರಿಸಲಾಗಿದೆ! 🔐" : "Password Updated! 🔐",
+            description: lang === 'kn' ? "ನಿಮ್ಮ ಪಾಸ್ವರ್ಡ್ ಯಶಸ್ವಿಯಾಗಿ ಬದಲಾಯಿಸಲಾಗಿದೆ. ಈಗ ನೀವು ನಿಮ್ಮ ಹೊಸ ಪಾಸ್ವರ್ಡ್‌ನೊಂದಿಗೆ ಲಾಗಿನ್ ಮಾಡಬಹುದು." : "Your password has been changed successfully. You can now login with your new password.",
           });
         } else {
           // Supabase-auth users (teachers/admins)
@@ -158,16 +161,16 @@ export default function ProfileDialog({ open, onOpenChange }: Props) {
             throw new Error(`Failed to update password: ${pwErr.message}`);
           }
           toast({
-            title: "Password Updated! 🔐",
-            description: "Your password has been changed successfully.",
+            title: lang === 'kn' ? "ಪಾಸ್ವರ್ಡ್ ನವೀಕರಿಸಲಾಗಿದೆ! 🔐" : "Password Updated! 🔐",
+            description: lang === 'kn' ? "ನಿಮ್ಮ ಪಾಸ್ವರ್ಡ್ ಯಶಸ್ವಿಯಾಗಿ ಬದಲಾಯಿಸಲಾಗಿದೆ." : "Your password has been changed successfully.",
           });
         }
       }
       
       // Show success message
       toast({
-        title: "Profile Updated! ✨",
-        description: "Your profile has been updated successfully.",
+        title: lang === 'kn' ? "ಪ್ರೊಫೈಲ್ ನವೀಕರಿಸಲಾಗಿದೆ! ✨" : "Profile Updated! ✨",
+        description: lang === 'kn' ? "ನಿಮ್ಮ ಪ್ರೊಫೈಲ್ ಯಶಸ್ವಿಯಾಗಿ ನವೀಕರಿಸಲಾಗಿದೆ." : "Your profile has been updated successfully.",
       });
       
       // Small delay to ensure database update is complete
@@ -184,8 +187,8 @@ export default function ProfileDialog({ open, onOpenChange }: Props) {
     } catch (err: any) {
       console.error('Profile save error:', err);
       toast({
-        title: "Update Failed",
-        description: err.message || "Failed to update profile. Please try again.",
+        title: lang === 'kn' ? "ನವೀಕರಣ ವಿಫಲವಾಗಿದೆ" : "Update Failed",
+        description: err.message || (lang === 'kn' ? "ಪ್ರೊಫೈಲ್ ಅನ್ನು ನವೀಕರಿಸಲು ವಿಫಲವಾಗಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ." : "Failed to update profile. Please try again."),
         variant: "destructive",
       });
     } finally {
@@ -195,77 +198,97 @@ export default function ProfileDialog({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="max-w-xl" lang={lang} dir="auto">
         <DialogHeader>
-          <DialogTitle>My Profile</DialogTitle>
-          <DialogDescription>Update your profile information</DialogDescription>
+          <DialogTitle>{lang === 'kn' ? 'ನನ್ನ ಪ್ರೊಫೈಲ್' : 'My Profile'}</DialogTitle>
+          <DialogDescription>{lang === 'kn' ? 'ನಿಮ್ಮ ಪ್ರೊಫೈಲ್ ಮಾಹಿತಿಯನ್ನು ನವೀಕರಿಸಿ' : 'Update your profile information'}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <Label>Full Name</Label>
-            <Input value={fullName} onChange={(e)=> setFullName(e.target.value)} />
+            <Label>{lang === 'kn' ? 'ಪೂರ್ಣ ಹೆಸರು' : 'Full Name'}</Label>
+            <Input 
+              lang={lang}
+              value={fullName} 
+              onChange={(e)=> setFullName(e.target.value)} 
+            />
           </div>
           <div>
-            <Label>Phone / Email</Label>
+            <Label>{lang === 'kn' ? 'ಫೋನ್ / ಇಮೇಲ್' : 'Phone / Email'}</Label>
             <Input value={contactLabel} disabled />
           </div>
           <div>
-            <Label>Gender</Label>
+            <Label>{lang === 'kn' ? 'ಲಿಂಗ' : 'Gender'}</Label>
             <Select value={gender} onValueChange={(v: any)=> setGender(v)}>
-              <SelectTrigger><SelectValue placeholder="Select gender" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={lang === 'kn' ? 'ಲಿಂಗವನ್ನು ಆಯ್ಕೆಮಾಡಿ' : 'Select gender'} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="male">Male</SelectItem>
-                <SelectItem value="female">Female</SelectItem>
+                <SelectItem value="male">{lang === 'kn' ? 'ಪುರುಷ' : 'Male'}</SelectItem>
+                <SelectItem value="female">{lang === 'kn' ? 'ಸ್ತ್ರೀ' : 'Female'}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           {/* State and School - Side by side */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <Label>State</Label>
+              <Label>{lang === 'kn' ? 'ರಾಜ್ಯ' : 'State'}</Label>
               <Input value={meta?.state || ''} disabled />
             </div>
             <div>
-              <Label>School</Label>
+              <Label>{lang === 'kn' ? 'ಶಾಲೆ' : 'School'}</Label>
               <Input 
+                lang={lang}
                 value={school} 
                 onChange={(e) => setSchool(e.target.value)} 
-                placeholder="Enter your school name"
+                placeholder={lang === 'kn' ? 'ನಿಮ್ಮ ಶಾಲೆಯ ಹೆಸರನ್ನು ನಮೂದಿಸಿ' : 'Enter your school name'}
               />
             </div>
           </div>
           {!isTeacher && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <Label>Teacher</Label>
+                <Label>{lang === 'kn' ? 'ಶಿಕ್ಷಕ' : 'Teacher'}</Label>
                 <Input value={meta?.teacherName || ''} disabled />
               </div>
               <div>
-                <Label>Class</Label>
+                <Label>{lang === 'kn' ? 'ತರಗತಿ' : 'Class'}</Label>
                 <Input value={meta?.className || ''} disabled />
               </div>
             </div>
           )}
           {!isTeacher && (
             <div>
-              <Label>Aspiration / Career Goal</Label>
-              <Input value={goal} onChange={(e)=> setGoal(e.target.value)} placeholder="Your career goal" />
+              <Label>{lang === 'kn' ? 'ಆಸೆ / ವೃತ್ತಿ ಗುರಿ' : 'Aspiration / Career Goal'}</Label>
+              <Input 
+                lang={lang}
+                value={goal} 
+                onChange={(e)=> setGoal(e.target.value)} 
+                placeholder={lang === 'kn' ? 'ನಿಮ್ಮ ವೃತ್ತಿ ಗುರಿ' : 'Your career goal'} 
+              />
             </div>
           )}
           <div>
-            <Label>Profile Picture</Label>
+            <Label>{lang === 'kn' ? 'ಪ್ರೊಫೈಲ್ ಚಿತ್ರ' : 'Profile Picture'}</Label>
             <Input type="file" accept="image/*" onChange={(e)=> setAvatarFile(e.target.files?.[0] || null)} />
           </div>
           <div>
-            <Label>Change Password</Label>
-            <Input type="password" value={password} onChange={(e)=> setPassword(e.target.value)} placeholder="New password" />
+            <Label>{lang === 'kn' ? 'ಪಾಸ್ವರ್ಡ್ ಬದಲಾಯಿಸಿ' : 'Change Password'}</Label>
+            <Input 
+              type="password" 
+              value={password} 
+              onChange={(e)=> setPassword(e.target.value)} 
+              placeholder={lang === 'kn' ? 'ಹೊಸ ಪಾಸ್ವರ್ಡ್' : 'New password'} 
+            />
           </div>
           
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={()=> onOpenChange(false)}>Close</Button>
-            <Button className="bg-green-600 hover:bg-green-700" onClick={saveProfile} disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
+            <Button variant="outline" onClick={()=> onOpenChange(false)}>
+              {lang === 'kn' ? 'ಮುಚ್ಚಿ' : 'Close'}
+            </Button>
+            <Button className="bg-green-600 hover:bg-green-700" onClick={saveProfile} disabled={saving}>
+              {saving ? (lang === 'kn' ? 'ಉಳಿಸಲಾಗುತ್ತಿದೆ…' : 'Saving…') : (lang === 'kn' ? 'ಉಳಿಸಿ' : 'Save')}
+            </Button>
           </div>
         </div>
+        {lang === 'kn' && <KannadaKeyboard lang={lang} />}
       </DialogContent>
     </Dialog>
   );
