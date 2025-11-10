@@ -3,7 +3,7 @@
 // Optimized for Indian accents and rural pronunciation
 
 export interface TranscriptionOptions {
-  language: 'en-IN' | 'hi-IN' | 'auto';
+  language: 'en-IN' | 'hi-IN' | 'kn-IN' | 'ta-IN' | 'te-IN' | 'auto';
   enableAutomaticPunctuation: boolean;
   enableWordTimeOffsets: boolean;
   model: 'latest_long' | 'latest_short';
@@ -73,8 +73,16 @@ class SpeechToTextService {
       
       // Prepare request for Google Speech-to-Text API (v1 compatible payload)
       // Add domain phrase hints to improve recognition for assessment context
-      const PHRASE_HINTS = [
-        // General assessment words
+      // Use language-appropriate hints
+      const PHRASE_HINTS = options.language === 'kn-IN' ? [
+        // Kannada assessment words (in Kannada script)
+        'ಪ್ರೇರಣೆ', 'ಪ್ರೇರೇಪಿಸು', 'ಮೌಲ್ಯಗಳು', 'ಗುಣಗಳು', 'ಪಾತ್ರಗಳು', 'ನೀವು', 'ನಿಮ್ಮ',
+        'ವೀಡಿಯೊ', 'ಆಡಿಯೊ', 'ಪಾಠ', 'ಕಲಿ', 'ಕಲಿಕೆ', 'ಅಭ್ಯಾಸ', 'ಕ್ರಿಯೆ', 'ಯೋಚನೆಗಳು', 'ಸನ್ನಿವೇಶ',
+        'ಉತ್ತರ', 'ಪ್ರತಿಕ್ರಿಯೆ', 'ಪ್ರಶ್ನೆ', 'ರೆಕಾರ್ಡ್', 'ಸ್ಪಷ್ಟವಾಗಿ ಮಾತನಾಡಿ',
+        // Common Kannada words
+        'ನಾನು', 'ನೀವು', 'ಅವರು', 'ಇದು', 'ಅದು', 'ಇಲ್ಲಿ', 'ಅಲ್ಲಿ', 'ಹಾಗೆ', 'ಹೀಗೆ'
+      ] : [
+        // General assessment words (English)
         'inspiration', 'inspirational', 'motivated', 'motivation', 'values', 'qualities', 'characters', 'yourself',
         'video', 'audio', 'lesson', 'learn', 'learning', 'habit', 'action', 'thoughts', 'situation',
         'answer', 'response', 'question', 'record', 'speak clearly',
@@ -351,7 +359,10 @@ class SpeechToTextService {
         maxAlternatives: 3,
         speechContexts: [
           {
-            phrases: [
+            phrases: finalOptions.language === 'kn-IN' ? [
+              'ಪ್ರೇರಣೆ', 'ಪ್ರೇರೇಪಿಸು', 'ಮೌಲ್ಯಗಳು', 'ಗುಣಗಳು', 'ಪಾತ್ರಗಳು', 'ನೀವು', 'ನಿಮ್ಮ',
+              'ವೀಡಿಯೊ', 'ಆಡಿಯೊ', 'ಪ್ರಶ್ನೆ', 'ಉತ್ತರ', 'ಕಲಿ', 'ಕಲಿಕೆ'
+            ] : [
               'inspiration','motivated','values','qualities','characters','identify','yourself','video','audio','question','response','answer','learn','learning'
             ],
             boost: 15.0,

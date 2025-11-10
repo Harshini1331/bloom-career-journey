@@ -38,6 +38,7 @@ export interface AudioResponseConfig {
   assessmentTitle: string;
   enableTranscription: boolean;
   enableOfflineMode: boolean;
+  language?: string; // Language code for transcription (e.g., 'en-IN', 'kn-IN', 'auto')
 }
 
 class AudioResponseManager {
@@ -97,19 +98,37 @@ class AudioResponseManager {
 
       if (this.config.enableTranscription && this.isOnline) {
         try {
-          // Use Indian English only
+          // Determine transcription language
+          // Support Kannada (kn-IN), Hindi (hi-IN), English (en-IN), or auto-detect
+          let transcriptionLanguage: 'en-IN' | 'hi-IN' | 'kn-IN' | 'ta-IN' | 'te-IN' | 'auto' = 'en-IN';
+          if (this.config.language) {
+            if (this.config.language === 'kn-IN' || this.config.language === 'kn') {
+              transcriptionLanguage = 'kn-IN'; // Use Kannada for Kannada audio
+            } else if (this.config.language === 'hi-IN' || this.config.language === 'hi') {
+              transcriptionLanguage = 'hi-IN';
+            } else if (this.config.language === 'ta-IN' || this.config.language === 'ta') {
+              transcriptionLanguage = 'ta-IN';
+            } else if (this.config.language === 'te-IN' || this.config.language === 'te') {
+              transcriptionLanguage = 'te-IN';
+            } else if (this.config.language === 'auto') {
+              transcriptionLanguage = 'auto';
+            } else {
+              transcriptionLanguage = 'en-IN'; // Default to English
+            }
+          }
+          
           let transcriptionResult;
           // If over 60s, use long-running recognize with the uploaded URL
           if (audioData.duration > 60000) {
             // Use the public URL we just uploaded
             transcriptionResult = await speechToTextService.transcribeLongRunningByUri(
               uploadResult.url!,
-              { language: 'en-IN' }
+              { language: transcriptionLanguage }
             );
           } else {
             transcriptionResult = await speechToTextService.transcribe(
               audioData.audioBlob,
-              { language: 'en-IN' }
+              { language: transcriptionLanguage }
             );
           }
 

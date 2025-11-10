@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { audioResponseManager } from '@/services/audioResponseManager';
+import { useLang } from '@/hooks/useLang';
 
 // Audio configuration
 const AUDIO_CONFIG = {
@@ -123,6 +124,7 @@ export function AudioRecorder({
   lockAfterSave = true,
 }: AudioRecorderProps) {
   const { toast } = useToast();
+  const { t, lang } = useLang();
   
   // Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -280,6 +282,7 @@ export function AudioRecorder({
         assessmentTitle,
         enableTranscription,
         enableOfflineMode,
+        language, // Pass language for transcription
       });
       
       // Load offline queue
@@ -587,6 +590,15 @@ export function AudioRecorder({
         fileSize: audioBlob.size
       });
 
+      console.log('🎤 Audio processing result:', {
+        success: result.success,
+        hasTranscription: !!result.transcription,
+        transcriptionLength: result.transcription?.length || 0,
+        transcriptionPreview: result.transcription?.substring(0, 50) || 'none',
+        confidence: result.confidence,
+        languageDetected: result.languageDetected
+      });
+
       if (result.success) {
         setState(prev => ({ 
           ...prev, 
@@ -598,11 +610,24 @@ export function AudioRecorder({
           transcriptionConfidence: typeof result.confidence === 'number' ? result.confidence : prev.transcriptionConfidence,
         }));
 
+        const toastMessage = result.transcription 
+          ? (lang === 'kn' ? "ಆಡಿಯೊ ಸೇವ್ ಮಾಡಲಾಗಿದೆ ಮತ್ತು ಬರಹ ಮಾಡಲಾಗಿದೆ" : "Audio saved and transcribed")
+          : (lang === 'kn' ? "ಆಡಿಯೊ ಸೇವ್ ಮಾಡಲಾಗಿದೆ" : "Audio Saved");
+        
+        const toastDescription = result.transcription
+          ? (lang === 'kn' ? "ನಿಮ್ಮ ಆಡಿಯೊ ಉತ್ತರವನ್ನು ಯಶಸ್ವಿಯಾಗಿ ಸೇವ್ ಮಾಡಲಾಗಿದೆ ಮತ್ತು ಪಠ್ಯಕ್ಕೆ ಪರಿವರ್ತಿಸಲಾಗಿದೆ." : "Your audio response has been saved and transcribed successfully.")
+          : (lang === 'kn' ? "ನಿಮ್ಮ ಆಡಿಯೊ ಉತ್ತರವನ್ನು ಯಶಸ್ವಿಯಾಗಿ ಸೇವ್ ಮಾಡಲಾಗಿದೆ." : "Your audio response has been saved successfully.");
+
         toast({
-          title: "Audio Saved",
-          description: "Your audio response has been saved successfully.",
+          title: toastMessage,
+          description: toastDescription,
         });
 
+        console.log('📤 Calling onRecordingComplete with transcription:', {
+          hasTranscription: !!result.transcription,
+          transcriptionLength: result.transcription?.length || 0
+        });
+        
         onRecordingComplete(audioBlob, result.transcription);
       } else {
         throw new Error(result.error || 'Processing failed');
@@ -620,8 +645,8 @@ export function AudioRecorder({
       setErrorState('error', 'Failed to save audio response. Your recording is saved locally.');
       
       toast({
-        title: "Processing Failed",
-        description: error instanceof Error ? error.message : "Failed to process audio response.",
+        title: lang === 'kn' ? "ಸಂಸ್ಕರಣೆ ವಿಫಲವಾಗಿದೆ" : "Processing Failed",
+        description: error instanceof Error ? error.message : (lang === 'kn' ? "ಆಡಿಯೊ ಉತ್ತರವನ್ನು ಸಂಸ್ಕರಿಸಲು ವಿಫಲವಾಗಿದೆ." : "Failed to process audio response."),
         variant: "destructive",
       });
       
@@ -840,10 +865,10 @@ export function AudioRecorder({
       
       // Use setTimeout to avoid setState during render warning
       setTimeout(() => {
-        toast({
-          title: "Recording Started",
-          description: "Speak clearly into your microphone. Tap stop when finished.",
-        });
+      toast({
+        title: lang === 'kn' ? "ರೆಕಾರ್ಡಿಂಗ್ ಆರಂಭವಾಗಿದೆ" : "Recording Started",
+        description: lang === 'kn' ? "ನಿಮ್ಮ ಮೈಕ್ರೋಫೋನ್‌ಗೆ ಸ್ಪಷ್ಟವಾಗಿ ಮಾತನಾಡಿ. ಮುಗಿದ ನಂತರ ನಿಲ್ಲಿಸಿ ಒತ್ತಿ." : "Speak clearly into your microphone. Tap stop when finished.",
+      });
       }, 0);
       
     } catch (error) {
@@ -896,10 +921,10 @@ export function AudioRecorder({
       }));
       
       toast({
-        title: "Recording Complete",
+        title: lang === 'kn' ? "ರೆಕಾರ್ಡಿಂಗ್ ಪೂರ್ಣಗೊಂಡಿದೆ" : "Recording Complete",
         description: allowRetry 
-          ? "Your audio has been recorded. You can play it back or record again."
-          : "Your audio has been recorded. You can play it back to review.",
+          ? (lang === 'kn' ? "ನಿಮ್ಮ ಆಡಿಯೊ ರೆಕಾರ್ಡ್ ಮಾಡಲಾಗಿದೆ. ನೀವು ಅದನ್ನು ಪ್ಲೇ ಮಾಡಬಹುದು ಅಥವಾ ಮತ್ತೆ ರೆಕಾರ್ಡ್ ಮಾಡಬಹುದು." : "Your audio has been recorded. You can play it back or record again.")
+          : (lang === 'kn' ? "ನಿಮ್ಮ ಆಡಿಯೊ ರೆಕಾರ್ಡ್ ಮಾಡಲಾಗಿದೆ. ನೀವು ಪರಿಶೀಲಿಸಲು ಅದನ್ನು ಪ್ಲೇ ಮಾಡಬಹುದು." : "Your audio has been recorded. You can play it back to review."),
       });
     }
   }, [state.isRecording, allowRetry, toast]);
@@ -998,13 +1023,13 @@ export function AudioRecorder({
             };
           }
           return {
-            label: '🎤 Record',
+              label: lang === 'kn' ? '🎤 ರೆಕಾರ್ಡ್' : '🎤 Record',
             icon: <Mic className="w-4 h-4" />,
             variant: 'default' as const,
             className: 'bg-blue-500 hover:bg-blue-600 text-white',
             disabled: disabled || (lockAfterSave && (state.buttonState === 'saved' || !!initialAudioUrl || !!initialSavedAt || !!initialTranscription)),
             onClick: startRecording,
-            extraUI: lockAfterSave && (state.buttonState === 'saved' || !!initialAudioUrl || !!initialSavedAt || !!initialTranscription) ? 'Recording locked after save' : 'Ready to record'
+              extraUI: lockAfterSave && (state.buttonState === 'saved' || !!initialAudioUrl || !!initialSavedAt || !!initialTranscription) ? (lang === 'kn' ? 'ಸೇವ್ ನಂತರ ರೆಕಾರ್ಡಿಂಗ್ ಲಾಕ್ ಮಾಡಲಾಗಿದೆ' : 'Recording locked after save') : (lang === 'kn' ? 'ರೆಕಾರ್ಡ್ ಮಾಡಲು ಸಿದ್ಧ' : 'Ready to record')
           };
         case 'recording':
           return {
@@ -1023,33 +1048,33 @@ export function AudioRecorder({
           };
         case 'processing':
           return {
-            label: '⏳ Saving...',
+              label: lang === 'kn' ? '⏳ ಸೇವ್ ಮಾಡಲಾಗುತ್ತಿದೆ...' : '⏳ Saving...',
             icon: <Loader2 className="w-4 h-4 animate-spin" />,
             variant: 'secondary' as const,
             className: 'bg-gray-500 text-white',
             disabled: true,
             onClick: () => {},
-            extraUI: 'Transcribing audio...'
+              extraUI: lang === 'kn' ? 'ಆಡಿಯೊವನ್ನು ಬರೆಯಲಾಗುತ್ತಿದೆ...' : 'Transcribing audio...'
           };
         case 'saved':
           return {
-            label: '✅ Saved',
+            label: lang === 'kn' ? '✅ ಸೇವ್ ಮಾಡಲಾಗಿದೆ' : '✅ Saved',
             icon: <CheckCircle className="w-4 h-4" />,
             variant: 'outline' as const,
             className: 'bg-green-50 border-green-200 text-green-700',
             disabled: false,
             onClick: () => {},
-            extraUI: (state.savedAt || initialSavedAt) ? `Saved at ${new Date(state.savedAt || initialSavedAt as string).toLocaleTimeString()}` : 'Audio saved successfully'
+            extraUI: (state.savedAt || initialSavedAt) ? (lang === 'kn' ? `ಸೇವ್ ಮಾಡಲಾಗಿದೆ: ${new Date(state.savedAt || initialSavedAt as string).toLocaleTimeString()}` : `Saved at ${new Date(state.savedAt || initialSavedAt as string).toLocaleTimeString()}`) : (lang === 'kn' ? 'ಆಡಿಯೊ ಯಶಸ್ವಿಯಾಗಿ ಸೇವ್ ಮಾಡಲಾಗಿದೆ' : 'Audio saved successfully')
           };
         default:
           return {
-            label: '🎤 Record',
+              label: lang === 'kn' ? '🎤 ರೆಕಾರ್ಡ್' : '🎤 Record',
             icon: <Mic className="w-4 h-4" />,
             variant: 'default' as const,
             className: 'bg-blue-500 hover:bg-blue-600 text-white',
             disabled: disabled || !state.hasPermission || (lockAfterSave && (state.buttonState === 'saved' || !!initialAudioUrl || !!initialSavedAt || !!initialTranscription)),
             onClick: startRecording,
-            extraUI: lockAfterSave && (state.buttonState === 'saved' || !!initialAudioUrl || !!initialSavedAt || !!initialTranscription) ? 'Recording locked after save' : 'Ready to record'
+              extraUI: lockAfterSave && (state.buttonState === 'saved' || !!initialAudioUrl || !!initialSavedAt || !!initialTranscription) ? (lang === 'kn' ? 'ಸೇವ್ ನಂತರ ರೆಕಾರ್ಡಿಂಗ್ ಲಾಕ್ ಮಾಡಲಾಗಿದೆ' : 'Recording locked after save') : (lang === 'kn' ? 'ರೆಕಾರ್ಡ್ ಮಾಡಲು ಸಿದ್ಧ' : 'Ready to record')
           };
       }
     };
@@ -1079,7 +1104,7 @@ export function AudioRecorder({
                   🎤
               </div>
                 <div>
-                  <span className="text-sm font-medium text-gray-700">Audio Response</span>
+                  <span className="text-sm font-medium text-gray-700">{lang === 'kn' ? 'ಆಡಿಯೊ ಉತ್ತರ' : 'Audio Response'}</span>
                   {state.savedAt && (
                     <div className="text-xs text-green-600">Saved at {state.savedAt}</div>
                   )}
@@ -1090,12 +1115,12 @@ export function AudioRecorder({
               <div className="flex items-center gap-1">
                 {state.buttonState === 'saved' && (
                   <Badge variant="default" className="text-xs bg-green-100 text-green-700">
-                    Saved
+                    {lang === 'kn' ? 'ಸೇವ್ ಮಾಡಲಾಗಿದೆ' : 'Saved'}
                   </Badge>
                 )}
                 {state.hasPermission ? (
                   <Badge variant="default" className="text-xs bg-green-100 text-green-700">
-                    Ready
+                    {lang === 'kn' ? 'ಸಿದ್ಧ' : 'Ready'}
                   </Badge>
                 ) : (
                   <Badge variant="destructive" className="text-xs">
@@ -1210,9 +1235,9 @@ export function AudioRecorder({
               🎤
             </div>
             <div>
-            <h3 className="font-semibold text-gray-800">Audio Response</h3>
+            <h3 className="font-semibold text-gray-800">{lang === 'kn' ? 'ಆಡಿಯೊ ಉತ್ತರ' : 'Audio Response'}</h3>
               <p className="text-sm text-gray-600">
-                {state.savedAt ? `Saved at ${state.savedAt}` : 'Record your voice answer'}
+                {state.savedAt ? (lang === 'kn' ? `ಸೇವ್ ಮಾಡಲಾಗಿದೆ: ${state.savedAt}` : `Saved at ${state.savedAt}`) : (lang === 'kn' ? 'ನಿಮ್ಮ ಧ್ವನಿ ಉತ್ತರವನ್ನು ರೆಕಾರ್ಡ್ ಮಾಡಿ' : 'Record your voice answer')}
               </p>
             </div>
           </div>
@@ -1220,11 +1245,11 @@ export function AudioRecorder({
           <div className="flex items-center gap-2">
             {state.hasPermission ? (
               <Badge variant="default" className="bg-green-100 text-green-700">
-                Mic Ready
+                {lang === 'kn' ? 'ಮೈಕ್ ಸಿದ್ಧ' : 'Mic Ready'}
               </Badge>
             ) : (
               <Badge variant="destructive">
-                Mic Required
+                {lang === 'kn' ? 'ಮೈಕ್ ಅಗತ್ಯ' : 'Mic Required'}
               </Badge>
             )}
             {!state.isOnline && (

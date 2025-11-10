@@ -112,28 +112,73 @@ export default function MyDreamsAssessment() {
     return sectionsList;
   }, [questionsBySection]);
 
-  // Load questions from database
+  // Load questions from database with i18n support
   useEffect(() => {
     const loadQuestions = async () => {
       try {
         console.log('🔄 Loading Dreams questions from database...');
+        // First, get the full question structure
         const { data, error } = await supabase.rpc('get_dreams_questions');
         if (error) {
           console.error('Error loading dreams questions:', error);
           return;
         }
         if (data && Array.isArray(data) && data.length > 0) {
-          console.log('✅ Database questions loaded:', data.length, 'questions');
-          setDreamsQuestions(data as DreamQuestion[]);
+          // Try to get translations for questions and help text
+          let questionTranslations: Record<string, string> = {};
+          let helpTranslations: Record<string, string> = {};
+          try {
+            const { data: i18nData } = await supabase.rpc('get_dreams_questions_i18n', { p_lang: lang } as any);
+            if (i18nData && Array.isArray(i18nData)) {
+              i18nData.forEach((item: any) => {
+                if (item?.key && item?.text) {
+                  questionTranslations[item.key] = item.text;
+                }
+              });
+            }
+            
+            // Fetch help text translations
+            const { data: helpData } = await supabase
+              .from('content_translations')
+              .select('resource_key, text')
+              .eq('resource_type', 'dreams_help')
+              .eq('lang', lang);
+            
+            if (helpData && Array.isArray(helpData)) {
+              helpData.forEach((item: any) => {
+                if (item?.resource_key && item?.text) {
+                  helpTranslations[item.resource_key] = item.text;
+                }
+              });
+            }
+          } catch (e) {
+            console.warn('Could not load i18n translations, using default:', e);
+          }
+          
+          // Apply translations to questions and help text
+          const questionsWithTranslations = (data as DreamQuestion[]).map(q => {
+            const questionNum = q.sequence_number;
+            const translationKey = `question${questionNum}`;
+            const translatedQuestion = questionTranslations[translationKey] || q.question_text;
+            const translatedHelp = helpTranslations[translationKey] || q.help_text || '';
+            return {
+              ...q,
+              question_text: translatedQuestion,
+              help_text: translatedHelp
+            };
+          });
+          
+          console.log('✅ Database questions loaded:', questionsWithTranslations.length, 'questions');
+          setDreamsQuestions(questionsWithTranslations);
           // Initialize responses based on questions
           const initialResponses: DreamAssessmentResponse = {};
-          (data as DreamQuestion[]).forEach(q => {
+          questionsWithTranslations.forEach(q => {
             initialResponses[q.id] = '';
           });
           setResponses(prev => ({ ...prev, ...initialResponses }));
           
           // Set initial section
-          const firstSection = data[0]?.section || 'section1';
+          const firstSection = questionsWithTranslations[0]?.section || 'section1';
           setCurrentSection(firstSection);
         }
       } catch (error) {
@@ -141,7 +186,7 @@ export default function MyDreamsAssessment() {
       }
     };
     loadQuestions();
-  }, []);
+  }, [lang]);
 
   useEffect(() => {
     if (dreamsQuestions.length > 0) {

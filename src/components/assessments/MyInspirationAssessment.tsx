@@ -98,11 +98,33 @@ export default function MyInspirationAssessment() {
         
         if (validateApiResponse(list, 'InspirationAssessment - Help Texts')) {
           console.log('✅ Database help texts loaded:', list);
+          
+          // Fetch help text translations from content_translations
+          let helpTranslations: Record<string, string> = {};
+          try {
+            const { data: helpData } = await supabase
+              .from('content_translations')
+              .select('resource_key, text')
+              .eq('resource_type', 'inspiration_help')
+              .eq('lang', lang);
+            
+            if (helpData && Array.isArray(helpData)) {
+              helpData.forEach((item: any) => {
+                if (item?.resource_key && item?.text) {
+                  helpTranslations[item.resource_key] = item.text;
+                }
+              });
+            }
+          } catch (e) {
+            console.warn('Could not load help text translations, using default:', e);
+          }
+          
           const newHelpTexts: { [key: string]: string } = {};
           const newQuestionTexts: { [key: string]: string } = {};
           (list as any[]).forEach((row: any, index: number) => {
             const key = `question${index + 1}`;
-            newHelpTexts[key] = row.help_text || '';
+            // Use translated help text if available, otherwise use default
+            newHelpTexts[key] = helpTranslations[key] || row.help_text || '';
             // Prefix number if not already included in DB text
             const prefix = `${index + 1}. `;
             const text = row.question_text || '';
@@ -748,6 +770,15 @@ export default function MyInspirationAssessment() {
   // Handle audio responses
   const handleAudioResponse = (videoKey: keyof AssessmentResponse, questionKey: string, audioBlob: Blob, transcription?: string) => {
     if (readOnlyView) return;
+    
+    console.log('🎤 handleAudioResponse called:', {
+      videoKey,
+      questionKey,
+      hasTranscription: !!transcription,
+      transcriptionLength: transcription?.length || 0,
+      transcriptionPreview: transcription?.substring(0, 50) || 'none'
+    });
+    
     // Store the audio blob
     const audioKey = `${videoKey}_${questionKey}`;
     setAudioResponses(prev => ({
@@ -757,8 +788,24 @@ export default function MyInspirationAssessment() {
 
     // Ensure the text box reflects what was recorded for validation/progress
     // Prefer transcription; if unavailable, add a clear placeholder line
-    const fallbackText = 'Audio recorded — transcription unavailable.';
-    handleResponseChange(videoKey, questionKey, (transcription && transcription.trim()) ? transcription : fallbackText);
+    const fallbackText = lang === 'kn' ? 'ಆಡಿಯೊ ರೆಕಾರ್ಡ್ ಮಾಡಲಾಗಿದೆ — ಬರಹ ಲಭ್ಯವಿಲ್ಲ.' : 'Audio recorded — transcription unavailable.';
+    const textToSet = (transcription && transcription.trim()) ? transcription : fallbackText;
+    
+    console.log('📝 Setting text in textarea:', {
+      questionKey,
+      textLength: textToSet.length,
+      textPreview: textToSet.substring(0, 50)
+    });
+    
+    handleResponseChange(videoKey, questionKey, textToSet);
+    
+    // Mark transcription as prefilled if we have a valid transcription
+    if (transcription && transcription.trim() && transcription !== fallbackText) {
+      setTranscribedPrefill(prev => ({
+        ...prev,
+        [`${videoKey}_${questionKey}`]: true
+      }));
+    }
 
     // Mark this question as answered via audio for completion rules
     const qId = `${videoKey}_${questionKey}`;
@@ -1520,7 +1567,7 @@ export default function MyInspirationAssessment() {
                               handleAudioResponse(getCurrentVideoKey(), questionKey, audioBlob, transcription);
                             }}
                             maxDuration={120000} // 2 minutes
-                            language="en-IN"
+                            language={lang === 'kn' ? 'kn-IN' : 'en-IN'}
                             studentId={resolvedStudentId ?? userProfile.studentProfile.id}
                             assessmentId={assessmentRecordId ?? 'inspiration-assessment'}
                             assessmentType="inspiration"

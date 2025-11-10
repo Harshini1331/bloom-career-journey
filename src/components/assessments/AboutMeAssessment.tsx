@@ -375,15 +375,17 @@ export default function AboutMeAssessment() {
           <Card className="max-w-2xl mx-auto border-0 shadow-lg">
             <CardHeader className="text-center bg-gradient-to-r from-blue-50 to-indigo-50">
               <User className="w-16 h-16 text-blue-500 mx-auto mb-4" />
-              <CardTitle className="text-2xl text-blue-800">About Me Assessment Completed! ✨</CardTitle>
+              <CardTitle className="text-2xl text-blue-800">{t('aboutMeCompleted')}</CardTitle>
               <CardDescription className="text-blue-600">
-                You've successfully reflected about yourself
+                {t('aboutMeCompletedDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6">
               <div className="text-center space-y-4">
                 <p className="text-gray-600">
-                  Thank you for completing the About Me assessment! Your reflections have been saved and your teacher can now review them to help guide your career journey.
+                  {lang === 'kn' 
+                    ? 'ನನ್ನ ಬಗ್ಗೆ ಮೌಲ್ಯಮಾಪನವನ್ನು ಪೂರ್ಣಗೊಳಿಸಿದ್ದಕ್ಕಾಗಿ ಧನ್ಯವಾದಗಳು! ನಿಮ್ಮ ಯೋಚನೆಗಳನ್ನು ಉಳಿಸಲಾಗಿದೆ ಮತ್ತು ನಿಮ್ಮ ಶಿಕ್ಷಕರು ಈಗ ನಿಮ್ಮ ವೃತ್ತಿ ಪ್ರಯಾಣದಲ್ಲಿ ಸಹಾಯ ಮಾಡಲು ಅವುಗಳನ್ನು ವಿಮರ್ಶೆ ಮಾಡಬಹುದು.'
+                    : 'Thank you for completing the About Me assessment! Your reflections have been saved and your teacher can now review them to help guide your career journey.'}
                 </p>
                 <div className="flex justify-center gap-4">
                   <Button
@@ -436,9 +438,9 @@ export default function AboutMeAssessment() {
               <ArrowLeft className="w-4 h-4 mr-2" />{t('backToDashboard')}
             </Button>
           </div>
-          <h1 className="text-3xl font-bold text-blue-800 mb-2">🧑 About Me Assessment</h1>
+          <h1 className="text-3xl font-bold text-blue-800 mb-2">🧑 {t('aboutMeTitle')}</h1>
           <p className="text-blue-600 text-lg">
-            In this practice section, the goal is to uncover your strengths, areas for growth, passions, challenges, opinions, and emotions. This process aids in self-discovery, providing valuable insights into your character. Seeking guidance from family, friends, teachers, and mentors can offer additional clarity, enhancing your understanding of yourself.
+            {t('aboutMeIntro')}
           </p>
         </div>
 
@@ -451,7 +453,7 @@ export default function AboutMeAssessment() {
             </div>
             <Progress value={getProgressPercentage()} className="h-3" />
             <div className="flex justify-between text-sm text-gray-600 mt-2">
-              <span>Single module</span>
+              <span>{lang === 'kn' ? 'ಒಂದೇ ಮಾಡ್ಯೂಲ್' : 'Single module'}</span>
               <span>{Math.round(getProgressPercentage())}% {t('completeSuffix')}</span>
             </div>
           </CardContent>
@@ -562,8 +564,8 @@ export default function AboutMeAssessment() {
             </TooltipProvider>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-              <Button variant="outline" onClick={() => save(false)} disabled={submitting} className="border-blue-200 text-blue-700 hover:bg-blue-50">Save Progress</Button>
-              <Button onClick={() => save(true)} disabled={submitting || readOnlyView} className="bg-blue-600 hover:bg-blue-700">Submit About Me</Button>
+              <Button variant="outline" onClick={() => save(false)} disabled={submitting} className="border-blue-200 text-blue-700 hover:bg-blue-50">{t('saveProgress')}</Button>
+              <Button onClick={() => save(true)} disabled={submitting || readOnlyView} className="bg-blue-600 hover:bg-blue-700">{t('submitAboutMe')}</Button>
             </div>
           </CardContent>
         </Card>
