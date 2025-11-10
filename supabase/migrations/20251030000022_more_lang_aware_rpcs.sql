@@ -57,7 +57,7 @@ as $$
       'text', public.get_translation('role_models_question', 'rm_q' || i::text, p_lang)
     )
   )
-  from generate_series(1,11) as g(i);
+  from generate_series(1,13) as g(i);
 $$;
 
 

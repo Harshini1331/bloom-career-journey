@@ -8,6 +8,18 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    hmr: {
+      // Improve HMR stability
+      protocol: 'ws',
+      host: 'localhost',
+      clientPort: 8080,
+    },
+    watch: {
+      // Exclude node_modules and build directories from watching
+      ignored: ['**/node_modules/**', '**/.git/**', '**/dist/**', '**/.next/**'],
+      // Use polling on Windows if issues persist
+      usePolling: false,
+    },
   },
   plugins: [
     react(),
@@ -18,5 +30,9 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  // Optimize for better performance
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom'],
   },
 }));

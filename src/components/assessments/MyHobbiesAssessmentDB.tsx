@@ -155,7 +155,7 @@ export default function MyHobbiesAssessmentDB() {
         await supabase.from('assessment_responses').upsert({
           student_id: studentId,
           assessment_type: 'hobbies',
-          assessment_title: 'My Hobbies',
+          assessment_title: 'My Talents and Hobbies',
           responses,
           updated_at: new Date().toISOString(),
           completed_at: null
@@ -316,10 +316,46 @@ export default function MyHobbiesAssessmentDB() {
           
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">My Hobbies Assessment</h1>
-              <p className="text-gray-600 mt-2">
-                {assessmentTemplate.description}
-              </p>
+              <h1 className="text-3xl font-bold text-gray-900">🎨 My Talents and Hobbies</h1>
+              {/* Description Text */}
+              <div className="max-w-3xl space-y-4 text-gray-700 mt-4">
+                <p className="text-base leading-relaxed">
+                  In this practice section, we delve into your interests, hobbies, pastimes, and activities that bring you joy, exploring the depths of your creativity. By delving into your hobbies and interests, you can not only find happiness but also identify your unique learning style and potential professions aligned with your passions.
+                </p>
+                <p className="text-base leading-relaxed">
+                  Through this activity, you will explore your talents, hobbies, and the work/activities that bring you joy. This will help you understand your interests, hobbies, and areas of talent, and guide you in identifying careers that suit your personality, interests, and passions.
+                </p>
+                <p className="text-base leading-relaxed italic text-orange-700 font-medium">
+                  "Hobbies bring out our talents and inspire us to pursue our dreams."
+                </p>
+                
+                {/* Definitions Section */}
+                <div className="mt-6 space-y-4 text-left bg-orange-50 p-6 rounded-lg border border-orange-200">
+                  <div>
+                    <h3 className="font-semibold text-orange-800 mb-2">Section I: What is a hobby?</h3>
+                    <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                      <li>It is an activity that we do for fun, after our daily chores.</li>
+                      <li>Work done to pass the time or to give pleasure to the mind.</li>
+                      <li>A hobby is something that can be learnt and developed over time.</li>
+                    </ul>
+                    <p className="mt-2 text-gray-600">
+                      <strong>Examples:</strong> Drawing, singing, reading, dancing, bird watching, gardening, etc.
+                    </p>
+                  </div>
+                  
+                  <div className="mt-4">
+                    <h3 className="font-semibold text-orange-800 mb-2">Section II: What is talent?</h3>
+                    <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                      <li>A natural ability that we are born with.</li>
+                      <li>A skill that can be done easily without much practice.</li>
+                      <li>This can lead to immense achievement with more practice.</li>
+                    </ul>
+                    <p className="mt-2 text-gray-600">
+                      <strong>Examples:</strong> The ability to sing naturally, communicate clearly, answer questions quickly in math, learn quickly, etc.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
             <Badge variant="outline" className="text-sm">
               {responses.hobbies.length} Hobb{responses.hobbies.length !== 1 ? 'ies' : 'y'}

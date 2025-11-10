@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -21,33 +21,24 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useLang } from '@/hooks/useLang';
 import { ArrowLeft } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { KannadaKeyboard } from '@/components/ui/KannadaKeyboard';
+import { checkAssessmentUnlock } from '@/utils/assessmentUnlock';
 
+interface DreamQuestion {
+  id: string;
+  section: string;
+  question_text: string;
+  help_text: string;
+  sequence_number: number;
+}
+
+// Dynamic responses based on question IDs
 interface DreamAssessmentResponse {
-  part1: {
-    question1: string; // Future dreams
-    question2: string; // Educational degree
-    question3: string; // Aspirational career
-    question4: string; // Professional sport
-    question5: string; // Writing aspirations
-    question6: string; // Musical instrument
-    question7: string; // College preference
-    question8: string; // Helping others
-    question9: string; // Living location
-    question10: string; // Artistic choice
-    question11: string; // Other dreams
-    question12: string; // Want to make dreams come true
-  };
-  part2: {
-    question13: string; // What's needed to achieve dreams
-    question14: string; // First step
-    question15: string; // Willpower and enthusiasm
-    question16: string; // Obstacles
-  };
+  [questionId: string]: string;
 }
 
 export default function MyDreamsAssessment() {
@@ -55,50 +46,108 @@ export default function MyDreamsAssessment() {
   const { t, lang } = useLang();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [q, setQ] = useState<Record<string, string>>({});
-  const [responses, setResponses] = useState<DreamAssessmentResponse>({
-    part1: {
-      question1: '',
-      question2: '',
-      question3: '',
-      question4: '',
-      question5: '',
-      question6: '',
-      question7: '',
-      question8: '',
-      question9: '',
-      question10: '',
-      question11: '',
-      question12: ''
-    },
-    part2: {
-      question13: '',
-      question14: '',
-      question15: '',
-      question16: ''
-    }
-  });
+  const [searchParams] = useSearchParams();
+  const [dreamsQuestions, setDreamsQuestions] = useState<DreamQuestion[]>([]);
+  const [responses, setResponses] = useState<DreamAssessmentResponse>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
-  const [currentPart, setCurrentPart] = useState<'part1' | 'part2'>('part1');
+  const viewParam = (searchParams.get('readonly') || searchParams.get('view') || '').toLowerCase();
+  const readOnlyView = viewParam === '1' || viewParam === 'true';
+  const isReadOnly = isCompleted || readOnlyView;
+  const [currentSection, setCurrentSection] = useState<string>('section1');
+  const [helpOpen, setHelpOpen] = useState<Record<string, boolean>>({});
+  const toggleHelp = (k: string) => setHelpOpen(prev => ({ ...prev, [k]: !prev[k] }));
 
+  // Helper function to get student ID
+  const getStudentId = async () => {
+    if (!userProfile) return null;
+    if (userProfile.studentProfile?.id) return userProfile.studentProfile.id as string;
+    const { data } = await supabase.from('students').select('id').eq('user_id', userProfile.id).maybeSingle();
+    return data?.id || null;
+  };
+
+  // Check if assessment is unlocked
   useEffect(() => {
-    checkExistingResponse();
+    const checkUnlock = async () => {
+      if (!userProfile) return;
+
+      const studentId = await getStudentId();
+      if (!studentId) return;
+
+      const unlockResult = await checkAssessmentUnlock(studentId, 'dreams');
+      
+      if (!unlockResult.isUnlocked) {
+        toast({
+          title: lang === 'kn' ? 'ಮೌಲ್ಯಮಾಪನ ಲಾಕ್ ಮಾಡಲಾಗಿದೆ' : 'Assessment Locked',
+          description: lang === 'kn' 
+            ? `ದಯವಿಟ್ಟು ಮೊದಲು "${unlockResult.missingPrerequisites.join(', ')}" ಪೂರ್ಣಗೊಳಿಸಿ.`
+            : `Please complete "${unlockResult.missingPrerequisites.join(', ')}" first.`,
+          variant: 'destructive',
+        });
+        navigate('/student');
+      }
+    };
+
+    checkUnlock();
+  }, [userProfile, navigate, toast, lang]);
+  
+  // Group questions by section
+  const questionsBySection = useMemo(() => {
+    const grouped: { [section: string]: DreamQuestion[] } = {};
+    dreamsQuestions.forEach(question => {
+      if (!grouped[question.section]) {
+        grouped[question.section] = [];
+      }
+      grouped[question.section].push(question);
+    });
+    return grouped;
+  }, [dreamsQuestions]);
+  
+  const sections = useMemo(() => {
+    const sectionsList = Object.keys(questionsBySection).sort((a, b) => {
+      const order: { [key: string]: number } = { 'section1': 1, 'section2': 2, 'section3': 3, 'part1': 1, 'part2': 2 };
+      return (order[a] || 99) - (order[b] || 99);
+    });
+    return sectionsList;
+  }, [questionsBySection]);
+
+  // Load questions from database
+  useEffect(() => {
+    const loadQuestions = async () => {
+      try {
+        console.log('🔄 Loading Dreams questions from database...');
+        const { data, error } = await supabase.rpc('get_dreams_questions');
+        if (error) {
+          console.error('Error loading dreams questions:', error);
+          return;
+        }
+        if (data && Array.isArray(data) && data.length > 0) {
+          console.log('✅ Database questions loaded:', data.length, 'questions');
+          setDreamsQuestions(data as DreamQuestion[]);
+          // Initialize responses based on questions
+          const initialResponses: DreamAssessmentResponse = {};
+          (data as DreamQuestion[]).forEach(q => {
+            initialResponses[q.id] = '';
+          });
+          setResponses(prev => ({ ...prev, ...initialResponses }));
+          
+          // Set initial section
+          const firstSection = data[0]?.section || 'section1';
+          setCurrentSection(firstSection);
+        }
+      } catch (error) {
+        console.error('Error loading dreams questions:', error);
+      }
+    };
+    loadQuestions();
   }, []);
 
   useEffect(() => {
-    const loadI18n = async () => {
-      try {
-        const { data } = await supabase.rpc('get_dreams_questions_i18n', { p_lang: lang } as any);
-        const arr = Array.isArray(data) ? data : (data?.data || []);
-        const map: Record<string, string> = {};
-        (arr || []).forEach((row: any) => { if (row?.key) map[row.key] = row.text; });
-        setQ(map);
-      } catch {}
-    };
-    loadI18n();
-  }, [lang]);
+    if (dreamsQuestions.length > 0) {
+      checkExistingResponse();
+    }
+  }, [dreamsQuestions]);
 
   // Keep URL ?lang in sync without re-rendering
   useEffect(() => {
@@ -116,7 +165,7 @@ export default function MyDreamsAssessment() {
 
   // Auto-save draft when responses change (debounced)
   useEffect(() => {
-    if (loading || isCompleted) return;
+    if (loading || isReadOnly) return;
     const t = setTimeout(async () => {
       try {
         if (!userProfile?.id) return;
@@ -138,10 +187,13 @@ export default function MyDreamsAssessment() {
       } catch {}
     }, 800);
     return () => clearTimeout(t);
-  }, [responses, loading, isCompleted, userProfile]);
+  }, [responses, loading, isReadOnly, userProfile]);
 
   const checkExistingResponse = async () => {
-    if (!userProfile) return;
+    if (!userProfile || dreamsQuestions.length === 0) {
+      setLoading(false);
+      return;
+    }
 
     // Resolve student_id from students table; do not fallback to users.id
     let studentId = userProfile.studentProfile?.id as string | undefined;
@@ -154,7 +206,10 @@ export default function MyDreamsAssessment() {
       studentId = studentRow?.id;
     }
 
-    if (!studentId) return;
+    if (!studentId) {
+      setLoading(false);
+      return;
+    }
 
     try {
       const { data, error } = await supabase
@@ -165,9 +220,18 @@ export default function MyDreamsAssessment() {
         .eq('assessment_title', 'My Dreams')
         .maybeSingle();
 
-      if (data && !error) {
-        setIsCompleted(true);
-        setResponses(data.responses || responses);
+      if (data && !error && data.responses) {
+        // Merge saved responses with initialized responses
+        const savedResponses = data.responses as Partial<DreamAssessmentResponse>;
+        const initialResponses: DreamAssessmentResponse = {};
+        dreamsQuestions.forEach(q => {
+          initialResponses[q.id] = savedResponses[q.id] || '';
+        });
+        setResponses(initialResponses);
+        
+        if (data.completed_at) {
+          setIsCompleted(true);
+        }
       }
     } catch (error) {
       // No existing response found, which is fine
@@ -176,30 +240,34 @@ export default function MyDreamsAssessment() {
     }
   };
 
-  const handleResponseChange = (part: 'part1' | 'part2', questionKey: string, value: string) => {
+  const handleResponseChange = (questionId: string, value: string) => {
     setResponses(prev => ({
       ...prev,
-      [part]: {
-        ...prev[part],
-        [questionKey]: value
-      }
+      [questionId]: value
     }));
   };
 
   const getProgressPercentage = () => {
-    const totalQuestions = 16;
-    const answeredQuestions = Object.values(responses.part1).filter(v => v.trim() !== '').length +
-                             Object.values(responses.part2).filter(v => v.trim() !== '').length;
+    if (dreamsQuestions.length === 0) return 0;
+    const totalQuestions = dreamsQuestions.length;
+    const answeredQuestions = dreamsQuestions.filter(q => {
+      const response = responses[q.id];
+      return response && response.trim() !== '';
+    }).length;
     return totalQuestions > 0 ? (answeredQuestions / totalQuestions) * 100 : 0;
   };
 
   const canSubmit = () => {
-    const part1Complete = Object.values(responses.part1).every(v => v.trim() !== '');
-    const part2Complete = Object.values(responses.part2).every(v => v.trim() !== '');
-    return part1Complete && part2Complete;
+    if (isReadOnly) return false;
+    if (dreamsQuestions.length === 0) return false;
+    return dreamsQuestions.every(q => {
+      const response = responses[q.id];
+      return response && response.trim() !== '';
+    });
   };
 
   const submitAssessment = async () => {
+    if (isReadOnly) return;
     if (!userProfile) {
       toast({
         title: "Error",
@@ -231,7 +299,8 @@ export default function MyDreamsAssessment() {
 
     setSubmitting(true);
     try {
-      const { error } = await supabase
+      // Save assessment responses
+      const { data: assessmentData, error } = await supabase
         .from('assessment_responses')
         .upsert({
           student_id: studentId,
@@ -240,7 +309,9 @@ export default function MyDreamsAssessment() {
           responses: responses,
           completed_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
@@ -250,6 +321,82 @@ export default function MyDreamsAssessment() {
       });
 
       setIsCompleted(true);
+
+      // Generate AI summary in the background
+      try {
+        const { aiSummaryService } = await import('@/services/aiSummaryService');
+        const summaryDatabaseService = (await import('@/services/summaryDatabaseService')).summaryDatabaseService;
+        
+        if (aiSummaryService.isConfigured()) {
+          console.log('🤖 Generating AI summary for Dreams assessment:', assessmentData.id);
+          const summaryResult = await aiSummaryService.generateDreamsSummary(responses);
+
+          if (summaryResult.success && summaryResult.summary) {
+            // Save summary to database
+            const saveResult = await summaryDatabaseService.createAISummary(
+              assessmentData.id,
+              summaryResult.summary,
+              userProfile.id
+            );
+
+            if (saveResult.success) {
+              console.log('✅ AI summary saved successfully:', saveResult.summaryId);
+              toast({
+                title: "Summary Generated! 📝",
+                description: "Your dream portfolio has been generated. Your teacher will review it.",
+              });
+
+              // Notify teacher(s) assigned to this student
+              try {
+                const { notificationService } = await import('@/services/notificationService');
+                
+                // Find teacher(s) for this student
+                const studentId = await getStudentId();
+                if (studentId) {
+                  const { data: studentRow } = await supabase
+                    .from('students')
+                    .select('teachers:teacher_id(user_id, users:user_id(full_name))')
+                    .eq('id', studentId)
+                    .maybeSingle();
+                  
+                  const teacherUserId = (studentRow as any)?.teachers?.user_id;
+                  if (teacherUserId) {
+                    await notificationService.create({
+                      userId: teacherUserId,
+                      type: 'assessment_submitted',
+                      title: `${userProfile?.full_name || 'Student'} completed My Dreams assessment`,
+                      message: 'A new My Dreams assessment summary is ready for review.',
+                      link: '/teacher/ai-summary-review'
+                    });
+                  }
+                }
+              } catch (notifError) {
+                console.error('Error notifying teacher:', notifError);
+                // Don't fail the whole submission if notification fails
+              }
+            } else {
+              console.error('Failed to save summary:', saveResult.error);
+              toast({
+                title: "Summary Generation Issue",
+                description: "Your assessment is saved, but summary generation needs attention.",
+                variant: "destructive",
+              });
+            }
+          } else {
+            console.error('Failed to generate summary:', summaryResult.error);
+            toast({
+              title: "Summary Generation Issue",
+              description: "Your assessment is saved. Summary will be generated later.",
+              variant: "destructive",
+            });
+          }
+        } else {
+          console.warn('⚠️ Gemini API not configured, skipping summary generation');
+        }
+      } catch (summaryError) {
+        console.error('Error in summary generation:', summaryError);
+        // Don't fail the entire submission if summary generation fails
+      }
     } catch (error) {
       console.error('Error submitting assessment:', error);
       toast({
@@ -273,7 +420,7 @@ export default function MyDreamsAssessment() {
     );
   }
 
-  if (isCompleted) {
+  if (isCompleted && !readOnlyView) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-8">
         <div className="container mx-auto px-4">
@@ -293,16 +440,23 @@ export default function MyDreamsAssessment() {
                 <div className="flex justify-center gap-4">
                   <Button 
                     variant="outline" 
-                    onClick={() => setIsCompleted(false)}
                     className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                    onClick={() => {
+                      const params = new URLSearchParams(searchParams.toString());
+                      if (!params.get('lang') && lang) {
+                        params.set('lang', lang);
+                      }
+                      params.set('readonly', '1');
+                      navigate(`/student/assessment/dreams?${params.toString()}`);
+                    }}
                   >
-                    Review My Responses
+                    {lang === 'kn' ? 'ನನ್ನ ಉತ್ತರಗಳನ್ನು ವೀಕ್ಷಿಸಿ' : 'View My Answers'}
                   </Button>
                   <Button 
                     onClick={() => navigate('/student')}
                     className="bg-blue-600 hover:bg-blue-700"
                   >
-                    Back to Dashboard
+                    {lang === 'kn' ? 'ಡ್ಯಾಶ್‌ಬೋರ್ಡ್‌ಗೆ ಹಿಂತಿರುಗಿ' : 'Back to Dashboard'}
                   </Button>
                 </div>
               </div>
@@ -329,14 +483,25 @@ export default function MyDreamsAssessment() {
         <TooltipProvider>
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-blue-800 mb-2">🌟 My Dreams Assessment</h1>
-          <p className="text-blue-600 text-lg">
-            "The dreams that you dream of in your sleep are not dreams, the dream that does not let you sleep is the real dream" - Dr. A.P.J. Abdul Kalam
-          </p>
-          <p className="text-gray-600 mt-2">
-            We all have dreams about our future. What according to you is a dream? And what are your dreams? 
-            What are the dreams that haunt you repeatedly? In this practice sheet you will express your dreams.
-          </p>
+          <h1 className="text-3xl font-bold text-blue-800 mb-4">🌟 My Dreams Assessment</h1>
+          
+          {/* Quote Box */}
+          <div className="max-w-3xl mx-auto mb-6 p-6 border-2 border-gray-800 rounded-lg bg-white">
+            <p className="text-lg font-bold text-gray-900 mb-2">
+              "Dream is not that which you see while sleeping, it is something that does not let you sleep".
+            </p>
+            <p className="text-gray-700 italic">By Dr. A. P. J. Abdul Kalam</p>
+          </div>
+          
+          {/* Description Text */}
+          <div className="max-w-3xl mx-auto space-y-3 text-gray-700">
+            <p className="text-base leading-relaxed">
+              We all hold dreams for our future. What are your dreams? Is there a particular goal or aspiration that resonates strongly with you?
+            </p>
+            <p className="text-base leading-relaxed">
+              In this exploratory section, we'll uncover your world of dreams and aspirations.
+            </p>
+          </div>
         </div>
 
         {/* Progress Bar */}
@@ -348,405 +513,189 @@ export default function MyDreamsAssessment() {
             </div>
             <Progress value={getProgressPercentage()} className="h-3" />
             <div className="flex justify-between text-sm text-gray-600 mt-2">
-              <span>Part {currentPart === 'part1' ? '1' : '2'} of 2</span>
+              <span>Section {sections.indexOf(currentSection) + 1} of {sections.length}</span>
               <span>{Math.round(getProgressPercentage())}% {t('completeSuffix')}</span>
             </div>
           </CardContent>
         </Card>
 
-        {/* Part Navigation */}
+        {/* Section Navigation */}
         <div className="flex justify-center mb-6">
           <div className="flex bg-white rounded-lg p-1 shadow-md">
-            <button
-              onClick={() => setCurrentPart('part1')}
-              className={`px-6 py-2 rounded-md transition-all ${
-                currentPart === 'part1'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-gray-600 hover:text-blue-600'
-              }`}
-            >
-              Part 1: Your Dreams
-            </button>
-            <button
-              onClick={() => setCurrentPart('part2')}
-              className={`px-6 py-2 rounded-md transition-all ${
-                currentPart === 'part2'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-gray-600 hover:text-blue-600'
-              }`}
-            >
-              Part 2: Making Dreams Reality
-            </button>
+            {sections.map((sectionKey, index) => {
+              const sectionQuestions = questionsBySection[sectionKey] || [];
+              const sectionNumber = index + 1;
+              let sectionTitle = '';
+              if (sectionKey === 'section1') sectionTitle = 'Section 1: Your Dreams & Future Goals';
+              else if (sectionKey === 'section2') sectionTitle = 'Section 2: Career & Life Aspirations';
+              else if (sectionKey === 'section3') sectionTitle = 'Section 3: Making Dreams Reality';
+              else sectionTitle = `Section ${sectionNumber}`;
+              
+              return (
+                <button
+                  key={sectionKey}
+                  onClick={() => setCurrentSection(sectionKey)}
+                  className={`px-6 py-2 rounded-md transition-all ${
+                    currentSection === sectionKey
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'text-gray-600 hover:text-blue-600'
+                  }`}
+                >
+                  {sectionTitle}
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* Part 1: Your Dreams */}
-        {currentPart === 'part1' && (
-          <Card className="border-0 shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
-              <CardTitle className="text-xl text-blue-800">Part 1: Your Dreams & Aspirations</CardTitle>
-              <CardDescription className="text-blue-600">
-                Express your dreams for the future and what you aspire to achieve
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    {q['question1'] || '1. What dreams do you have for your future?'}
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700">💬</button>
-                      </TooltipTrigger>
-                      <TooltipContent>Write about what you wish to become or achieve in life.</TooltipContent>
-                    </Tooltip>
-                  </label>
-                  <Textarea
-                  placeholder={q['question1'] || 'Write about what you wish to become or achieve in life.'}
-                    value={responses.part1.question1}
-                    onChange={(e) => handleResponseChange('part1', 'question1', e.target.value)}
-                    rows={4}
-                    className="border-blue-200 focus:border-blue-400"
-                  />
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      {q['question2'] || '2. What educational degree that you aspire to get?'}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700">💬</button>
-                        </TooltipTrigger>
-                        <TooltipContent>Mention the course or degree you want to study in the future.</TooltipContent>
-                      </Tooltip>
-                    </label>
-                    <Textarea
-                      placeholder={q['question2'] || 'Mention the course or degree you want to study in the future.'}
-                      value={responses.part1.question2}
-                      onChange={(e) => handleResponseChange('part1', 'question2', e.target.value)}
-                      rows={2}
-                      className="border-blue-200 focus:border-blue-400"
-                    />
+        {/* Dynamically render sections from database */}
+        {sections.map((sectionKey) => {
+          const sectionQuestions = questionsBySection[sectionKey] || [];
+          if (sectionQuestions.length === 0) return null;
+          
+          const sectionNumber = sections.indexOf(sectionKey) + 1;
+          let sectionTitle = '';
+          let sectionDescription = '';
+          let headerColor = 'from-blue-50 to-indigo-50';
+          let titleColor = 'text-blue-800';
+          let descColor = 'text-blue-600';
+          
+          if (sectionKey === 'section1') {
+            sectionTitle = 'Section 1: Your Dreams & Future Goals';
+            sectionDescription = 'Express your dreams for the future and what you aspire to achieve';
+          } else if (sectionKey === 'section2') {
+            sectionTitle = 'Section 2: Career & Life Aspirations';
+            sectionDescription = 'Explore your career and life goals, where you want to live, and how you want to contribute';
+            headerColor = 'from-purple-50 to-pink-50';
+            titleColor = 'text-purple-800';
+            descColor = 'text-purple-600';
+          } else if (sectionKey === 'section3') {
+            sectionTitle = 'Section 3: Making Dreams Reality';
+            sectionDescription = 'Plan the steps needed to achieve your dreams and identify potential obstacles';
+            headerColor = 'from-green-50 to-emerald-50';
+            titleColor = 'text-green-800';
+            descColor = 'text-green-600';
+          } else {
+            sectionTitle = `Section ${sectionNumber}`;
+            sectionDescription = 'Answer the questions in this section';
+          }
+          
+          return (
+            <div key={sectionKey} style={{ display: currentSection === sectionKey ? 'block' : 'none' }}>
+              <Card className="border-0 shadow-lg">
+                <CardHeader className={`bg-gradient-to-r ${headerColor}`}>
+                  <CardTitle className={`text-xl ${titleColor}`}>{sectionTitle}</CardTitle>
+                  <CardDescription className={descColor}>
+                    {sectionDescription}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="space-y-6">
+                    {sectionQuestions.map((question, index) => {
+                      const questionNumber = index + 1;
+                      const questionValue = responses[question.id] || '';
+                      const helpKey = question.id;
+                      const isOpen = !!helpOpen[helpKey];
+                      const helpText = question.help_text || '';
+                      
+                      // Format label - don't add number if already present
+                      const hasNumber = /^\d+\.\s/.test(question.question_text || '');
+                      const label = hasNumber 
+                        ? question.question_text 
+                        : `${questionNumber}. ${question.question_text}`;
+                      
+                      return (
+                        <div key={question.id}>
+                          <label className="block text-base font-medium text-gray-800 mb-2 flex items-center gap-2">
+                            {label}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button 
+                                  type="button" 
+                                  aria-label="Help" 
+                                  className="text-blue-600 hover:text-blue-700"
+                                  onClick={() => toggleHelp(helpKey)}
+                                >
+                                  💬
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">{helpText}</TooltipContent>
+                            </Tooltip>
+                          </label>
+                          {isOpen && (
+                            <div className="mb-2 p-3 rounded border bg-blue-50 border-blue-200 text-sm text-blue-800">
+                              {helpText}
+                            </div>
+                          )}
+                          <Textarea
+                            placeholder={helpText}
+                            value={questionValue}
+                            onChange={(e) => handleResponseChange(question.id, e.target.value)}
+                            disabled={isReadOnly}
+                            rows={4}
+                            className="text-base border-blue-200 focus:border-blue-400"
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      {q['question3'] || '3. What is your aspirational career?'}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700">💬</button>
-                        </TooltipTrigger>
-                        <TooltipContent>Write about the job or profession you wish to do when you grow up.</TooltipContent>
-                      </Tooltip>
-                    </label>
-                    <Textarea
-                      placeholder={q['question3'] || 'Write about the job or profession you wish to do when you grow up.'}
-                      value={responses.part1.question3}
-                      onChange={(e) => handleResponseChange('part1', 'question3', e.target.value)}
-                      rows={2}
-                      className="border-blue-200 focus:border-blue-400"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      {q['question4'] || '4. A sport that you aspire to play professionally'}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700">💬</button>
-                        </TooltipTrigger>
-                        <TooltipContent>Write the name of the sport you dream of playing as a career.</TooltipContent>
-                      </Tooltip>
-                    </label>
-                    <Textarea
-                      placeholder="Write the name of the sport you dream of playing as a career."
-                      value={responses.part1.question4}
-                      onChange={(e) => handleResponseChange('part1', 'question4', e.target.value)}
-                      rows={2}
-                      className="border-blue-200 focus:border-blue-400"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      {q['question5'] || '5. If you can become a writer, you will write about'}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700">💬</button>
-                        </TooltipTrigger>
-                        <TooltipContent>Mention what topics or stories you would like to write about.</TooltipContent>
-                      </Tooltip>
-                    </label>
-                    <Textarea
-                      placeholder="Mention what topics or stories you would like to write about."
-                      value={responses.part1.question5}
-                      onChange={(e) => handleResponseChange('part1', 'question5', e.target.value)}
-                      rows={2}
-                      className="border-blue-200 focus:border-blue-400"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      {q['question6'] || '6. The musical instrument you desire to play'}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700">💬</button>
-                        </TooltipTrigger>
-                        <TooltipContent>Write the name of the instrument you wish to learn or play.</TooltipContent>
-                      </Tooltip>
-                    </label>
-                    <Textarea
-                      placeholder="Write the name of the instrument you wish to learn or play."
-                      value={responses.part1.question6}
-                      onChange={(e) => handleResponseChange('part1', 'question6', e.target.value)}
-                      rows={2}
-                      className="border-blue-200 focus:border-blue-400"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      {q['question7'] || '7. The college you would like to study in'}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700">💬</button>
-                        </TooltipTrigger>
-                        <TooltipContent>Mention the college or type of college you dream of joining.</TooltipContent>
-                      </Tooltip>
-                    </label>
-                    <Textarea
-                      placeholder="Mention the college or type of college you dream of joining."
-                      value={responses.part1.question7}
-                      onChange={(e) => handleResponseChange('part1', 'question7', e.target.value)}
-                      rows={2}
-                      className="border-blue-200 focus:border-blue-400"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      {q['question8'] || '8. If you can help anyone or anything in this world, that is'}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700">💬</button>
-                        </TooltipTrigger>
-                        <TooltipContent>Write about the person, group, or cause you want to help and why.</TooltipContent>
-                      </Tooltip>
-                    </label>
-                    <Textarea
-                      placeholder="Write about the person, group, or cause you want to help and why."
-                      value={responses.part1.question8}
-                      onChange={(e) => handleResponseChange('part1', 'question8', e.target.value)}
-                      rows={2}
-                      className="border-blue-200 focus:border-blue-400"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      {q['question9'] || '9. If you can live anywhere in the world, that would be in'}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700">💬</button>
-                        </TooltipTrigger>
-                        <TooltipContent>Write the place or country where you would love to live.</TooltipContent>
-                      </Tooltip>
-                    </label>
-                    <Textarea
-                      placeholder="Write the place or country where you would love to live."
-                      value={responses.part1.question9}
-                      onChange={(e) => handleResponseChange('part1', 'question9', e.target.value)}
-                      rows={2}
-                      className="border-blue-200 focus:border-blue-400"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      {q['question10'] || '10. If you can become an artiste, the art that you would choose would be'}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700">💬</button>
-                        </TooltipTrigger>
-                        <TooltipContent>Mention what kind of art you would like to do — like painting, dance, music, etc.</TooltipContent>
-                      </Tooltip>
-                    </label>
-                    <Textarea
-                      placeholder="Mention what kind of art you would like to do — like painting, dance, music, etc."
-                      value={responses.part1.question10}
-                      onChange={(e) => handleResponseChange('part1', 'question10', e.target.value)}
-                      rows={2}
-                      className="border-blue-200 focus:border-blue-400"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      {q['question11'] || '11. Others'}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700">💬</button>
-                        </TooltipTrigger>
-                        <TooltipContent>Any other dreams or aspirations you have.</TooltipContent>
-                      </Tooltip>
-                    </label>
-                    <Textarea
-                      placeholder="Any other dreams or aspirations?"
-                      value={responses.part1.question11}
-                      onChange={(e) => handleResponseChange('part1', 'question11', e.target.value)}
-                      rows={2}
-                      className="border-blue-200 focus:border-blue-400"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      {q['question12'] || '12. Would you want to make your dream come true?'}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700">💬</button>
-                        </TooltipTrigger>
-                        <TooltipContent>Write 'Yes' or 'No' and share your reason.</TooltipContent>
-                      </Tooltip>
-                    </label>
-                    <Textarea
-                      placeholder="Write 'Yes' or 'No' and share your reason."
-                      value={responses.part1.question12}
-                      onChange={(e) => handleResponseChange('part1', 'question12', e.target.value)}
-                      rows={2}
-                      className="border-blue-200 focus:border-blue-400"
-                    />
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Part 2: Making Dreams Reality */}
-        {currentPart === 'part2' && (
-          <Card className="border-0 shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
-              <CardTitle className="text-xl text-green-800">Part 2: Making Your Dreams Reality</CardTitle>
-              <CardDescription className="text-green-600">
-                Plan the steps needed to achieve your dreams and identify potential obstacles
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    {q['question13'] || '13. What do you need to make your dreams come true? (For any one of your dreams)'}
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button type="button" aria-label="Help" className="text-green-700 hover:text-green-800">💬</button>
-                      </TooltipTrigger>
-                      <TooltipContent>Write what support, skills, or things you need to reach your goal.</TooltipContent>
-                    </Tooltip>
-                  </label>
-                  <Textarea
-                    placeholder="Write what support, skills, or things you need to reach your goal."
-                    value={responses.part2.question13}
-                    onChange={(e) => handleResponseChange('part2', 'question13', e.target.value)}
-                    rows={3}
-                    className="border-green-200 focus:border-green-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    {q['question14'] || '14. What is the first step you need to take to make your dreams come true?'}
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button type="button" aria-label="Help" className="text-green-700 hover:text-green-800">💬</button>
-                      </TooltipTrigger>
-                      <TooltipContent>Write the first small action you can start with to move toward your dream.</TooltipContent>
-                    </Tooltip>
-                  </label>
-                  <Textarea
-                    placeholder="Write the first small action you can start with to move toward your dream."
-                    value={responses.part2.question14}
-                    onChange={(e) => handleResponseChange('part2', 'question14', e.target.value)}
-                    rows={3}
-                    className="border-green-200 focus:border-green-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    {q['question15'] || '15. Do you have the will power and enthusiasm to make your dream a reality?'}
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button type="button" aria-label="Help" className="text-green-700 hover:text-green-800">💬</button>
-                      </TooltipTrigger>
-                      <TooltipContent>Write about how determined and excited you feel to work for your dream.</TooltipContent>
-                    </Tooltip>
-                  </label>
-                  <Textarea
-                    placeholder="Write about how determined and excited you feel to work for your dream."
-                    value={responses.part2.question15}
-                    onChange={(e) => handleResponseChange('part2', 'question15', e.target.value)}
-                    rows={3}
-                    className="border-green-200 focus:border-green-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    {q['question16'] || '16. Are there any obstacles to reach your dream? If there are any, which ones?'}
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button type="button" aria-label="Help" className="text-green-700 hover:text-green-800">💬</button>
-                      </TooltipTrigger>
-                      <TooltipContent>Write about the problems or challenges that may stop you from reaching your dream.</TooltipContent>
-                    </Tooltip>
-                  </label>
-                  <Textarea
-                    placeholder="Write about the problems or challenges that may stop you from reaching your dream."
-                    value={responses.part2.question16}
-                    onChange={(e) => handleResponseChange('part2', 'question16', e.target.value)}
-                    rows={3}
-                    className="border-green-200 focus:border-green-400"
-                  />
-                </div>
-
-                
-              </div>
-            </CardContent>
-          </Card>
-        )}
+                </CardContent>
+              </Card>
+            </div>
+          );
+        })}
 
         {/* Navigation and Submit */}
         <div className="flex justify-between items-center mt-8">
           <Button
             variant="outline"
-            onClick={() => setCurrentPart(currentPart === 'part1' ? 'part2' : 'part1')}
+            onClick={() => {
+              const currentIndex = sections.indexOf(currentSection);
+              if (currentIndex > 0) {
+                setCurrentSection(sections[currentIndex - 1]);
+              }
+            }}
+            disabled={sections.indexOf(currentSection) === 0}
             className="border-blue-200 text-blue-700 hover:bg-blue-50"
           >
-            {currentPart === 'part1' ? t('nextPartMakingDreams') : t('prevYourDreams')}
+            Previous Section
           </Button>
 
-          {currentPart === 'part2' && (
+          <div className="flex gap-2">
             <Button
-              onClick={submitAssessment}
-              disabled={!canSubmit() || submitting}
-              className="bg-blue-600 hover:bg-blue-700"
+              variant="outline"
+              onClick={() => {
+                const currentIndex = sections.indexOf(currentSection);
+                if (currentIndex < sections.length - 1) {
+                  setCurrentSection(sections[currentIndex + 1]);
+                }
+              }}
+              disabled={sections.indexOf(currentSection) === sections.length - 1}
+              className="border-blue-200 text-blue-700 hover:bg-blue-50"
             >
-              {submitting ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  {t('submitting')}
-                </>
-              ) : (
-                <>
-                  <Star className="w-4 h-4 mr-2" />
-                  {t('submitDreams')}
-                </>
-              )}
+              Next Section
             </Button>
-          )}
+
+            {sections.indexOf(currentSection) === sections.length - 1 && (
+              <Button
+                onClick={submitAssessment}
+                disabled={!canSubmit() || submitting || isReadOnly}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {submitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    {t('submitting')}
+                  </>
+                ) : (
+                  <>
+                    <Star className="w-4 h-4 mr-2" />
+                    {t('submitDreams')}
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
         </div>
         </TooltipProvider>
       </div>

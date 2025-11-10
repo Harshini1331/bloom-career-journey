@@ -11,9 +11,11 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { handleDatabaseError, validateApiResponse } from '@/utils/errorHandler';
 import { useLang } from '@/hooks/useLang';
 import { KannadaKeyboard } from '@/components/ui/KannadaKeyboard';
+import { checkAssessmentUnlock } from '@/utils/assessmentUnlock';
 
 interface AboutMeField {
   field_key: string;
@@ -27,65 +29,10 @@ interface AboutMeField {
 type Triple = [string, string, string];
 type Double = [string, string];
 
+// Dynamic responses based on database fields
 interface AboutMeResponses {
-  profile_family: string;
-  profile_other: string;
-  home_work: string;
-  fav_job_school: string;
-  fav_job_after_school: string;
-  solo_activities: string;
-  with_friends_tasks: string;
-  diff_at_school: string;
-  diff_after_school: string;
-  dont_like_but_do: string;
-  not_natural_jobs: string;
-  like_about_me: Triple; // three inputs
-  others_like_about_me: Triple; // three inputs
-  praised_for: Triple; // three inputs
-  change_in_self: Double; // two inputs
-  aspire_like_someone: string;
-  about_me_brief: string;
+  [field_key: string]: string | Triple | Double;
 }
-
-const defaultResponses: AboutMeResponses = {
-  profile_family: '',
-  profile_other: '',
-  home_work: '',
-  fav_job_school: '',
-  fav_job_after_school: '',
-  solo_activities: '',
-  with_friends_tasks: '',
-  diff_at_school: '',
-  diff_after_school: '',
-  dont_like_but_do: '',
-  not_natural_jobs: '',
-  like_about_me: ['', '', ''],
-  others_like_about_me: ['', '', ''],
-  praised_for: ['', '', ''],
-  change_in_self: ['', ''],
-  aspire_like_someone: '',
-  about_me_brief: ''
-};
-
-const HELP = {
-  profile_family: 'Write the name or relation of the person (mother, father, sister, etc.) with whom you feel most comfortable sharing your thoughts.',
-  profile_other: 'Mention a friend, teacher, or another person you trust and can talk to openly.',
-  home_work: 'Write about the kind of work or help you give at home every day or sometimes.',
-  fav_job_school: 'Write about a school activity or subject you are good at and enjoy doing.',
-  fav_job_after_school: 'Write about something you do at home or outside school that you do well and like doing.',
-  solo_activities: 'Write about things you like doing alone — for example reading, drawing, singing, or gardening.',
-  with_friends_tasks: 'Mention the fun or helpful activities you enjoy doing with your friends.',
-  diff_at_school: 'Write about something at school that feels hard for you to do.',
-  diff_after_school: 'Mention a task outside school that you find difficult.',
-  dont_like_but_do: 'Write about tasks you don’t enjoy but still do because they are needed.',
-  not_natural_jobs: 'Write about tasks that you struggle with or take time to learn.',
-  like_about_me: 'Write about your good habits, strengths, or anything that makes you proud of yourself.',
-  others_like_about_me: 'Write what others appreciate about you — kindness, helpfulness, honesty, etc.',
-  praised_for: 'Mention any time you were appreciated or got good comments — at home, school, or anywhere.',
-  change_in_self: 'Write about something you want to improve or learn to do better.',
-  aspire_like_someone: 'Write the name of a person you admire or the kind of work/life you wish to have.',
-  about_me_brief: 'Write a few lines about who you are — your likes, hobbies, family, or dreams.'
-} as const;
 
 export default function AboutMeAssessment() {
   const { userProfile } = useAuth();
@@ -94,40 +41,73 @@ export default function AboutMeAssessment() {
   const readOnlyView = ['1','true'].includes((searchParams.get('readonly')||searchParams.get('view')||'').toLowerCase());
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [responses, setResponses] = useState<AboutMeResponses>(defaultResponses);
+  const [responses, setResponses] = useState<AboutMeResponses>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [helpOpen, setHelpOpen] = useState<Record<string, boolean>>({});
   const [aboutMeFields, setAboutMeFields] = useState<AboutMeField[]>([]);
+  const [currentSection, setCurrentSection] = useState<string>('');
   const toggleHelp = (k: string) => setHelpOpen(prev => ({ ...prev, [k]: !prev[k] }));
   
+  // Initialize responses based on database fields
+  const initializeResponses = (fields: AboutMeField[]) => {
+    const initialResponses: AboutMeResponses = {};
+    fields.forEach(field => {
+      if (field.field_type === 'triple') {
+        initialResponses[field.field_key] = ['', '', ''] as Triple;
+      } else if (field.field_type === 'double') {
+        initialResponses[field.field_key] = ['', ''] as Double;
+      } else {
+        initialResponses[field.field_key] = '';
+      }
+    });
+    return initialResponses;
+  };
+
+  // Group fields by section
+  const fieldsBySection = useMemo(() => {
+    const grouped: { [section: string]: AboutMeField[] } = {};
+    aboutMeFields.forEach(field => {
+      if (!grouped[field.section]) {
+        grouped[field.section] = [];
+      }
+      grouped[field.section].push(field);
+    });
+    return grouped;
+  }, [aboutMeFields]);
+
+  // Get sorted sections
+  const sections = useMemo(() => {
+    const sectionsList = Object.keys(fieldsBySection).sort((a, b) => {
+      const firstFieldA = fieldsBySection[a]?.[0];
+      const firstFieldB = fieldsBySection[b]?.[0];
+      return (firstFieldA?.sequence_number || 0) - (firstFieldB?.sequence_number || 0);
+    });
+    return sectionsList;
+  }, [fieldsBySection]);
+
+  // Set initial current section when sections are loaded
+  useEffect(() => {
+    if (sections.length > 0 && !currentSection) {
+      setCurrentSection(sections[0]);
+    }
+  }, [sections, currentSection]);
+
   const getProgressPercentage = () => {
-    const values: string[] = [
-      responses.profile_family,
-      responses.profile_other,
-      responses.home_work,
-      responses.fav_job_school,
-      responses.fav_job_after_school,
-      responses.solo_activities,
-      responses.with_friends_tasks,
-      responses.diff_at_school,
-      responses.diff_after_school,
-      responses.dont_like_but_do,
-      responses.not_natural_jobs,
-      responses.aspire_like_someone,
-      responses.about_me_brief,
-      ...responses.like_about_me,
-      ...responses.others_like_about_me,
-      ...responses.praised_for,
-      ...responses.change_in_self,
-    ];
-    const total = values.length;
-    const answered = values.filter(v => (v || '').trim() !== '').length;
+    if (aboutMeFields.length === 0) return 0;
+    const total = aboutMeFields.length;
+    const answered = aboutMeFields.filter(field => {
+      const value = responses[field.field_key];
+      if (Array.isArray(value)) {
+        return value.some(v => (v || '').trim() !== '');
+      }
+      return (value || '').trim() !== '';
+    }).length;
     return total > 0 ? (answered / total) * 100 : 0;
   };
 
-  const setField = (key: keyof AboutMeResponses, value: any) => {
+  const setField = (key: string, value: any) => {
     setResponses(prev => ({ ...prev, [key]: value }));
   };
 
@@ -137,6 +117,43 @@ export default function AboutMeAssessment() {
     const { data } = await supabase.from('students').select('id').eq('user_id', userProfile.id).maybeSingle();
     return data?.id || null;
   }, [userProfile]);
+
+  // Helper function to get student ID
+  const getStudentId = async () => {
+    if (!userProfile) return null;
+    if (userProfile.studentProfile?.id) return userProfile.studentProfile.id as string;
+    const { data } = await supabase.from('students').select('id').eq('user_id', userProfile.id).maybeSingle();
+    return data?.id || null;
+  };
+
+  // Check if assessment is unlocked (only for non-read-only views)
+  useEffect(() => {
+    const checkUnlock = async () => {
+      // Skip check if in read-only mode (teachers viewing completed assessments)
+      if (readOnlyView) return;
+      
+      // Skip if no user profile
+      if (!userProfile) return;
+
+      const studentId = await getStudentId();
+      if (!studentId) return;
+
+      const unlockResult = await checkAssessmentUnlock(studentId, 'about_me');
+      
+      if (!unlockResult.isUnlocked) {
+        toast({
+          title: lang === 'kn' ? 'ಮೌಲ್ಯಮಾಪನ ಲಾಕ್ ಮಾಡಲಾಗಿದೆ' : 'Assessment Locked',
+          description: lang === 'kn' 
+            ? `ದಯವಿಟ್ಟು ಮೊದಲು "${unlockResult.missingPrerequisites.join(', ')}" ಪೂರ್ಣಗೊಳಿಸಿ.`
+            : `Please complete "${unlockResult.missingPrerequisites.join(', ')}" first.`,
+          variant: 'destructive',
+        });
+        navigate('/student');
+      }
+    };
+
+    checkUnlock();
+  }, [readOnlyView, userProfile, navigate, toast, lang]);
 
   // Load About Me fields from database using lang-aware RPC (fallback to base RPC)
   useEffect(() => {
@@ -157,25 +174,26 @@ export default function AboutMeAssessment() {
 
         if (!rows) {
           const { data, error } = await supabase.rpc('get_about_me_fields');
-          if (error) throw error;
+          if (error) {
+            handleDatabaseError(error, 'AboutMeAssessment - Fields');
+            throw error;
+          }
           rows = data as any[];
-        }
-        
-        if (error) {
-          handleDatabaseError(error, 'AboutMeAssessment - Fields');
-          throw error;
         }
         
         if (validateApiResponse(rows, 'AboutMeAssessment - Fields')) {
           console.log('✅ Database fields loaded:', (rows as any[]).length, 'fields');
-          setAboutMeFields(rows as any);
+          const fields = rows as AboutMeField[];
+          setAboutMeFields(fields);
+          // Initialize responses with database fields
+          const initialResponses = initializeResponses(fields);
+          setResponses(prev => ({ ...prev, ...initialResponses }));
         } else {
           console.log('⚠️ No fields found in database, using fallback');
         }
       } catch (error) {
         handleDatabaseError(error, 'AboutMeAssessment - Fields');
         console.log('🔄 Using hardcoded fallback fields');
-        // Keep using hardcoded HELP object as fallback
       }
     };
     
@@ -198,7 +216,7 @@ export default function AboutMeAssessment() {
 
   useEffect(() => {
     const load = async () => {
-      if (!userProfile) return setLoading(false);
+      if (!userProfile || aboutMeFields.length === 0) return setLoading(false);
       const studentId = await studentIdPromise;
       if (!studentId) return setLoading(false);
       const { data } = await supabase
@@ -211,15 +229,23 @@ export default function AboutMeAssessment() {
         .limit(1)
         .maybeSingle();
       if (data?.responses) {
-        const r = data.responses as Partial<AboutMeResponses>;
-        setResponses({
-          ...defaultResponses,
-          ...r,
-          like_about_me: (r.like_about_me as any) || ['', '', ''],
-          others_like_about_me: (r.others_like_about_me as any) || ['', '', ''],
-          praised_for: (r.praised_for as any) || ['', '', ''],
-          change_in_self: (r.change_in_self as any) || ['', '']
+        const savedResponses = data.responses as Partial<AboutMeResponses>;
+        // Merge saved responses with initialized responses
+        const initialResponses = initializeResponses(aboutMeFields);
+        // Merge saved responses, ensuring proper types for triple/double fields
+        aboutMeFields.forEach(field => {
+          const savedValue = savedResponses[field.field_key];
+          if (savedValue !== undefined) {
+            if (field.field_type === 'triple' && Array.isArray(savedValue)) {
+              initialResponses[field.field_key] = [...savedValue] as Triple;
+            } else if (field.field_type === 'double' && Array.isArray(savedValue)) {
+              initialResponses[field.field_key] = [...savedValue] as Double;
+            } else if (field.field_type !== 'triple' && field.field_type !== 'double') {
+              initialResponses[field.field_key] = savedValue as string;
+            }
+          }
         });
+        setResponses(initialResponses);
         if (data.completed_at) {
           setIsCompleted(true);
         }
@@ -227,7 +253,7 @@ export default function AboutMeAssessment() {
       setLoading(false);
     };
     load();
-  }, [userProfile, studentIdPromise]);
+  }, [userProfile, studentIdPromise, aboutMeFields]);
 
   const save = async (complete: boolean) => {
     if (readOnlyView) return;
@@ -243,10 +269,98 @@ export default function AboutMeAssessment() {
         responses,
         completed_at: complete ? new Date().toISOString() : null
       } as any;
-      const { error } = await supabase.from('assessment_responses').upsert({ ...payload, updated_at: new Date().toISOString() });
+      const { data: assessmentData, error } = await supabase
+        .from('assessment_responses')
+        .upsert({ ...payload, updated_at: new Date().toISOString() })
+        .select()
+        .single();
+      
       if (error) throw error;
-      toast({ title: complete ? 'Submitted!' : 'Saved', description: complete ? 'About Me submitted successfully.' : 'Progress saved.' });
-      if (complete) setIsCompleted(true);
+      
+      toast({ 
+        title: complete ? 'Submitted!' : 'Saved', 
+        description: complete ? 'About Me submitted successfully.' : 'Progress saved.' 
+      });
+      
+      if (complete) {
+        setIsCompleted(true);
+        
+        // Generate AI summary in the background
+        try {
+          const { aiSummaryService } = await import('@/services/aiSummaryService');
+          const summaryDatabaseService = (await import('@/services/summaryDatabaseService')).summaryDatabaseService;
+          
+          if (aiSummaryService.isConfigured() && assessmentData?.id) {
+            console.log('🤖 Generating AI summary for About Me assessment:', assessmentData.id);
+            const summaryResult = await aiSummaryService.generateAboutMeSummary(responses);
+
+            if (summaryResult.success && summaryResult.summary) {
+              // Save summary to database
+              const saveResult = await summaryDatabaseService.createAISummary(
+                assessmentData.id,
+                summaryResult.summary,
+                userProfile.id
+              );
+
+              if (saveResult.success) {
+                console.log('✅ AI summary saved successfully:', saveResult.summaryId);
+                toast({
+                  title: "Summary Generated! 📝",
+                  description: "Your teacher will review your reflection summary.",
+                });
+
+                // Notify teacher(s) assigned to this student
+                try {
+                  const { notificationService } = await import('@/services/notificationService');
+                  
+                  // Find teacher(s) for this student
+                  const studentId = await getStudentId();
+                  if (studentId) {
+                    const { data: studentRow } = await supabase
+                      .from('students')
+                      .select('teachers:teacher_id(user_id, users:user_id(full_name))')
+                      .eq('id', studentId)
+                      .maybeSingle();
+                    
+                    const teacherUserId = (studentRow as any)?.teachers?.user_id;
+                    if (teacherUserId) {
+                      await notificationService.create({
+                        userId: teacherUserId,
+                        type: 'assessment_submitted',
+                        title: `${userProfile?.full_name || 'Student'} completed About Me assessment`,
+                        message: 'A new About Me assessment summary is ready for review.',
+                        link: '/teacher/ai-summary-review'
+                      });
+                    }
+                  }
+                } catch (notifError) {
+                  console.error('Error notifying teacher:', notifError);
+                  // Don't fail the whole submission if notification fails
+                }
+              } else {
+                console.error('Failed to save summary:', saveResult.error);
+                toast({
+                  title: "Summary Generation Issue",
+                  description: "Your assessment is saved, but summary generation needs attention.",
+                  variant: "destructive",
+                });
+              }
+            } else {
+              console.error('Failed to generate summary:', summaryResult.error);
+              toast({
+                title: "Summary Generation Issue",
+                description: "Your assessment is saved. Summary will be generated later.",
+                variant: "destructive",
+              });
+            }
+          } else {
+            console.warn('⚠️ Gemini API not configured, skipping summary generation');
+          }
+        } catch (summaryError) {
+          console.error('Error in summary generation:', summaryError);
+          // Don't show error to user - assessment is already saved
+        }
+      }
     } catch (e) {
       toast({ title: 'Error', description: 'Unable to save. Please try again.', variant: 'destructive' });
     } finally {
@@ -272,12 +386,25 @@ export default function AboutMeAssessment() {
                   Thank you for completing the About Me assessment! Your reflections have been saved and your teacher can now review them to help guide your career journey.
                 </p>
                 <div className="flex justify-center gap-4">
-                  
+                  <Button
+                    variant="outline"
+                    className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                    onClick={() => {
+                      const params = new URLSearchParams(searchParams.toString());
+                      if (!params.get('lang') && lang) {
+                        params.set('lang', lang);
+                      }
+                      params.set('readonly', '1');
+                      navigate(`/student/assessment/about-me?${params.toString()}`);
+                    }}
+                  >
+                    {lang === 'kn' ? 'ನನ್ನ ಉತ್ತರಗಳನ್ನು ವೀಕ್ಷಿಸಿ' : 'View My Answers'}
+                  </Button>
                   <Button 
                     onClick={() => navigate('/student')}
                     className="bg-blue-600 hover:bg-blue-700"
                   >
-                    Back to Dashboard
+                    {lang === 'kn' ? 'ಡ್ಯಾಶ್‌ಬೋರ್ಡ್‌ಗೆ ಹಿಂತಿರುಗಿ' : 'Back to Dashboard'}
                   </Button>
                 </div>
               </div>
@@ -310,7 +437,9 @@ export default function AboutMeAssessment() {
             </Button>
           </div>
           <h1 className="text-3xl font-bold text-blue-800 mb-2">🧑 About Me Assessment</h1>
-          <p className="text-blue-600 text-lg">In this module you will think about yourself — what are things you do well and need help with?</p>
+          <p className="text-blue-600 text-lg">
+            In this practice section, the goal is to uncover your strengths, areas for growth, passions, challenges, opinions, and emotions. This process aids in self-discovery, providing valuable insights into your character. Seeking guidance from family, friends, teachers, and mentors can offer additional clarity, enhancing your understanding of yourself.
+          </p>
         </div>
 
         {/* Progress Bar - match style */}
@@ -329,99 +458,107 @@ export default function AboutMeAssessment() {
         </Card>
 
         <Card className="border-0 shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
-            <CardTitle className="text-xl text-blue-800 flex items-center gap-2"><User className="w-5 h-5" /> About Me</CardTitle>
-            <CardDescription className="text-blue-600">Answer the questions. Use the bubble for help.</CardDescription>
-          </CardHeader>
           <CardContent className="p-6 space-y-6">
             <TooltipProvider>
-              {/* A. Your Profile */}
-              <SectionTitle title="A. Your Profile" />
-              <Question
-                label="1. With which family member are you able to share your opinions and feelings freely without fear or reserve?"
-                help={HELP.profile_family}
-                helpKey="profile_family"
-                open={!!helpOpen['profile_family']}
-                onToggle={() => toggleHelp('profile_family')}
-                value={responses.profile_family}
-                onChange={(v) => setField('profile_family', v)}
-              />
-              <Question
-                label="2. Other than your family members, with whom are you able to share your opinions and feelings freely without fear or reserve?"
-                help={HELP.profile_other}
-                helpKey="profile_other"
-                open={!!helpOpen['profile_other']}
-                onToggle={() => toggleHelp('profile_other')}
-                value={responses.profile_other}
-                onChange={(v) => setField('profile_other', v)}
-              />
-              <Question
-                label="3. What work do you do at home? (eg: help in farming activities, buying vegetables, taking care of cattle, filling water, etc.)"
-                help={HELP.home_work}
-                helpKey="home_work"
-                open={!!helpOpen['home_work']}
-                onToggle={() => toggleHelp('home_work')}
-                value={responses.home_work}
-                onChange={(v) => setField('home_work', v)}
-                area
-              />
+              {/* Section Tabs */}
+              {sections.length > 0 && (
+                <Tabs value={currentSection} onValueChange={setCurrentSection} className="w-full">
+                  <TabsList className="grid w-full grid-cols-4 mb-6">
+                    {sections.map((sectionTitle) => {
+                      // Extract section letter (A, B, C, D)
+                      const sectionLetter = sectionTitle.match(/^([A-D])\./)?.[1] || sectionTitle.charAt(0);
+                      return (
+                        <TabsTrigger 
+                          key={sectionTitle} 
+                          value={sectionTitle}
+                          className="text-xs sm:text-sm"
+                        >
+                          {sectionLetter}
+                        </TabsTrigger>
+                      );
+                    })}
+                  </TabsList>
 
-              {/* B. Favourite Work */}
-              <SectionTitle title="B. What is your favourite work?" subtitle="You can have the same answer for more than one question." />
-              <div className="space-y-4">
-                <Question label="1a. The job that you do well and are happy to do - at school" help={HELP.fav_job_school} helpKey="fav_job_school" open={!!helpOpen['fav_job_school']} onToggle={() => toggleHelp('fav_job_school')} value={responses.fav_job_school} onChange={(v) => setField('fav_job_school', v)} />
-                <Question label="1b. The job that you do well and are happy to do - after school" help={HELP.fav_job_after_school} helpKey="fav_job_after_school" open={!!helpOpen['fav_job_after_school']} onToggle={() => toggleHelp('fav_job_after_school')} value={responses.fav_job_after_school} onChange={(v) => setField('fav_job_after_school', v)} />
-              </div>
-              <Question label="2. The activities that you like to do on your own (Practically doing it alone)" help={HELP.solo_activities} helpKey="solo_activities" open={!!helpOpen['solo_activities']} onToggle={() => toggleHelp('solo_activities')} value={responses.solo_activities} onChange={(v) => setField('solo_activities', v)} area />
-              <Question label="3. The tasks that you like to do with your friends" help={HELP.with_friends_tasks} helpKey="with_friends_tasks" open={!!helpOpen['with_friends_tasks']} onToggle={() => toggleHelp('with_friends_tasks')} value={responses.with_friends_tasks} onChange={(v) => setField('with_friends_tasks', v)} area />
-
-              {/* C. Difficult Jobs */}
-              <SectionTitle title="C. The job that you find difficult to carry out" />
-              <Question label="1. At school" help={HELP.diff_at_school} helpKey="diff_at_school" open={!!helpOpen['diff_at_school']} onToggle={() => toggleHelp('diff_at_school')} value={responses.diff_at_school} onChange={(v) => setField('diff_at_school', v)} />
-              <Question label="2. After school" help={HELP.diff_after_school} helpKey="diff_after_school" open={!!helpOpen['diff_after_school']} onToggle={() => toggleHelp('diff_after_school')} value={responses.diff_after_school} onChange={(v) => setField('diff_after_school', v)} />
-              <Question label="3. The jobs that you don’t like to do but have to do" help={HELP.dont_like_but_do} helpKey="dont_like_but_do" open={!!helpOpen['dont_like_but_do']} onToggle={() => toggleHelp('dont_like_but_do')} value={responses.dont_like_but_do} onChange={(v) => setField('dont_like_but_do', v)} area />
-              <Question label="4. The jobs that don’t come naturally to you" help={HELP.not_natural_jobs} helpKey="not_natural_jobs" open={!!helpOpen['not_natural_jobs']} onToggle={() => toggleHelp('not_natural_jobs')} value={responses.not_natural_jobs} onChange={(v) => setField('not_natural_jobs', v)} area />
-
-              {/* D. More About You */}
-              <SectionTitle title="D. Answer the below questions to share more information about yourself" />
-              <TripleInput
-                label="1. The things that you like about yourself"
-                help={HELP.like_about_me}
-                helpKey="like_about_me"
-                open={!!helpOpen['like_about_me']}
-                onToggle={() => toggleHelp('like_about_me')}
-                values={responses.like_about_me}
-                onChange={(vals) => setField('like_about_me', vals as Triple)}
-              />
-              <TripleInput
-                label="2. What do others like about you? (You could ask your parents/guardians, teachers, friends etc.)"
-                help={HELP.others_like_about_me}
-                helpKey="others_like_about_me"
-                open={!!helpOpen['others_like_about_me']}
-                onToggle={() => toggleHelp('others_like_about_me')}
-                values={responses.others_like_about_me}
-                onChange={(vals) => setField('others_like_about_me', vals as Triple)}
-              />
-              <TripleInput
-                label="3. Things for which you were praised."
-                help={HELP.praised_for}
-                helpKey="praised_for"
-                open={!!helpOpen['praised_for']}
-                onToggle={() => toggleHelp('praised_for')}
-                values={responses.praised_for}
-                onChange={(vals) => setField('praised_for', vals as Triple)}
-              />
-              <DoubleInput
-                label="4. What would you like to change in yourself."
-                help={HELP.change_in_self}
-                helpKey="change_in_self"
-                open={!!helpOpen['change_in_self']}
-                onToggle={() => toggleHelp('change_in_self')}
-                values={responses.change_in_self}
-                onChange={(vals) => setField('change_in_self', vals as Double)}
-              />
-              <Question label="5. If you had the chance to be like somebody or be someone, who would you aspire to be or what would you aspire to do?" help={HELP.aspire_like_someone} helpKey="aspire_like_someone" open={!!helpOpen['aspire_like_someone']} onToggle={() => toggleHelp('aspire_like_someone')} value={responses.aspire_like_someone} onChange={(v) => setField('aspire_like_someone', v)} />
-              <Question label="6. Write about yourself in brief" help={HELP.about_me_brief} helpKey="about_me_brief" open={!!helpOpen['about_me_brief']} onToggle={() => toggleHelp('about_me_brief')} value={responses.about_me_brief} onChange={(v) => setField('about_me_brief', v)} area />
+                  {/* Tab Contents */}
+                  {sections.map((sectionTitle) => {
+                    const fields = fieldsBySection[sectionTitle] || [];
+                    return (
+                      <TabsContent key={sectionTitle} value={sectionTitle} className="space-y-4 mt-0">
+                        <div className="mb-4 pb-3 border-b border-gray-200">
+                          <h3 className="text-lg font-semibold text-gray-800">{sectionTitle}</h3>
+                        </div>
+                        {fields.map((field, index) => {
+                          const fieldValue = responses[field.field_key];
+                          const helpKey = field.field_key;
+                          const isOpen = !!helpOpen[helpKey];
+                          
+                          // Determine label - use question_text from database
+                          const label = field.question_text?.startsWith(`${index + 1}. `) 
+                            ? field.question_text 
+                            : `${index + 1}. ${field.question_text}`;
+                          
+                          // Use help_text from database
+                          const helpText = field.help_text || '';
+                          
+                          if (field.field_type === 'triple') {
+                            const tripleValue = (Array.isArray(fieldValue) && fieldValue.length === 3) 
+                              ? fieldValue as Triple 
+                              : ['', '', ''] as Triple;
+                            return (
+                              <TripleInput
+                                key={field.field_key}
+                                label={label}
+                                help={helpText}
+                                helpKey={helpKey}
+                                open={isOpen}
+                                onToggle={() => toggleHelp(helpKey)}
+                                values={tripleValue}
+                                onChange={(vals) => setField(field.field_key, vals)}
+                                disabled={readOnlyView}
+                              />
+                            );
+                          } else if (field.field_type === 'double') {
+                            const doubleValue = (Array.isArray(fieldValue) && fieldValue.length === 2) 
+                              ? fieldValue as Double 
+                              : ['', ''] as Double;
+                            return (
+                              <DoubleInput
+                                key={field.field_key}
+                                label={label}
+                                help={helpText}
+                                helpKey={helpKey}
+                                open={isOpen}
+                                onToggle={() => toggleHelp(helpKey)}
+                                values={doubleValue}
+                                onChange={(vals) => setField(field.field_key, vals)}
+                                disabled={readOnlyView}
+                              />
+                            );
+                          } else {
+                            // text or textarea
+                            const stringValue = typeof fieldValue === 'string' ? fieldValue : '';
+                            const isTextarea = field.field_type === 'textarea';
+                            return (
+                              <Question
+                                key={field.field_key}
+                                label={label}
+                                help={helpText}
+                                helpKey={helpKey}
+                                open={isOpen}
+                                onToggle={() => toggleHelp(helpKey)}
+                                value={stringValue}
+                                onChange={(v) => setField(field.field_key, v)}
+                                area={isTextarea}
+                                disabled={readOnlyView}
+                              />
+                            );
+                          }
+                        })}
+                      </TabsContent>
+                    );
+                  })}
+                </Tabs>
+              )}
             </TooltipProvider>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
@@ -445,7 +582,7 @@ function SectionTitle({ title, subtitle }: { title: string; subtitle?: string })
   );
 }
 
-function Question({ label, help, value, onChange, area, helpKey, open, onToggle }: { label: string; help: string; value: string; onChange: (v: string) => void; area?: boolean; helpKey: string; open: boolean; onToggle: () => void }) {
+function Question({ label, help, value, onChange, area, helpKey, open, onToggle, disabled }: { label: string; help: string; value: string; onChange: (v: string) => void; area?: boolean; helpKey: string; open: boolean; onToggle: () => void; disabled?: boolean }) {
   return (
     <div>
       <label className="block text-base font-medium text-gray-800 mb-2 flex items-center gap-2">
@@ -463,7 +600,7 @@ function Question({ label, help, value, onChange, area, helpKey, open, onToggle 
       {area ? (
         <Textarea 
           value={value} 
-          readOnly={readOnlyView as any}
+          disabled={disabled}
           onChange={(e) => {
             const v = e.target.value;
             onChange(v);
@@ -475,7 +612,7 @@ function Question({ label, help, value, onChange, area, helpKey, open, onToggle 
       ) : (
         <Input 
           value={value} 
-          readOnly={readOnlyView as any}
+          disabled={disabled}
           onChange={(e) => {
             const v = e.target.value;
             onChange(v);
@@ -488,7 +625,7 @@ function Question({ label, help, value, onChange, area, helpKey, open, onToggle 
   );
 }
 
-function TripleInput({ label, help, values, onChange, helpKey, open, onToggle }: { label: string; help: string; values: Triple; onChange: (v: Triple) => void; helpKey: string; open: boolean; onToggle: () => void }) {
+function TripleInput({ label, help, values, onChange, helpKey, open, onToggle, disabled }: { label: string; help: string; values: Triple; onChange: (v: Triple) => void; helpKey: string; open: boolean; onToggle: () => void; disabled?: boolean }) {
   const [a, b, c] = values;
   return (
     <div>
@@ -505,15 +642,15 @@ function TripleInput({ label, help, values, onChange, helpKey, open, onToggle }:
         <div className="mb-2 p-3 rounded border bg-blue-50 border-blue-200 text-sm text-blue-800">{help}</div>
       )}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <Input value={a} onChange={(e) => { const v = e.target.value; onChange([v, b, c]); if (open && v.trim().length > 0) onToggle(); }} placeholder="Answer 1" />
-        <Input value={b} onChange={(e) => { const v = e.target.value; onChange([a, v, c]); if (open && v.trim().length > 0) onToggle(); }} placeholder="Answer 2" />
-        <Input value={c} onChange={(e) => { const v = e.target.value; onChange([a, b, v]); if (open && v.trim().length > 0) onToggle(); }} placeholder="Answer 3" />
+        <Input disabled={disabled} value={a} onChange={(e) => { const v = e.target.value; onChange([v, b, c]); if (open && v.trim().length > 0) onToggle(); }} placeholder="Answer 1" />
+        <Input disabled={disabled} value={b} onChange={(e) => { const v = e.target.value; onChange([a, v, c]); if (open && v.trim().length > 0) onToggle(); }} placeholder="Answer 2" />
+        <Input disabled={disabled} value={c} onChange={(e) => { const v = e.target.value; onChange([a, b, v]); if (open && v.trim().length > 0) onToggle(); }} placeholder="Answer 3" />
       </div>
     </div>
   );
 }
 
-function DoubleInput({ label, help, values, onChange, helpKey, open, onToggle }: { label: string; help: string; values: Double; onChange: (v: Double) => void; helpKey: string; open: boolean; onToggle: () => void }) {
+function DoubleInput({ label, help, values, onChange, helpKey, open, onToggle, disabled }: { label: string; help: string; values: Double; onChange: (v: Double) => void; helpKey: string; open: boolean; onToggle: () => void; disabled?: boolean }) {
   const [a, b] = values;
   return (
     <div>
@@ -530,8 +667,8 @@ function DoubleInput({ label, help, values, onChange, helpKey, open, onToggle }:
         <div className="mb-2 p-3 rounded border bg-blue-50 border-blue-200 text-sm text-blue-800">{help}</div>
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <Input value={a} onChange={(e) => { const v = e.target.value; onChange([v, b]); if (open && v.trim().length > 0) onToggle(); }} placeholder="Answer 1" />
-        <Input value={b} onChange={(e) => { const v = e.target.value; onChange([a, v]); if (open && v.trim().length > 0) onToggle(); }} placeholder="Answer 2" />
+        <Input disabled={disabled} value={a} onChange={(e) => { const v = e.target.value; onChange([v, b]); if (open && v.trim().length > 0) onToggle(); }} placeholder="Answer 1" />
+        <Input disabled={disabled} value={b} onChange={(e) => { const v = e.target.value; onChange([a, v]); if (open && v.trim().length > 0) onToggle(); }} placeholder="Answer 2" />
       </div>
     </div>
   );

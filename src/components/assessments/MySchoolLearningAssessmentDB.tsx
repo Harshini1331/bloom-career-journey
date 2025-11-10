@@ -331,10 +331,16 @@ export default function MySchoolLearningAssessmentDB() {
           
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">My School Learning Assessment</h1>
-              <p className="text-gray-600 mt-2">
-                {assessmentTemplate.description}
-              </p>
+              <h1 className="text-3xl font-bold text-gray-900">🏫 My School, My Learning and I</h1>
+              {/* Description Text */}
+              <div className="max-w-3xl space-y-3 text-gray-700 mt-4">
+                <p className="text-base leading-relaxed">
+                  In this practice section, we would like you to think about what you like about your school, what you like learning, what you don't, how you learn and more. Understanding what you enjoy learning and how you enjoy learning will help you figure out what you might like to pursue as a higher education and what careers might be good for you.
+                </p>
+                <p className="text-base leading-relaxed">
+                  <strong>Note:</strong> Keeping track of things you like or enjoy is not a one-time activity; it's something to keep in mind on an ongoing basis. As you discover new things you like in the future, you can record them on the 'My Interests' page at the end of this book. This will help you understand the kinds of things you enjoy, so you can tailor your career choices to match those interests.
+                </p>
+              </div>
             </div>
             <Badge variant="outline" className="text-sm">
               Section {currentSection + 1} of {assessmentTemplate.sections.length}

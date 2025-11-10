@@ -17,6 +17,8 @@ import MySchoolLearningAssessment from './components/assessments/MySchoolLearnin
 import MyRoleModelsAssessment from './components/assessments/MyRoleModelsAssessment';
 import MyHobbiesAssessment from './components/assessments/MyHobbiesAssessment';
 import AboutMeAssessment from './components/assessments/AboutMeAssessment';
+import HollandCodeAssessment from './components/assessments/HollandCodeAssessment';
+import CareerGuidanceToolsAssessment from './components/assessments/CareerGuidanceToolsAssessment';
 import AudioTestPage from './pages/AudioTestPage';
 import HollandCodeTest from './components/HollandCodeTest';
 import AssessmentTestPage from './pages/AssessmentTestPage';
@@ -154,6 +156,22 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
+              <Route 
+                path="/assessment/holland-code" 
+                element={
+                  <ProtectedRoute allowedRoles={['student']}>
+                    <HollandCodeAssessment />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/assessment/career-guidance-tools" 
+                element={
+                  <ProtectedRoute allowedRoles={['student']}>
+                    <CareerGuidanceToolsAssessment />
+                  </ProtectedRoute>
+                } 
+              />
 
               {/* Nested student assessment routes for deep-linking */}
               <Route 
@@ -201,6 +219,22 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={['student']}>
                     <MyHobbiesAssessment />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/student/assessment/holland-code" 
+                element={
+                  <ProtectedRoute allowedRoles={['student']}>
+                    <HollandCodeAssessment />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/student/assessment/career-guidance-tools" 
+                element={
+                  <ProtectedRoute allowedRoles={['student']}>
+                    <CareerGuidanceToolsAssessment />
                   </ProtectedRoute>
                 } 
               />

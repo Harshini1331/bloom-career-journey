@@ -15,6 +15,21 @@ export interface SummaryQuestions {
   question1: string; // List the things that inspired you
   question2: string; // Behaviors you should avoid
   question3: string; // Similarities between video characters and real-life inspirations
+  question4?: string; // Optional 4th question (for Dreams assessment)
+  question5?: string; // Optional 5th question (for School Learning assessment)
+  question6?: string; // Optional 6th question (for School Learning assessment)
+}
+
+// Special structure for Dreams portfolio - array of 3 dream entries
+export interface DreamPortfolioEntry {
+  dream: string;
+  quality_value_strength: string;
+  prevent_failure: string;
+  study_path: string;
+}
+
+export interface DreamsSummary {
+  entries: DreamPortfolioEntry[]; // Array of 3 dream portfolio entries
 }
 
 export interface AssessmentSummary {
@@ -42,6 +57,7 @@ export interface AssessmentSummary {
   generated_at: string;
   created_at: string;
   updated_at: string;
+  student_user_id?: string | null;
 }
 
 export interface CreateSummaryParams {

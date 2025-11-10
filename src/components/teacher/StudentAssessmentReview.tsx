@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -274,29 +275,56 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
                 </h4>
                 
                 <div className="space-y-4">
-                  {/* Render each question dynamically */}
-                  {[1, 2, 3, 4, 5, 6, 7].map((questionNum) => {
-                    const questionKey = `question${questionNum}`;
+                  {/* Render each question dynamically - show ALL questions for ALL videos */}
+                  {(() => {
+                    // Always show all questions from the database (should be 9 questions)
+                    // but also include any additional answers that were persisted even if the template changed
+                    const questionCount = inspirationQuestions.length || 9; // Default to 9 if not loaded
                     
-                    // Get the actual question text from database
-                    const questionData = inspirationQuestions[questionNum - 1];
-                    const questionText = questionData?.help_text || `Question ${questionNum}`;
+                    // Generate array of question numbers from the template (1..questionCount)
+                    const templateQuestionNumbers = Array.from({ length: questionCount }, (_, i) => i + 1);
+
+                    // Include any question numbers that exist in the stored responses to avoid hiding answers
+                    const answeredQuestionNumbers = Object.keys(videoData || {})
+                      .filter((key) => /^question\d+$/.test(key))
+                      .map((key) => parseInt(key.replace('question', ''), 10))
+                      .filter((num) => Number.isFinite(num));
+
+                    const questionNumbers = Array.from(
+                      new Set<number>([...templateQuestionNumbers, ...answeredQuestionNumbers])
+                    ).sort((a, b) => a - b);
                     
-                    // The student saves data as: question1, question2, etc. (not question1_text)
-                    const textResponse = videoData[questionKey];
-                    
-                    // Audio is stored separately in audio_responses table, 
-                    // check audioResponsesMap with key like "video1_question3"
-                    const audioKey = `${videoKey}_${questionKey}`;
-                    const audioUrl = videoData[`${questionKey}_audio`]; // Check if audio URL is stored in responses
-                    
-                    console.log(`  Q${questionNum}: questionKey="${questionKey}", hasText=${!!textResponse}, audioKey="${audioKey}", hasAudio=${!!audioUrl}`);
-                    
-                    // Skip if no response
-                    if (!textResponse && !audioUrl) {
-                      console.log(`  ⏭️ Skipping Q${questionNum} - no response`);
-                      return null;
-                    }
+                    return questionNumbers.map((questionNum) => {
+                      const questionKey = `question${questionNum}`;
+                      
+                      // Get the actual question text from database
+                      const questionData = inspirationQuestions[questionNum - 1];
+                      const questionText = questionData?.question_text || questionData?.help_text || `Question ${questionNum}`;
+                      
+                      // Get the answer from database - check videoData directly
+                      // The student saves data as: question1, question2, etc.
+                      // This will get answers for questions 1-9 for all videos (1-5 and 6)
+                      const textResponse = videoData && typeof videoData === 'object' 
+                        ? videoData[questionKey] 
+                        : null;
+                      
+                      // Handle both string and other types
+                      const responseText = textResponse 
+                        ? (typeof textResponse === 'string' ? textResponse : String(textResponse))
+                        : '';
+                      
+                      // Audio is stored separately in audio_responses table, 
+                      // check audioResponsesMap with key like "video1_question3"
+                      const audioKey = `${videoKey}_${questionKey}`;
+                      const audioUrl = videoData && typeof videoData === 'object'
+                        ? videoData[`${questionKey}_audio`] 
+                        : null; // Check if audio URL is stored in responses
+                      
+                      console.log(`  Q${questionNum}: questionKey="${questionKey}", videoKey="${videoKey}", hasText=${!!responseText}, responseLength=${responseText.length}, audioUrl=${!!audioUrl}`);
+                      
+                      // Show ALL questions for ALL videos (1-9)
+                      // Display answers from database if they exist
+                      // Show "No response provided" if the answer doesn't exist in database
                     
                     return (
                       <div key={questionNum} className="border-l-4 border-blue-500 pl-4">
@@ -310,15 +338,13 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
                         </div>
                         
                         <div className="space-y-2 ml-8">
-                          {textResponse && (
+                          {responseText && responseText.trim() ? (
                             <div className="bg-white p-3 rounded border border-gray-200">
                               <p className="text-sm text-gray-600 whitespace-pre-wrap">
-                                {textResponse}
+                                {responseText}
                               </p>
                             </div>
-                          )}
-                          
-                          {audioUrl && (
+                          ) : audioUrl ? (
                             <div className="flex items-center gap-2">
                               <Volume2 className="w-4 h-4 text-gray-400" />
                               <audio controls className="flex-1 max-w-md">
@@ -328,11 +354,18 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
                                 Your browser does not support the audio element.
                               </audio>
                             </div>
+                          ) : (
+                            <div className="bg-gray-50 p-3 rounded border border-gray-200 border-dashed">
+                              <p className="text-sm text-gray-400 italic">
+                                No response provided
+                              </p>
+                            </div>
                           )}
                         </div>
                       </div>
                     );
-                  })}
+                    });
+                  })()}
                 </div>
               </div>
             );
@@ -341,12 +374,76 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
       );
     }
 
-    // For other assessments, show JSON for now
+    // For other assessments, render all responses dynamically
+    if (!responses || typeof responses !== 'object') {
+      return (
+        <div className="text-sm text-gray-500">No responses recorded</div>
+      );
+    }
+
+    // Helper function to render nested responses
+    const renderResponseValue = (key: string, value: any, depth = 0): ReactNode => {
+      if (value === null || value === undefined) {
+        return <span className="text-gray-400 italic">(empty)</span>;
+      }
+
+      if (typeof value === 'string') {
+        if (value.trim() === '') {
+          return <span className="text-gray-400 italic">(empty)</span>;
+        }
+        return <span className="text-gray-700 whitespace-pre-wrap">{value}</span>;
+      }
+
+      if (typeof value === 'boolean') {
+        return <span className="text-gray-700">{value ? 'Yes' : 'No'}</span>;
+      }
+
+      if (typeof value === 'number') {
+        return <span className="text-gray-700">{value}</span>;
+      }
+
+      if (Array.isArray(value)) {
+        return (
+          <div className="ml-4 space-y-2">
+            {value.map((item, index) => (
+              <div key={index} className="border-l-2 border-gray-300 pl-3">
+                {renderResponseValue(`${key}[${index}]`, item, depth + 1)}
+              </div>
+            ))}
+          </div>
+        );
+      }
+
+      if (typeof value === 'object') {
+        return (
+          <div className="ml-4 space-y-2">
+            {Object.entries(value).map(([subKey, subValue]) => (
+              <div key={subKey} className="border-l-2 border-gray-300 pl-3">
+                <div className="font-medium text-gray-700 mb-1">{subKey}:</div>
+                {renderResponseValue(subKey, subValue, depth + 1)}
+              </div>
+            ))}
+          </div>
+        );
+      }
+
+      return <span className="text-gray-700">{String(value)}</span>;
+    };
+
     return (
-      <div className="prose max-w-none">
-        <pre className="whitespace-pre-wrap text-sm bg-gray-50 p-4 rounded overflow-auto max-h-96">
-          {JSON.stringify(responses, null, 2)}
-        </pre>
+      <div className="space-y-4">
+        {Object.entries(responses).map(([key, value]) => (
+          <div key={key} className="border-l-4 border-blue-500 pl-4">
+            <div className="flex items-start gap-2 mb-2">
+              <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                {key}
+              </span>
+            </div>
+            <div className="ml-8">
+              {renderResponseValue(key, value)}
+            </div>
+          </div>
+        ))}
       </div>
     );
   };

@@ -282,7 +282,7 @@ BEGIN
         RAISE EXCEPTION 'not_authorized';
     END IF;
 
-    -- Return the summary
+    -- Return the most recent summary, preferring approved ones
     RETURN QUERY
     SELECT 
         assum.id,
@@ -302,7 +302,15 @@ BEGIN
         assum.created_at,
         assum.updated_at
     FROM assessment_summaries assum
-    WHERE assum.assessment_response_id = p_assessment_response_id;
+    WHERE assum.assessment_response_id = p_assessment_response_id
+    ORDER BY 
+        -- Prefer approved summaries first
+        CASE WHEN assum.approval_status = 'approved' THEN 0 ELSE 1 END,
+        -- Then by most recently updated
+        assum.updated_at DESC,
+        -- Finally by most recently created
+        assum.created_at DESC
+    LIMIT 1;
 END;
 $$;
 

@@ -47,19 +47,52 @@ class SummaryDatabaseService {
     teacherUserId: string
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      const { error } = await supabase.rpc('approve_summary', {
+      console.log('✅ Approving summary:', {
+        summaryId,
+        teacherUserId
+      });
+
+      const { data, error } = await supabase.rpc('approve_summary', {
         p_summary_id: summaryId,
         p_teacher_user_id: teacherUserId
       });
 
       if (error) {
-        console.error('Error approving summary:', error);
+        console.error('❌ Error approving summary:', error);
         return { success: false, error: error.message };
+      }
+
+      console.log('✅ Summary approval RPC completed successfully');
+
+      // Verify the approval by fetching the updated summary
+      const { data: verifyData, error: verifyError } = await supabase
+        .from('assessment_summaries')
+        .select('id, approval_status, approved_at, approved_by')
+        .eq('id', summaryId)
+        .maybeSingle();
+
+      if (verifyError) {
+        console.error('❌ Error verifying approval:', verifyError);
+      } else if (verifyData) {
+        console.log('📊 Verification - Summary status after approval:', {
+          id: verifyData.id,
+          approval_status: verifyData.approval_status,
+          approved_at: verifyData.approved_at,
+          approved_by: verifyData.approved_by
+        });
+
+        if (verifyData.approval_status !== 'approved') {
+          console.error('❌ Approval failed - status is still:', verifyData.approval_status);
+          return { 
+            success: false, 
+            error: `Approval failed - status is still ${verifyData.approval_status}` 
+          };
+        }
       }
 
       return { success: true };
     } catch (error) {
-      console.error('Exception approving summary:', error);
+      console.error('❌ Exception approving summary:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -165,21 +198,64 @@ class SummaryDatabaseService {
     userId: string
   ): Promise<{ success: boolean; summary?: AssessmentSummary; error?: string }> {
     try {
+      console.log('🔍 Calling get_summary_by_assessment RPC:', {
+        assessmentResponseId,
+        userId
+      });
+
       const { data, error } = await supabase.rpc('get_summary_by_assessment', {
         p_assessment_response_id: assessmentResponseId,
         p_user_id: userId
       });
 
       if (error) {
-        console.error('Error getting summary:', error);
+        console.error('❌ RPC Error getting summary:', {
+          error: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        });
         return { success: false, error: error.message };
       }
 
+      console.log('📊 RPC Response:', {
+        dataLength: data?.length || 0,
+        data: data
+      });
+
       if (!data || data.length === 0) {
+        console.warn('⚠️ No summary found for assessment:', {
+          assessmentResponseId,
+          userId,
+          data: data
+        });
+        
+        // Try direct query to see if summary exists
+        const { data: directData, error: directError } = await supabase
+          .from('assessment_summaries')
+          .select('id, assessment_response_id, approval_status')
+          .eq('assessment_response_id', assessmentResponseId)
+          .maybeSingle();
+        
+        console.log('🔍 Direct query result:', {
+          directData,
+          directError: directError?.message
+        });
+        
         return { success: false, error: 'Summary not found' };
       }
 
-      return { success: true, summary: data[0] as AssessmentSummary };
+      const summary = data[0] as AssessmentSummary;
+      console.log('📊 Summary fetched:', {
+        id: summary.id,
+        assessment_response_id: summary.assessment_response_id,
+        approval_status: summary.approval_status,
+        summary_type: summary.summary_type,
+        approved_at: summary.approved_at,
+        updated_at: summary.updated_at
+      });
+
+      return { success: true, summary };
     } catch (error) {
       console.error('Exception getting summary:', error);
       return {

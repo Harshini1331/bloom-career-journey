@@ -308,10 +308,21 @@ export default function MyRoleModelsAssessmentDB() {
           
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">My Role Models Assessment</h1>
-              <p className="text-gray-600 mt-2">
-                {assessmentTemplate.description}
-              </p>
+              <h1 className="text-3xl font-bold text-purple-800 mb-4">🎯 6. My Role Models</h1>
+              <div className="text-left max-w-4xl space-y-4 text-gray-700">
+                <p className="text-base leading-relaxed">
+                  In our lives, we often admire individuals for their personality traits, viewing them as role models. These individuals, be they influencers, inspiring figures, or those we know personally, contribute significantly to shaping our character.
+                </p>
+                <p className="text-base leading-relaxed">
+                  In this segment of our reflection, we will delve into the influential figures who have played a significant role in shaping our personalities. These individuals have contributed immensely to our development. If you happen to know such people personally, it's advantageous as you can observe them closely. Alternatively, you can also consider inspirational personalities as a source of inspiration and learning.
+                </p>
+                <p className="text-purple-600 italic mt-4">
+                  <strong>Suggestion:</strong> If possible, it might be beneficial to select a role model who has pursued the profession you're interested in. Their journey could provide valuable insights and inspiration for your own path.
+                </p>
+                <p className="text-gray-700 mt-3 font-medium">
+                  When responding to the questions provided, focus on highlighting their qualities, traits, and talents.
+                </p>
+              </div>
             </div>
             <Badge variant="outline" className="text-sm">
               {responses.roleModels.length} Role Model{responses.roleModels.length !== 1 ? 's' : ''}

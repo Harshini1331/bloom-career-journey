@@ -318,6 +318,9 @@ export default function AboutMeAssessmentDB() {
               <CardDescription>
                 Share your thoughts and experiences to help us understand you better.
               </CardDescription>
+              <p className="mt-3 text-sm text-gray-700 leading-relaxed">
+                The goal is to uncover your strengths, areas for growth, passions, challenges, opinions, and emotions. This process aids in self-discovery, providing valuable insights into your character. Seeking guidance from family, friends, teachers, and mentors can offer additional clarity, enhancing your understanding of yourself.
+              </p>
             </CardHeader>
             <CardContent className="space-y-6">
               {assessmentTemplate.sections.map((section, sectionIndex) => (

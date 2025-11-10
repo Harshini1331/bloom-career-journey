@@ -170,10 +170,21 @@ export default function AuthPage() {
   };
 
   // Redirect if already authenticated
+  useEffect(() => {
+    if (user && userProfile) {
+      console.log('AuthPage: User and profile available, redirecting...', {
+        role: userProfile.role,
+        userId: user.id
+      });
+      // This effect will trigger a re-render with Navigate component
+    }
+  }, [user, userProfile]);
+
   if (user && userProfile) {
     const redirectPath = userProfile.role === 'admin' ? '/admin' 
                         : userProfile.role === 'teacher' ? '/teacher'
                         : `/student?lang=${userProfile.preferred_language || 'en'}`;
+    console.log('AuthPage: Redirecting to:', redirectPath);
     return <Navigate to={redirectPath} replace />;
   }
 

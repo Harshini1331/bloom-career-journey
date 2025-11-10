@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -22,27 +22,27 @@ import {
   Dumbbell,
   Code,
   CameraIcon,
-  Award
+  Award,
+  Users
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useLang } from '@/hooks/useLang';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { KannadaKeyboard } from '@/components/ui/KannadaKeyboard';
+import { checkAssessmentUnlock } from '@/utils/assessmentUnlock';
 
+interface HobbyQuestion {
+  id: string;
+  section: string;
+  question_text: string;
+  help_text: string;
+  sequence_number: number;
+}
+
+// Dynamic responses based on question IDs
 interface HobbiesAssessmentResponse {
-  question1: string; // What do you do in your spare time?
-  question2: string; // Do you have any hobbies? If yes, what are they?
-  question3: string; // Based on the above answer, what hobby do you like and enjoy the most and why?
-  question4: string; // Have your hobbies ever changed?
-  question5: string; // Where did the inspiration for your hobby come from? From whom?
-  question6: string; // Do you know someone who has your hobby? Who?
-  question7: string; // List the talents you have
-  question8: string; // Do you practise to improve your talent?
-  question9: string; // Do you have opportunities and encouragement at school and home to practise your hobbies?
-  question10: string; // Do any of your hobbies complement your talents?
-  question11: string; // Could you turn any hobby/talent into your career? If yes, how?
-  question12: string; // Has someone you know made a career out of their hobby or talent?
+  [questionId: string]: string;
 }
 
 export default function MyHobbiesAssessment() {
@@ -50,41 +50,109 @@ export default function MyHobbiesAssessment() {
   const { t, lang } = useLang();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [q, setQ] = useState<Record<string, string>>({});
-  const [responses, setResponses] = useState<HobbiesAssessmentResponse>({
-    question1: '',
-    question2: '',
-    question3: '',
-    question4: '',
-    question5: '',
-    question6: '',
-    question7: '',
-    question8: '',
-    question9: '',
-    question10: '',
-    question11: '',
-    question12: ''
-  });
+  const [hobbiesQuestions, setHobbiesQuestions] = useState<HobbyQuestion[]>([]);
+  const [responses, setResponses] = useState<HobbiesAssessmentResponse>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [currentSection, setCurrentSection] = useState<string>('section1');
+  const [helpOpen, setHelpOpen] = useState<Record<string, boolean>>({});
+  const [savingSection, setSavingSection] = useState<string | null>(null);
+  const toggleHelp = (k: string) => setHelpOpen(prev => ({ ...prev, [k]: !prev[k] }));
+  const [searchParams] = useSearchParams();
+  const viewParam = (searchParams.get('readonly') || searchParams.get('view') || '').toLowerCase();
+  const readOnlyView = viewParam === '1' || viewParam === 'true';
+  const isReadOnly = isCompleted || readOnlyView;
 
+  // Helper function to get student ID
+  const getStudentId = async () => {
+    if (!userProfile) return null;
+    if (userProfile.studentProfile?.id) return userProfile.studentProfile.id as string;
+    const { data } = await supabase.from('students').select('id').eq('user_id', userProfile.id).maybeSingle();
+    return data?.id || null;
+  };
+
+  // Check if assessment is unlocked
   useEffect(() => {
-    checkExistingResponse();
+    const checkUnlock = async () => {
+      if (!userProfile) return;
+
+      const studentId = await getStudentId();
+      if (!studentId) return;
+
+      const unlockResult = await checkAssessmentUnlock(studentId, 'hobbies');
+      
+      if (!unlockResult.isUnlocked) {
+        toast({
+          title: lang === 'kn' ? 'ಮೌಲ್ಯಮಾಪನ ಲಾಕ್ ಮಾಡಲಾಗಿದೆ' : 'Assessment Locked',
+          description: lang === 'kn' 
+            ? `ದಯವಿಟ್ಟು ಮೊದಲು "${unlockResult.missingPrerequisites.join(', ')}" ಪೂರ್ಣಗೊಳಿಸಿ.`
+            : `Please complete "${unlockResult.missingPrerequisites.join(', ')}" first.`,
+          variant: 'destructive',
+        });
+        navigate('/student');
+      }
+    };
+
+    checkUnlock();
+  }, [userProfile, navigate, toast, lang]);
+  
+  // Group questions by section
+  const questionsBySection = useMemo(() => {
+    const grouped: { [section: string]: HobbyQuestion[] } = {};
+    hobbiesQuestions.forEach(question => {
+      if (!grouped[question.section]) {
+        grouped[question.section] = [];
+      }
+      grouped[question.section].push(question);
+    });
+    return grouped;
+  }, [hobbiesQuestions]);
+  
+  const sections = useMemo(() => {
+    const sectionsList = Object.keys(questionsBySection).sort((a, b) => {
+      const order: { [key: string]: number } = { 'section1': 1, 'section2': 2, 'section3': 3 };
+      return (order[a] || 99) - (order[b] || 99);
+    });
+    return sectionsList;
+  }, [questionsBySection]);
+
+  // Load questions from database
+  useEffect(() => {
+    const loadQuestions = async () => {
+      try {
+        console.log('🔄 Loading Hobbies questions from database...');
+        const { data, error } = await supabase.rpc('get_hobbies_questions');
+        if (error) {
+          console.error('Error loading hobbies questions:', error);
+          return;
+        }
+        if (data && Array.isArray(data) && data.length > 0) {
+          console.log('✅ Database questions loaded:', data.length, 'questions');
+          setHobbiesQuestions(data as HobbyQuestion[]);
+          // Initialize responses based on questions
+          const initialResponses: HobbiesAssessmentResponse = {};
+          (data as HobbyQuestion[]).forEach(q => {
+            initialResponses[q.id] = '';
+          });
+          setResponses(prev => ({ ...prev, ...initialResponses }));
+          
+          // Set initial section
+          const firstSection = data[0]?.section || 'section1';
+          setCurrentSection(firstSection);
+        }
+      } catch (error) {
+        console.error('Error loading hobbies questions:', error);
+      }
+    };
+    loadQuestions();
   }, []);
 
   useEffect(() => {
-    const loadI18n = async () => {
-      try {
-        const { data } = await supabase.rpc('get_hobbies_questions_i18n', { p_lang: lang } as any);
-        const arr = Array.isArray(data) ? data : (data?.data || []);
-        const map: Record<string, string> = {};
-        (arr || []).forEach((row: any) => { if (row?.key) map[row.key] = row.text; });
-        setQ(map);
-      } catch {}
-    };
-    loadI18n();
-  }, [lang]);
+    if (hobbiesQuestions.length > 0) {
+      checkExistingResponse();
+    }
+  }, [hobbiesQuestions]);
 
   // Keep URL ?lang in sync without re-rendering
   useEffect(() => {
@@ -100,33 +168,114 @@ export default function MyHobbiesAssessment() {
     } catch {}
   }, [lang]);
 
-  // Auto-save drafts when answers change (debounced)
-  useEffect(() => {
-    if (loading || isCompleted) return;
-    const t = setTimeout(async () => {
-      try {
-        if (!userProfile?.id) return;
-        let studentId = userProfile.studentProfile?.id as string | undefined;
-        if (!studentId) {
-          const { data: row } = await supabase.from('students').select('id').eq('user_id', userProfile.id).maybeSingle();
-          studentId = row?.id;
+  // Save section function
+  const saveSection = async (section: string) => {
+    if (isReadOnly || !userProfile) return;
+    
+    const studentId = await getStudentId();
+    if (!studentId) {
+      toast({
+        title: "Error",
+        description: "Student profile not found. Please contact your teacher or support.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSavingSection(section);
+    try {
+      console.log('💾 Saving section:', section, 'with responses:', responses);
+      
+      // First, check if a record exists - get the most recent one
+      const { data: existingRecords, error: fetchError } = await supabase
+        .from('assessment_responses')
+        .select('id, responses')
+        .eq('student_id', studentId)
+        .eq('assessment_type', 'hobbies')
+        .eq('assessment_title', 'My Talents and Hobbies')
+        .order('updated_at', { ascending: false })
+        .limit(1);
+
+      if (fetchError) {
+        console.error('❌ Error fetching existing record:', fetchError);
+        throw fetchError;
+      }
+
+      const existing = existingRecords && existingRecords.length > 0 ? existingRecords[0] : null;
+      console.log('📋 Existing record:', existing);
+
+      if (existing) {
+        // Update existing record, merge responses
+        const existingResponses = existing.responses as any || {};
+        const mergedResponses = {
+          ...existingResponses,
+          ...responses
+        };
+
+        console.log('🔄 Merging responses:', { existing: existingResponses, current: responses, merged: mergedResponses });
+
+        const { error } = await supabase
+          .from('assessment_responses')
+          .update({
+            responses: mergedResponses,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existing.id);
+        
+        if (error) {
+          console.error('❌ Error updating record:', error);
+          throw error;
         }
-        if (!studentId) return;
-        await supabase.from('assessment_responses').upsert({
-          student_id: studentId,
-          assessment_type: 'hobbies',
-          assessment_title: 'My Hobbies',
-          responses,
-          updated_at: new Date().toISOString(),
-          completed_at: null
-        });
-      } catch {}
-    }, 800);
-    return () => clearTimeout(t);
-  }, [responses, loading, isCompleted, userProfile]);
+        console.log('✅ Successfully updated existing record');
+      } else {
+        // Create new record
+        console.log('📝 Creating new record with responses:', responses);
+        const { error } = await supabase
+          .from('assessment_responses')
+          .insert({
+            student_id: studentId,
+            assessment_type: 'hobbies',
+            assessment_title: 'My Talents and Hobbies',
+            responses,
+            updated_at: new Date().toISOString(),
+            completed_at: null
+          });
+        
+        if (error) {
+          console.error('❌ Error inserting new record:', error);
+          throw error;
+        }
+        console.log('✅ Successfully created new record');
+      }
+
+      const sectionNumber = section.replace('section', '');
+      const sectionNames: Record<string, string> = {
+        '1': 'Hobbies & Interests',
+        '2': 'Talents & Practice',
+        '3': 'Support & Career Connection'
+      };
+
+      toast({
+        title: "Section Saved! ✅",
+        description: `Your ${sectionNames[sectionNumber] || section} responses have been saved.`,
+      });
+    } catch (error) {
+      console.error('Error saving section:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save section. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingSection(null);
+    }
+  };
 
   const checkExistingResponse = async () => {
-    if (!userProfile) return;
+    if (!userProfile || hobbiesQuestions.length === 0) {
+      setLoading(false);
+      return;
+    }
 
     // Resolve student_id from students table; do not fallback to users.id
     let studentId = userProfile.studentProfile?.id as string | undefined;
@@ -139,20 +288,37 @@ export default function MyHobbiesAssessment() {
       studentId = studentRow?.id;
     }
 
-    if (!studentId) return;
+    if (!studentId) {
+      setLoading(false);
+      return;
+    }
 
     try {
-      const { data, error } = await supabase
+      // Get the most recent record
+      const { data: existingRecords, error } = await supabase
         .from('assessment_responses')
         .select('*')
         .eq('student_id', studentId)
         .eq('assessment_type', 'hobbies')
-        .eq('assessment_title', 'My Hobbies')
-        .single();
+        .eq('assessment_title', 'My Talents and Hobbies')
+        .order('updated_at', { ascending: false })
+        .limit(1);
 
-      if (data && !error) {
-        setIsCompleted(true);
-        setResponses(data.responses || responses);
+      if (existingRecords && existingRecords.length > 0 && !error) {
+        const data = existingRecords[0];
+        if (data.responses) {
+          // Merge saved responses with initialized responses
+          const savedResponses = data.responses as Partial<HobbiesAssessmentResponse>;
+          const initialResponses: HobbiesAssessmentResponse = {};
+          hobbiesQuestions.forEach(q => {
+            initialResponses[q.id] = savedResponses[q.id] || '';
+          });
+          setResponses(initialResponses);
+          
+          if (data.completed_at) {
+            setIsCompleted(true);
+          }
+        }
       }
     } catch (error) {
       // No existing response found, which is fine
@@ -161,24 +327,34 @@ export default function MyHobbiesAssessment() {
     }
   };
 
-  const handleResponseChange = (questionKey: keyof HobbiesAssessmentResponse, value: string) => {
+  const handleResponseChange = (questionId: string, value: string) => {
     setResponses(prev => ({
       ...prev,
-      [questionKey]: value
+      [questionId]: value
     }));
   };
 
   const getProgressPercentage = () => {
-    const totalQuestions = Object.keys(responses).length;
-    const answeredQuestions = Object.values(responses).filter(v => v.trim() !== '').length;
+    if (hobbiesQuestions.length === 0) return 0;
+    const totalQuestions = hobbiesQuestions.length;
+    const answeredQuestions = hobbiesQuestions.filter(q => {
+      const response = responses[q.id];
+      return response && response.trim() !== '';
+    }).length;
     return totalQuestions > 0 ? (answeredQuestions / totalQuestions) * 100 : 0;
   };
 
   const canSubmit = () => {
-    return Object.values(responses).every(v => v.trim() !== '');
+    if (isReadOnly) return false;
+    if (hobbiesQuestions.length === 0) return false;
+    return hobbiesQuestions.every(q => {
+      const response = responses[q.id];
+      return response && response.trim() !== '';
+    });
   };
 
   const submitAssessment = async () => {
+    if (isReadOnly) return;
     if (!userProfile) {
       toast({
         title: "Error",
@@ -210,25 +386,140 @@ export default function MyHobbiesAssessment() {
 
     setSubmitting(true);
     try {
-      const { error } = await supabase
+      // Find existing record first (same approach as saveSection)
+      const { data: existingRecords, error: fetchError } = await supabase
         .from('assessment_responses')
-        .upsert({
-          student_id: studentId,
-          assessment_type: 'hobbies',
-          assessment_title: 'My Hobbies',
-          responses: responses,
-          completed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
+        .select('*')
+        .eq('student_id', studentId)
+        .eq('assessment_type', 'hobbies')
+        .eq('assessment_title', 'My Talents and Hobbies')
+        .order('updated_at', { ascending: false })
+        .limit(1);
 
-      if (error) throw error;
+      if (fetchError) {
+        console.error('❌ Error fetching existing record:', fetchError);
+        throw fetchError;
+      }
+
+      const existing = existingRecords && existingRecords.length > 0 ? existingRecords[0] : null;
+      let assessmentData;
+
+      if (existing) {
+        // Update existing record
+        const { data, error } = await supabase
+          .from('assessment_responses')
+          .update({
+            responses: responses,
+            completed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existing.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        assessmentData = data;
+      } else {
+        // Create new record if none exists
+        const { data, error } = await supabase
+          .from('assessment_responses')
+          .insert({
+            student_id: studentId,
+            assessment_type: 'hobbies',
+            assessment_title: 'My Talents and Hobbies',
+            responses: responses,
+            completed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        assessmentData = data;
+      }
 
       toast({
-        title: "Hobbies Assessment Completed! 🎨",
+        title: "Talents and Hobbies Assessment Completed! 🎨",
         description: "Your hobbies and talents have been captured successfully!",
       });
 
       setIsCompleted(true);
+
+      // Generate AI summary in the background
+      try {
+        const { aiSummaryService } = await import('@/services/aiSummaryService');
+        const summaryDatabaseService = (await import('@/services/summaryDatabaseService')).summaryDatabaseService;
+        
+        if (aiSummaryService.isConfigured()) {
+          console.log('🤖 Generating AI summary for Hobbies assessment:', assessmentData.id);
+          const summaryResult = await aiSummaryService.generateHobbiesSummary(responses);
+
+          if (summaryResult.success && summaryResult.summary) {
+            // Save summary to database
+            const saveResult = await summaryDatabaseService.createAISummary(
+              assessmentData.id,
+              summaryResult.summary,
+              userProfile.id
+            );
+
+            if (saveResult.success) {
+              console.log('✅ AI summary saved successfully:', saveResult.summaryId);
+              toast({
+                title: "Summary Generated! 📝",
+                description: "Your talents and hobbies summary has been generated. Your teacher will review it.",
+              });
+
+              // Notify teacher(s) assigned to this student
+              try {
+                const { notificationService } = await import('@/services/notificationService');
+                
+                // Find teacher(s) for this student
+                const studentId = await getStudentId();
+                if (studentId) {
+                  const { data: studentRow } = await supabase
+                    .from('students')
+                    .select('teachers:teacher_id(user_id, users:user_id(full_name))')
+                    .eq('id', studentId)
+                    .maybeSingle();
+                  
+                  const teacherUserId = (studentRow as any)?.teachers?.user_id;
+                  if (teacherUserId) {
+                    await notificationService.create({
+                      userId: teacherUserId,
+                      type: 'assessment_submitted',
+                      title: `${userProfile?.full_name || 'Student'} completed My Talents and Hobbies assessment`,
+                      message: 'A new My Talents and Hobbies assessment summary is ready for review.',
+                      link: '/teacher/ai-summary-review'
+                    });
+                  }
+                }
+              } catch (notifError) {
+                console.error('Error notifying teacher:', notifError);
+                // Don't fail the whole submission if notification fails
+              }
+            } else {
+              console.error('Failed to save summary:', saveResult.error);
+              toast({
+                title: "Summary Generation Issue",
+                description: "Your assessment is saved, but summary generation needs attention.",
+                variant: "destructive",
+              });
+            }
+          } else {
+            console.error('Failed to generate summary:', summaryResult.error);
+            toast({
+              title: "Summary Generation Issue",
+              description: "Your assessment is saved. Summary will be generated later.",
+              variant: "destructive",
+            });
+          }
+        } else {
+          console.warn('⚠️ Gemini API not configured, skipping summary generation');
+        }
+      } catch (summaryError) {
+        console.error('Error in summary generation:', summaryError);
+        // Don't fail the entire submission if summary generation fails
+      }
     } catch (error) {
       console.error('Error submitting assessment:', error);
       toast({
@@ -252,14 +543,14 @@ export default function MyHobbiesAssessment() {
     );
   }
 
-  if (isCompleted) {
+  if (isCompleted && !readOnlyView) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-pink-50 py-8">
         <div className="container mx-auto px-4">
           <Card className="max-w-2xl mx-auto border-0 shadow-lg">
             <CardHeader className="text-center bg-gradient-to-r from-orange-50 to-pink-50">
               <Palette className="w-16 h-16 text-orange-500 mx-auto mb-4" />
-              <CardTitle className="text-2xl text-orange-800">Hobbies Assessment Completed! 🎨</CardTitle>
+              <CardTitle className="text-2xl text-orange-800">Talents and Hobbies Assessment Completed! 🎨</CardTitle>
               <CardDescription className="text-orange-600">
                 You've successfully shared your hobbies and talents
               </CardDescription>
@@ -272,16 +563,23 @@ export default function MyHobbiesAssessment() {
                 <div className="flex justify-center gap-4">
                   <Button 
                     variant="outline" 
-                    onClick={() => setIsCompleted(false)}
                     className="border-orange-200 text-orange-700 hover:bg-orange-50"
+                    onClick={() => {
+                      const params = new URLSearchParams(searchParams.toString());
+                      if (!params.get('lang') && lang) {
+                        params.set('lang', lang);
+                      }
+                      params.set('readonly', '1');
+                      navigate(`/student/assessment/hobbies?${params.toString()}`);
+                    }}
                   >
-                    Review My Responses
+                    {lang === 'kn' ? 'ನನ್ನ ಉತ್ತರಗಳನ್ನು ವೀಕ್ಷಿಸಿ' : 'View My Answers'}
                   </Button>
                   <Button 
                     onClick={() => navigate('/student')}
                     className="bg-orange-600 hover:bg-orange-700"
                   >
-                    Back to Dashboard
+                    {lang === 'kn' ? 'ಡ್ಯಾಶ್‌ಬೋರ್ಡ್‌ಗೆ ಹಿಂತಿರುಗಿ' : 'Back to Dashboard'}
                   </Button>
                 </div>
               </div>
@@ -304,13 +602,47 @@ export default function MyHobbiesAssessment() {
         </div>
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-orange-800 mb-2">🎨 My Hobbies</h1>
-          <p className="text-orange-600 text-lg">
-            Note down your hobbies in this practice sheet. By answering the following questions, you can find out if your hobbies and skills can be turned into a career option.
-          </p>
-          <p className="text-gray-600 mt-2">
-            It will help the student understand his/her hobby and talent, practise his/her chosen hobby, helps in better learning based on the background of his/her hobby and talent.
-          </p>
+          <h1 className="text-3xl font-bold text-orange-800 mb-2">🎨 My Talents and Hobbies</h1>
+          
+          {/* Description Text */}
+          <div className="max-w-3xl mx-auto space-y-4 text-gray-700 mt-4">
+            <p className="text-base leading-relaxed">
+              In this practice section, we delve into your interests, hobbies, pastimes, and activities that bring you joy, exploring the depths of your creativity. By delving into your hobbies and interests, you can not only find happiness but also identify your unique learning style and potential professions aligned with your passions.
+            </p>
+            <p className="text-base leading-relaxed">
+              Through this activity, you will explore your talents, hobbies, and the work/activities that bring you joy. This will help you understand your interests, hobbies, and areas of talent, and guide you in identifying careers that suit your personality, interests, and passions.
+            </p>
+            <p className="text-base leading-relaxed italic text-orange-700 font-medium">
+              "Hobbies bring out our talents and inspire us to pursue our dreams."
+            </p>
+            
+            {/* Definitions Section */}
+            <div className="mt-6 space-y-4 text-left bg-orange-50 p-6 rounded-lg border border-orange-200">
+              <div>
+                <h3 className="font-semibold text-orange-800 mb-2">Section I: What is a hobby?</h3>
+                <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                  <li>It is an activity that we do for fun, after our daily chores.</li>
+                  <li>Work done to pass the time or to give pleasure to the mind.</li>
+                  <li>A hobby is something that can be learnt and developed over time.</li>
+                </ul>
+                <p className="mt-2 text-gray-600">
+                  <strong>Examples:</strong> Drawing, singing, reading, dancing, bird watching, gardening, etc.
+                </p>
+              </div>
+              
+              <div className="mt-4">
+                <h3 className="font-semibold text-orange-800 mb-2">Section II: What is talent?</h3>
+                <ul className="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                  <li>A natural ability that we are born with.</li>
+                  <li>A skill that can be done easily without much practice.</li>
+                  <li>This can lead to immense achievement with more practice.</li>
+                </ul>
+                <p className="mt-2 text-gray-600">
+                  <strong>Examples:</strong> The ability to sing naturally, communicate clearly, answer questions quickly in math, learn quickly, etc.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Progress Bar */}
@@ -322,282 +654,174 @@ export default function MyHobbiesAssessment() {
             </div>
             <Progress value={getProgressPercentage()} className="h-3" />
             <div className="flex justify-between text-sm text-gray-600 mt-2">
-              <span>12 Questions Total</span>
+              <span>Section {sections.indexOf(currentSection) + 1} of {sections.length} • {hobbiesQuestions.length} Questions Total</span>
               <span>{Math.round(getProgressPercentage())}% {t('completeSuffix')}</span>
             </div>
           </CardContent>
         </Card>
 
-        {/* Assessment Questions */}
-        <Card className="border-0 shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-orange-50 to-pink-50">
-            <CardTitle className="text-xl text-orange-800">Hobby | Talent | Inspiration</CardTitle>
-            <CardDescription className="text-orange-600">
-              Answer each question thoughtfully to discover how your hobbies can shape your future career
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="space-y-8">
-              {/* Question 1 */}
-              <div className="border-l-4 border-orange-400 pl-6">
-                <label className="block text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  <Palette className="w-5 h-5 text-orange-500" />
-                  {q['question1'] || '1. What do you do in your spare time?'}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button type="button" aria-label="Help" className="text-orange-600 hover:text-orange-700">💬</button>
-                    </TooltipTrigger>
-                    <TooltipContent>Write about what you like to do when you are free.</TooltipContent>
-                  </Tooltip>
-                </label>
-                <Textarea
-                  placeholder="Write about what you like to do when you are free."
-                  value={responses.question1}
-                  onChange={(e) => handleResponseChange('question1', e.target.value)}
-                  rows={4}
-                  className="border-orange-200 focus:border-orange-400 text-base"
-                />
-              </div>
+        {/* Section Navigation */}
+        <div className="flex justify-center mb-6">
+          <div className="flex bg-white rounded-lg p-1 shadow-md">
+            {sections.map((sectionKey, index) => {
+              const sectionQuestions = questionsBySection[sectionKey] || [];
+              const sectionNumber = index + 1;
+              let sectionTitle = '';
+              if (sectionKey === 'section1') sectionTitle = 'Section 1: Hobbies & Interests';
+              else if (sectionKey === 'section2') sectionTitle = 'Section 2: Talents & Practice';
+              else if (sectionKey === 'section3') sectionTitle = 'Section 3: Support & Career Connection';
+              else sectionTitle = `Section ${sectionNumber}`;
+              
+              return (
+                <button
+                  key={sectionKey}
+                  onClick={() => setCurrentSection(sectionKey)}
+                  className={`px-6 py-2 rounded-md transition-all ${
+                    currentSection === sectionKey
+                      ? 'bg-orange-600 text-white shadow-md'
+                      : 'text-gray-600 hover:text-orange-600'
+                  }`}
+                >
+                  {sectionTitle}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-              {/* Question 2 */}
-              <div className="border-l-4 border-pink-400 pl-6">
-                <label className="block text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  <Heart className="w-5 h-5 text-pink-500" />
-                  {q['question2'] || '2. Do you have any hobbies? If yes, what are they?'}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button type="button" aria-label="Help" className="text-pink-600 hover:text-pink-700">💬</button>
-                    </TooltipTrigger>
-                    <TooltipContent>Write the activities you enjoy doing regularly, like drawing, reading, or playing games.</TooltipContent>
-                  </Tooltip>
-                </label>
-                <Textarea
-                  placeholder="Write the activities you enjoy doing regularly, like drawing, reading, or playing games."
-                  value={responses.question2}
-                  onChange={(e) => handleResponseChange('question2', e.target.value)}
-                  rows={4}
-                  className="border-pink-200 focus:border-pink-400 text-base"
-                />
-              </div>
-
-              {/* Question 3 */}
-              <div className="border-l-4 border-purple-400 pl-6">
-                <label className="block text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  <Star className="w-5 h-5 text-purple-500" />
-                  {q['question3'] || '3. Based on the above answer, what hobby do you like and enjoy the most and why?'}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button type="button" aria-label="Help" className="text-purple-600 hover:text-purple-700">💬</button>
-                    </TooltipTrigger>
-                    <TooltipContent>Write your favourite hobby and explain why you like it the most.</TooltipContent>
-                  </Tooltip>
-                </label>
-                <Textarea
-                  placeholder="Write your favourite hobby and explain why you like it the most."
-                  value={responses.question3}
-                  onChange={(e) => handleResponseChange('question3', e.target.value)}
-                  rows={4}
-                  className="border-purple-200 focus:border-purple-400 text-base"
-                />
-              </div>
-
-              {/* Question 4 */}
-              <div className="border-l-4 border-blue-400 pl-6">
-                <label className="block text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-blue-500" />
-                  {q['question4'] || '4. Have your hobbies ever changed?'}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700">💬</button>
-                    </TooltipTrigger>
-                    <TooltipContent>Write if your hobbies have become different over time.</TooltipContent>
-                  </Tooltip>
-                </label>
-                <Textarea
-                  placeholder="Write if your hobbies have become different over time."
-                  value={responses.question4}
-                  onChange={(e) => handleResponseChange('question4', e.target.value)}
-                  rows={4}
-                  className="border-blue-200 focus:border-blue-400 text-base"
-                />
-              </div>
-
-              {/* Question 5 */}
-              <div className="border-l-4 border-green-400 pl-6">
-                <label className="block text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  <Lightbulb className="w-5 h-5 text-green-500" />
-                  {q['question5'] || '5. Where did the inspiration for your hobby come from? From whom?'}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button type="button" aria-label="Help" className="text-green-600 hover:text-green-700">💬</button>
-                    </TooltipTrigger>
-                    <TooltipContent>Write who or what made you start liking this hobby.</TooltipContent>
-                  </Tooltip>
-                </label>
-                <Textarea
-                  placeholder="Write who or what made you start liking this hobby."
-                  value={responses.question5}
-                  onChange={(e) => handleResponseChange('question5', e.target.value)}
-                  rows={4}
-                  className="border-green-200 focus:border-green-400 text-base"
-                />
-              </div>
-
-              {/* Question 6 */}
-              <div className="border-l-4 border-indigo-400 pl-6">
-                <label className="block text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  <Target className="w-5 h-5 text-indigo-500" />
-                  {q['question6'] || '6. Do you know someone who has your hobby? Who?'}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button type="button" aria-label="Help" className="text-indigo-600 hover:text-indigo-700">💬</button>
-                    </TooltipTrigger>
-                    <TooltipContent>Write the name of a person (friend, family, or teacher) who also enjoys the same hobby.</TooltipContent>
-                  </Tooltip>
-                </label>
-                <Textarea
-                  placeholder="Write the name of a person (friend, family, or teacher) who also enjoys the same hobby."
-                  value={responses.question6}
-                  onChange={(e) => handleResponseChange('question6', e.target.value)}
-                  rows={4}
-                  className="border-indigo-200 focus:border-indigo-400 text-base"
-                />
-              </div>
-
-              {/* Question 7 */}
-              <div className="border-l-4 border-red-400 pl-6">
-                <label className="block text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  <Award className="w-5 h-5 text-red-500" />
-                  {q['question7'] || '7. List the talents you have'}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button type="button" aria-label="Help" className="text-red-600 hover:text-red-700">💬</button>
-                    </TooltipTrigger>
-                    <TooltipContent>Write about the skills or things you are naturally good at.</TooltipContent>
-                  </Tooltip>
-                </label>
-                <Textarea
-                  placeholder="Write about the skills or things you are naturally good at."
-                  value={responses.question7}
-                  onChange={(e) => handleResponseChange('question7', e.target.value)}
-                  rows={4}
-                  className="border-red-200 focus:border-red-400 text-base"
-                />
-              </div>
-
-              {/* Question 8 */}
-              <div className="border-l-4 border-yellow-400 pl-6">
-                <label className="block text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-yellow-500" />
-                  {q['question8'] || '8. Do you practise to improve your talent?'}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button type="button" aria-label="Help" className="text-yellow-600 hover:text-yellow-700">💬</button>
-                    </TooltipTrigger>
-                    <TooltipContent>Write how you try to get better at your skill or talent.</TooltipContent>
-                  </Tooltip>
-                </label>
-                <Textarea
-                  placeholder="Write how you try to get better at your skill or talent."
-                  value={responses.question8}
-                  onChange={(e) => handleResponseChange('question8', e.target.value)}
-                  rows={4}
-                  className="border-yellow-200 focus:border-yellow-400 text-base"
-                />
-              </div>
-
-              {/* Question 9 */}
-              <div className="border-l-4 border-teal-400 pl-6">
-                <label className="block text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-teal-500" />
-                  {q['question9'] || '9. Do you have opportunities and encouragement at school and at home to practise your hobbies?'}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button type="button" aria-label="Help" className="text-teal-600 hover:text-teal-700">💬</button>
-                    </TooltipTrigger>
-                    <TooltipContent>Write if your family or school supports and gives time for your hobbies.</TooltipContent>
-                  </Tooltip>
-                </label>
-                <Textarea
-                  placeholder="Write if your family or school supports and gives time for your hobbies."
-                  value={responses.question9}
-                  onChange={(e) => handleResponseChange('question9', e.target.value)}
-                  rows={4}
-                  className="border-teal-200 focus:border-teal-400 text-base"
-                />
-              </div>
-
-              {/* Question 10 */}
-              <div className="border-l-4 border-emerald-400 pl-6">
-                <label className="block text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5 text-emerald-500" />
-                  {q['question10'] || '10. Do any of your hobbies complement your talents?'}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button type="button" aria-label="Help" className="text-emerald-600 hover:text-emerald-700">💬</button>
-                    </TooltipTrigger>
-                    <TooltipContent>Write if any of your hobbies help you use or grow your talents.</TooltipContent>
-                  </Tooltip>
-                </label>
-                <Textarea
-                  placeholder="Write if any of your hobbies help you use or grow your talents."
-                  value={responses.question10}
-                  onChange={(e) => handleResponseChange('question10', e.target.value)}
-                  rows={4}
-                  className="border-emerald-200 focus:border-emerald-400 text-base"
-                />
-              </div>
-
-              {/* Question 11 */}
-              <div className="border-l-4 border-sky-400 pl-6">
-                <label className="block text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  <Target className="w-5 h-5 text-sky-500" />
-                  {q['question11'] || '11. Could you turn any of your hobbies or talents into your career? If yes, how?'}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button type="button" aria-label="Help" className="text-sky-600 hover:text-sky-700">💬</button>
-                    </TooltipTrigger>
-                    <TooltipContent>Write how your hobby or talent could become your future job.</TooltipContent>
-                  </Tooltip>
-                </label>
-                <Textarea
-                  placeholder="Write how your hobby or talent could become your future job."
-                  value={responses.question11}
-                  onChange={(e) => handleResponseChange('question11', e.target.value)}
-                  rows={4}
-                  className="border-sky-200 focus:border-sky-400 text-base"
-                />
-              </div>
-
-              {/* Question 12 */}
-              <div className="border-l-4 border-rose-400 pl-6">
-                <label className="block text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  <Users className="w-5 h-5 text-rose-500" />
-                  {q['question12'] || '12. Has someone you know, made a career out of their hobby or talent?'}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button type="button" aria-label="Help" className="text-rose-600 hover:text-rose-700">💬</button>
-                    </TooltipTrigger>
-                    <TooltipContent>Write about a person you know who turned their hobby into their job.</TooltipContent>
-                  </Tooltip>
-                </label>
-                <Textarea
-                  placeholder="Write about a person you know who turned their hobby into their job."
-                  value={responses.question12}
-                  onChange={(e) => handleResponseChange('question12', e.target.value)}
-                  rows={4}
-                  className="border-rose-200 focus:border-rose-400 text-base"
-                />
-              </div>
+        {/* Dynamically render sections from database */}
+        {sections.map((sectionKey) => {
+          const sectionQuestions = questionsBySection[sectionKey] || [];
+          if (sectionQuestions.length === 0) return null;
+          
+          const sectionNumber = sections.indexOf(sectionKey) + 1;
+          let sectionTitle = '';
+          let sectionDescription = '';
+          let headerColor = 'from-orange-50 to-pink-50';
+          let titleColor = 'text-orange-800';
+          let descColor = 'text-orange-600';
+          
+          if (sectionKey === 'section1') {
+            sectionTitle = 'Section 1: Hobbies & Interests';
+            sectionDescription = 'Share your thoughts about your hobbies and what inspires them';
+          } else if (sectionKey === 'section2') {
+            sectionTitle = 'Section 2: Talents & Practice';
+            sectionDescription = 'Explore your natural talents and how you develop them';
+            headerColor = 'from-pink-50 to-purple-50';
+            titleColor = 'text-pink-800';
+            descColor = 'text-pink-600';
+          } else if (sectionKey === 'section3') {
+            sectionTitle = 'Section 3: Support & Career Connection';
+            sectionDescription = 'Reflect on support systems and career possibilities from your hobbies';
+            headerColor = 'from-purple-50 to-indigo-50';
+            titleColor = 'text-purple-800';
+            descColor = 'text-purple-600';
+          } else {
+            sectionTitle = `Section ${sectionNumber}`;
+            sectionDescription = 'Answer the questions in this section';
+          }
+          
+          return (
+            <div key={sectionKey} style={{ display: currentSection === sectionKey ? 'block' : 'none' }}>
+              <Card className="border-0 shadow-lg">
+                <CardHeader className={`bg-gradient-to-r ${headerColor}`}>
+                  <CardTitle className={`text-xl ${titleColor}`}>{sectionTitle}</CardTitle>
+                  <CardDescription className={descColor}>
+                    {sectionDescription}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="space-y-6">
+                    {sectionQuestions.map((question, index) => {
+                      const questionNumber = index + 1;
+                      const questionValue = responses[question.id] || '';
+                      const helpKey = question.id;
+                      const isOpen = !!helpOpen[helpKey];
+                      const helpText = question.help_text || '';
+                      
+                      // Format label with number
+                      const hasNumber = /^\d+\.\s/.test(question.question_text || '');
+                      const label = hasNumber 
+                        ? question.question_text 
+                        : `${questionNumber}. ${question.question_text}`;
+                      
+                      // Get icon based on section
+                      const icons = [
+                        Palette, Heart, Star, TrendingUp, Lightbulb, Target, Award,
+                        Award, TrendingUp, BookOpen, Users, CheckCircle, Target, Award
+                      ];
+                      const IconComponent = icons[index % icons.length] || Palette;
+                      
+                      return (
+                        <div key={question.id} className="border-l-4 border-orange-400 pl-6">
+                          <label className="block text-base font-medium text-gray-800 mb-2 flex items-center gap-2">
+                            <IconComponent className="w-5 h-5 text-orange-500" />
+                            {label}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button 
+                                  type="button" 
+                                  aria-label="Help" 
+                                  className="text-orange-600 hover:text-orange-700"
+                                  onClick={() => toggleHelp(helpKey)}
+                                >
+                                  💬
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">{helpText}</TooltipContent>
+                            </Tooltip>
+                          </label>
+                          {isOpen && (
+                            <div className="mb-2 p-3 rounded border bg-orange-50 border-orange-200 text-sm text-orange-800">
+                              {helpText}
+                            </div>
+                          )}
+                          <Textarea
+                            placeholder={helpText || `Write your answer here...`}
+                            value={questionValue}
+                            onChange={(e) => handleResponseChange(question.id, e.target.value)}
+                            disabled={isReadOnly || isCompleted}
+                            rows={4}
+                            className="text-base border-orange-200 focus:border-orange-400"
+                          />
+                        </div>
+                      );
+                    })}
+                    
+                    {/* Save Section Button */}
+                    {!isReadOnly && !isCompleted && (
+                      <div className="flex justify-end mt-6 pt-4 border-t border-orange-200">
+                        <Button
+                          onClick={() => saveSection(sectionKey)}
+                          disabled={savingSection === sectionKey || savingSection !== null}
+                          className="bg-orange-600 hover:bg-orange-700 text-white"
+                        >
+                          {savingSection === sectionKey ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                              Saving...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="w-4 h-4 mr-2" />
+                              Save Section
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-          </CardContent>
-        </Card>
+          );
+        })}
 
         {/* Submit Button */}
         <div className="flex justify-center mt-8">
           <Button
             onClick={submitAssessment}
-            disabled={!canSubmit() || submitting}
+            disabled={!canSubmit() || submitting || isReadOnly}
             size="lg"
             className="bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700 text-white px-8 py-3 text-lg"
           >

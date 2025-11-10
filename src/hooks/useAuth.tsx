@@ -999,7 +999,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const { data: sessionData } = await supabase.auth.getSession();
             if (sessionData.session?.user) {
               console.log('📥 Manually fetching user profile after registration');
-              await fetchUserProfile(sessionData.session.user.id, sessionData.session.user as AuthUser);
+              
+              // Ensure user state is set
+              const authUser = sessionData.session.user as AuthUser;
+              setUser(authUser);
+              setSession(sessionData.session);
+              
+              // Fetch user profile
+              await fetchUserProfile(authUser.id, authUser);
+              
+              // Wait a moment for state to propagate
+              await new Promise(resolve => setTimeout(resolve, 500));
             }
             
             // Auto sign-in successful

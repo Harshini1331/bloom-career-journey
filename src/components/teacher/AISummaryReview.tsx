@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Sparkles, User, Calendar, CheckCircle, XCircle, Edit3, Search, RefreshCw } from 'lucide-react';
+import { Sparkles, User, Calendar, CheckCircle, XCircle, Edit3, Search, RefreshCw, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import SummaryApprovalCard from './SummaryApprovalCard';
 import { aiSummaryService } from '@/services/aiSummaryService';
@@ -19,29 +19,54 @@ interface SummaryData {
   generated_at: string;
   student_name: string;
   student_id: string;
+  assessment_type: string;
+  assessment_title: string;
   responses: any;
+  student_user_id?: string | null;
 }
 
-export default function AISummaryReview() {
+interface Student {
+  id: string;
+  user_id: string;
+  full_name: string;
+  class_name: string;
+  summary_count: number;
+}
+
+interface AISummaryReviewProps {
+  selectedStudentId?: string; // Optional: filter by student ID
+}
+
+export default function AISummaryReview({ selectedStudentId }: AISummaryReviewProps = {}) {
   const { userProfile } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [summaries, setSummaries] = useState<SummaryData[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedSummary, setSelectedSummary] = useState<SummaryData | null>(null);
   const [generating, setGenerating] = useState(false);
   const [assessmentsWithoutSummaries, setAssessmentsWithoutSummaries] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchSummaries();
+    fetchStudents();
+    if (selectedStudentId) {
+      // Find and select the student if ID is provided
+      fetchStudents().then(() => {
+        const student = students.find(s => s.id === selectedStudentId);
+        if (student) {
+          handleStudentClick(student);
+        }
+      });
+    }
   }, []);
 
-  const fetchSummaries = async () => {
+  const fetchStudents = async () => {
     if (!userProfile?.id) return;
 
     try {
       setLoading(true);
-      console.log('📡 Fetching AI summaries...');
+      console.log('📡 Fetching students for AI summaries...');
 
       // Get teacher ID
       const { data: teacherData, error: teacherError } = await supabase
@@ -54,66 +79,116 @@ export default function AISummaryReview() {
         throw new Error('Teacher profile not found');
       }
 
-      // Get students for this teacher
-      const { data: students, error: studentsError } = await supabase
+      // Get students
+      const { data: studentsData, error: studentsError } = await supabase
         .from('students')
-        .select('id, user_id, users!inner(full_name)')
+        .select(`
+          id,
+          user_id,
+          users!inner(full_name),
+          classes(name)
+        `)
         .eq('teacher_id', teacherData.id);
 
       if (studentsError) throw studentsError;
 
-      if (!students || students.length === 0) {
-        console.log('ℹ️ No students found');
-        setSummaries([]);
-        return;
-      }
+      // Get summary counts for each student (only latest assessment per type)
+      const studentsWithCounts = await Promise.all(
+        (studentsData || []).map(async (student: any) => {
+          // Get all assessment responses for this student
+          const { data: assessments } = await supabase
+            .from('assessment_responses')
+            .select('id, assessment_type, completed_at, updated_at')
+            .eq('student_id', student.id)
+            .order('completed_at', { ascending: false });
 
-      const studentIds = students.map(s => s.id);
+          // Get only the latest assessment per type (prefer most recent completed_at, then updated_at)
+          const latestAssessments = new Map<string, any>();
+          (assessments || []).forEach((assessment: any) => {
+            const existing = latestAssessments.get(assessment.assessment_type);
+            const assessmentTimestamp = new Date(assessment.completed_at || assessment.updated_at || 0).getTime();
+            if (!existing) {
+              latestAssessments.set(assessment.assessment_type, assessment);
+              return;
+            }
 
-      // Get assessment responses for these students
+            const existingTimestamp = new Date(existing.completed_at || existing.updated_at || 0).getTime();
+            if (assessmentTimestamp > existingTimestamp) {
+              latestAssessments.set(assessment.assessment_type, assessment);
+            }
+          });
+
+          // Get summaries for these latest assessment responses
+          const assessmentResponseIds = Array.from(latestAssessments.values()).map((assessment: any) => assessment.id);
+          const { data: summaries } = await supabase
+            .from('assessment_summaries')
+            .select('id')
+            .in('assessment_response_id', assessmentResponseIds);
+
+          return {
+            id: student.id,
+            user_id: student.user_id,
+            full_name: student.users?.full_name || 'Unknown',
+            class_name: student.classes?.name || 'No class',
+            summary_count: summaries?.length || 0
+          };
+        })
+      );
+
+      console.log('✅ Fetched students:', studentsWithCounts);
+      setStudents(studentsWithCounts);
+    } catch (error: any) {
+      console.error('❌ Error fetching students:', error);
+      toast({
+        title: 'Error',
+        description: `Failed to load students: ${error.message}`,
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchSummaries = async (studentId: string) => {
+    if (!userProfile?.id) return;
+
+    try {
+      setLoading(true);
+      console.log('📡 Fetching AI summaries for student:', studentId);
+
+      // Get all assessment responses for this student
       const { data: assessmentResponses, error: arError } = await supabase
         .from('assessment_responses')
-        .select('id, student_id, assessment_type, responses, completed_at')
-        .in('student_id', studentIds);
+        .select('id, student_id, assessment_type, assessment_title, responses, completed_at, updated_at')
+        .eq('student_id', studentId)
+        .order('completed_at', { ascending: false });
 
       if (arError) throw arError;
 
-      if (!assessmentResponses || assessmentResponses.length === 0) {
-        console.log('ℹ️ No assessment responses found');
-        setSummaries([]);
-        return;
-      }
+      // Get only the LATEST submission for each assessment type
+      const uniqueAssessments: Record<string, any> = {};
+      (assessmentResponses || []).forEach((assessment: any) => {
+        const existing = uniqueAssessments[assessment.assessment_type];
+        const assessmentTimestamp = new Date(assessment.completed_at || assessment.updated_at || 0).getTime();
 
-      // Filter to keep only the latest unique assessment per student per type
-      const uniqueAssessmentsMap = new Map<string, typeof assessmentResponses[0]>();
-      
-      // Sort by completed_at descending (newest first)
-      const sortedAssessments = [...assessmentResponses].sort((a, b) => {
-        const dateA = a.completed_at ? new Date(a.completed_at).getTime() : 0;
-        const dateB = b.completed_at ? new Date(b.completed_at).getTime() : 0;
-        return dateB - dateA;
-      });
+        if (!existing) {
+          uniqueAssessments[assessment.assessment_type] = assessment;
+          return;
+        }
 
-      sortedAssessments.forEach(assessment => {
-        const key = `${assessment.student_id}_${assessment.assessment_type || 'unknown'}`;
-        // Only keep the first one (latest due to sorting)
-        if (!uniqueAssessmentsMap.has(key)) {
-          uniqueAssessmentsMap.set(key, assessment);
+        const existingTimestamp = new Date(existing.completed_at || existing.updated_at || 0).getTime();
+        if (assessmentTimestamp > existingTimestamp) {
+          uniqueAssessments[assessment.assessment_type] = assessment;
         }
       });
 
-      const uniqueAssessments = Array.from(uniqueAssessmentsMap.values());
-      console.log(`📊 Total assessments: ${assessmentResponses.length}, Unique assessments: ${uniqueAssessments.length}`);
+      const latestAssessmentIds = Object.values(uniqueAssessments).map((a: any) => a.id);
 
-      const responseIds = uniqueAssessments.map(ar => ar.id);
-
-      // Get summaries for these assessment responses
-      console.log('🔍 Looking for summaries for response IDs:', responseIds);
-      
+      // Get summaries for these latest assessment responses
       const { data: summariesData, error: summariesError } = await supabase
         .from('assessment_summaries')
         .select('*')
-        .in('assessment_response_id', responseIds)
+        .in('assessment_response_id', latestAssessmentIds)
         .order('generated_at', { ascending: false });
 
       if (summariesError) {
@@ -121,39 +196,46 @@ export default function AISummaryReview() {
         throw summariesError;
       }
 
-      console.log('📊 Found summaries:', summariesData?.length || 0);
+      // Get student info
+      const { data: studentData } = await supabase
+        .from('students')
+        .select('id, user_id, users!inner(full_name)')
+        .eq('id', studentId)
+        .maybeSingle();
 
       // Combine data
       const enrichedSummaries = (summariesData || []).map((summary: any) => {
-        const assessmentResponse = assessmentResponses.find(ar => ar.id === summary.assessment_response_id);
-        const student = students.find(s => s.id === assessmentResponse?.student_id);
+        const assessmentResponse = uniqueAssessments[Object.keys(uniqueAssessments).find(
+          type => uniqueAssessments[type].id === summary.assessment_response_id
+        ) || ''];
 
         return {
           ...summary,
-          student_name: student?.users?.full_name || 'Unknown',
-          student_id: assessmentResponse?.student_id || '',
-          responses: assessmentResponse?.responses || {}
+          student_name: studentData?.users?.full_name || 'Unknown',
+          student_id: studentId,
+          assessment_type: assessmentResponse?.assessment_type || 'unknown',
+          assessment_title: assessmentResponse?.assessment_title || 'Unknown Assessment',
+          responses: assessmentResponse?.responses || {},
+          student_user_id: studentData?.user_id || null
         };
       });
-
-      // Find assessments without summaries (only completed ones from unique set)
-      const assessmentsWithSummaries = new Set(summariesData?.map(s => s.assessment_response_id) || []);
-      const assessmentsNeedingSummaries = uniqueAssessments.filter(ar => 
-        !assessmentsWithSummaries.has(ar.id) && ar.responses // Only if has responses
-      ).map(ar => {
-        const student = students.find(s => s.id === ar.student_id);
-        return {
-          ...ar,
-          student_name: student?.users?.full_name || 'Unknown',
-          student_user_id: student?.user_id || null
-        };
-      });
-
-      console.log('⚠️ Assessments without summaries:', assessmentsNeedingSummaries.length);
-      setAssessmentsWithoutSummaries(assessmentsNeedingSummaries);
 
       console.log('✅ Fetched AI summaries:', enrichedSummaries);
       setSummaries(enrichedSummaries);
+
+      // Find assessments without summaries
+      const assessmentsWithSummaries = new Set(summariesData?.map(s => s.assessment_response_id) || []);
+      const assessmentsNeedingSummaries = Object.values(uniqueAssessments)
+        .filter((ar: any) => !assessmentsWithSummaries.has(ar.id) && ar.responses)
+        .map((ar: any) => ({
+          ...ar,
+          student_id: studentId,
+          student_name: studentData?.users?.full_name || 'Unknown',
+          student_user_id: studentData?.user_id || null
+        }));
+
+      console.log('⚠️ Assessments without summaries:', assessmentsNeedingSummaries.length);
+      setAssessmentsWithoutSummaries(assessmentsNeedingSummaries);
     } catch (error: any) {
       console.error('❌ Error fetching summaries:', error);
       toast({
@@ -164,6 +246,12 @@ export default function AISummaryReview() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleStudentClick = (student: Student) => {
+    setSelectedStudent(student);
+    setSelectedSummary(null);
+    fetchSummaries(student.id);
   };
 
   const generateMissingSummaries = async () => {
@@ -193,7 +281,22 @@ export default function AISummaryReview() {
         try {
           console.log(`🤖 Generating summary for ${assessment.student_name}...`);
           
-          const summaryResult = await aiSummaryService.generateInspirationSummary(assessment.responses);
+          // Determine which summary generator to use based on assessment type
+          let summaryResult;
+          if (assessment.assessment_type === 'about_me') {
+            summaryResult = await aiSummaryService.generateAboutMeSummary(assessment.responses);
+          } else if (assessment.assessment_type === 'dreams') {
+            summaryResult = await aiSummaryService.generateDreamsSummary(assessment.responses);
+          } else if (assessment.assessment_type === 'school_learning') {
+            summaryResult = await aiSummaryService.generateSchoolLearningSummary(assessment.responses);
+          } else if (assessment.assessment_type === 'hobbies') {
+            summaryResult = await aiSummaryService.generateHobbiesSummary(assessment.responses);
+          } else if (assessment.assessment_type === 'role_models') {
+            summaryResult = await aiSummaryService.generateRoleModelsSummary(assessment.responses);
+          } else {
+            // Default to inspiration summary
+            summaryResult = await aiSummaryService.generateInspirationSummary(assessment.responses);
+          }
 
           if (summaryResult.success && summaryResult.summary) {
             const saveResult = await summaryDatabaseService.createAISummary(
@@ -226,7 +329,9 @@ export default function AISummaryReview() {
       });
 
       // Refresh summaries list
-      fetchSummaries();
+      if (selectedStudent) {
+        fetchSummaries(selectedStudent.id);
+      }
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -251,18 +356,14 @@ export default function AISummaryReview() {
     }
   };
 
-  const filteredSummaries = summaries.filter(summary =>
-    summary.student_name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   const pendingCount = summaries.filter(s => s.approval_status === 'pending_approval').length;
   const approvedCount = summaries.filter(s => s.approval_status === 'approved').length;
   const rejectedCount = summaries.filter(s => s.approval_status === 'rejected').length;
 
-  if (loading) {
+  if (loading && !selectedStudent) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Loading AI summaries...</div>
+        <div className="text-gray-500">Loading students...</div>
       </div>
     );
   }
@@ -275,15 +376,19 @@ export default function AISummaryReview() {
           onClick={() => setSelectedSummary(null)}
           className="mb-4"
         >
-          ← Back to Summaries List
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Summaries List
         </Button>
         <SummaryApprovalCard
           summary={selectedSummary as any}
           studentResponses={selectedSummary.responses}
           teacherUserId={userProfile.id}
           studentName={selectedSummary.student_name}
+          assessmentType={selectedSummary.assessment_type}
           onSummaryUpdated={() => {
-            fetchSummaries();
+            if (selectedStudent) {
+              fetchSummaries(selectedStudent.id);
+            }
             setSelectedSummary(null);
           }}
         />
@@ -292,119 +397,178 @@ export default function AISummaryReview() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Left Panel: Students List */}
+      <div className="lg:col-span-1">
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-bold text-yellow-600">{pendingCount}</div>
-                <div className="text-sm text-gray-600">Pending Approval</div>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Sparkles className="w-5 h-5" />
+              Students ({students.length})
+            </CardTitle>
+            <CardDescription>Click on a student to view their AI summaries</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {students.length === 0 ? (
+              <div className="text-sm text-gray-500 py-4 text-center">
+                No students assigned to you yet
               </div>
-              <Sparkles className="w-8 h-8 text-yellow-500" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-bold text-green-600">{approvedCount}</div>
-                <div className="text-sm text-gray-600">Approved</div>
-              </div>
-              <CheckCircle className="w-8 h-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-bold text-red-600">{rejectedCount}</div>
-                <div className="text-sm text-gray-600">Rejected</div>
-              </div>
-              <XCircle className="w-8 h-8 text-red-500" />
-            </div>
+            ) : (
+              students.map((student) => (
+                <div
+                  key={student.id}
+                  onClick={() => handleStudentClick(student)}
+                  className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                    selectedStudent?.id === student.id
+                      ? 'bg-blue-50 border-blue-300 shadow-sm'
+                      : 'bg-white hover:bg-gray-50 border-gray-200'
+                  }`}
+                >
+                  <div className="font-medium text-gray-900">{student.full_name}</div>
+                  <div className="text-xs text-gray-500">{student.class_name}</div>
+                  <div className="text-xs text-blue-600 mt-1">
+                    {student.summary_count} {student.summary_count !== 1 ? 'summaries' : 'summary'}
+                  </div>
+                </div>
+              ))
+            )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Search */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Sparkles className="w-5 h-5" />
-              AI Generated Summaries ({summaries.length})
-            </CardTitle>
-            {assessmentsWithoutSummaries.length > 0 && (
-              <Button 
-                onClick={generateMissingSummaries} 
-                disabled={generating}
-                size="sm"
-                variant="outline"
-                className="flex items-center gap-2"
-              >
-                <RefreshCw className={`w-4 h-4 ${generating ? 'animate-spin' : ''}`} />
-                {generating ? 'Generating...' : `Generate ${assessmentsWithoutSummaries.length} Missing`}
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-              <Input
-                placeholder="Search by student name..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-          </div>
-
-          {filteredSummaries.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <Sparkles className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p>No AI summaries found</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {filteredSummaries.map((summary) => (
-                <div
-                  key={summary.id}
-                  className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors"
-                  onClick={() => setSelectedSummary(summary)}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <User className="w-4 h-4 text-gray-500" />
-                        <span className="font-medium text-gray-900">
-                          {summary.student_name}
-                        </span>
-                        <Badge className={getStatusColor(summary.approval_status)}>
-                          {summary.approval_status.replace('_', ' ')}
-                        </Badge>
-                      </div>
-                      <div className="text-sm text-gray-500 flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        Generated: {new Date(summary.generated_at).toLocaleDateString()}
-                      </div>
+      {/* Right Panel: Summaries */}
+      <div className="lg:col-span-2">
+        {!selectedStudent ? (
+          <Card>
+            <CardContent className="py-16">
+              <div className="text-center text-gray-500">
+                <Sparkles className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <p>Select a student to view their AI summaries</p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-6">
+            {/* Overview Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-2xl font-bold text-yellow-600">{pendingCount}</div>
+                      <div className="text-sm text-gray-600">Pending Approval</div>
                     </div>
-                    <Button size="sm" variant="outline">
-                      Review →
-                    </Button>
+                    <Sparkles className="w-8 h-8 text-yellow-500" />
                   </div>
-                </div>
-              ))}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-2xl font-bold text-green-600">{approvedCount}</div>
+                      <div className="text-sm text-gray-600">Approved</div>
+                    </div>
+                    <CheckCircle className="w-8 h-8 text-green-500" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-2xl font-bold text-red-600">{rejectedCount}</div>
+                      <div className="text-sm text-gray-600">Rejected</div>
+                    </div>
+                    <XCircle className="w-8 h-8 text-red-500" />
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-          )}
-        </CardContent>
-      </Card>
+
+            {/* Summaries List */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedStudent(null);
+                        setSummaries([]);
+                        setSelectedSummary(null);
+                      }}
+                    >
+                      <ArrowLeft className="w-4 h-4 mr-2" />
+                      Back to Students
+                    </Button>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Sparkles className="w-5 h-5" />
+                      {selectedStudent.full_name}'s AI Summaries ({summaries.length})
+                    </CardTitle>
+                  </div>
+                  {assessmentsWithoutSummaries.length > 0 && (
+                    <Button 
+                      onClick={generateMissingSummaries} 
+                      disabled={generating}
+                      size="sm"
+                      variant="outline"
+                      className="flex items-center gap-2"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${generating ? 'animate-spin' : ''}`} />
+                      {generating ? 'Generating...' : `Generate ${assessmentsWithoutSummaries.length} Missing`}
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="text-center py-8 text-gray-500">Loading summaries...</div>
+                ) : summaries.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Sparkles className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <p>No AI summaries found for this student</p>
+                    {assessmentsWithoutSummaries.length > 0 && (
+                      <p className="text-sm mt-2">Click "Generate Missing" to create summaries</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {summaries.map((summary) => (
+                      <div
+                        key={summary.id}
+                        className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                        onClick={() => setSelectedSummary(summary)}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="font-medium text-gray-900">
+                                {summary.assessment_title}
+                              </span>
+                              <Badge className={getStatusColor(summary.approval_status)}>
+                                {summary.approval_status.replace('_', ' ')}
+                              </Badge>
+                            </div>
+                            <div className="text-sm text-gray-500 flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              Generated: {new Date(summary.generated_at).toLocaleDateString()}
+                            </div>
+                          </div>
+                          <Button size="sm" variant="outline">
+                            Review →
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
-

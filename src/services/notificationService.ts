@@ -47,15 +47,37 @@ class NotificationService {
     title: string;
     message: string;
     link?: string;
-  }): Promise<void> {
-    await supabase.from('notifications').insert({
-      user_id: params.userId,
-      type: params.type,
-      title: params.title,
-      message: params.message,
-      link: params.link || null,
-      created_at: new Date().toISOString(),
-    } as any);
+  }): Promise<{ success: boolean; error?: string }> {
+    if (!params.userId) {
+      return { success: false, error: 'Missing user id for notification' };
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('create_notification_secure', {
+        p_user_id: params.userId,
+        p_type: params.type,
+        p_title: params.title,
+        p_message: params.message,
+        p_link: params.link || null
+      });
+
+      if (error) {
+        console.error('Error creating notification via RPC:', error);
+        return { success: false, error: error.message };
+      }
+
+      if (!data) {
+        console.warn('Notification RPC returned no id; assuming success');
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Exception creating notification via RPC:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
   }
 }
 

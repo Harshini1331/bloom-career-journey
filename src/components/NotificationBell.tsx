@@ -75,11 +75,6 @@ export default function NotificationBell({ userId }: Props) {
                   {!n.read_at && <Badge variant="secondary" className="text-[10px]">new</Badge>}
                 </div>
                 <div className="text-xs text-gray-600 mt-1">{n.message}</div>
-                {n.link && (
-                  <div className="text-[11px] text-blue-600 mt-1 flex items-center gap-1">
-                    <ExternalLink className="w-3 h-3" /> Open
-                  </div>
-                )}
               </button>
             ))}
           </div>
