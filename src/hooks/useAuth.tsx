@@ -656,64 +656,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('🔐 Sign in attempt for:', identifier);
       
-      // Try Supabase Auth first (teachers/admins/students with email)
-      // Determine if identifier is email or mobile
-      const isEmail = identifier.includes('@');
-      let emailForAuth: string;
-
-      if (isEmail) {
-        emailForAuth = identifier;
-      } else {
-        // For mobile numbers, try to find the user's email
-        const { data: userByMobile, error: userByMobileError } = await supabase
-          .from('users')
-          .select('email')
-          .eq('mobile', identifier)
-          .maybeSingle();
-        
-        if (userByMobileError) {
-          console.error('Error looking up user by mobile:', userByMobileError);
-          // Fall back to generated email pattern
-          emailForAuth = `${identifier}@internal.app`;
-        } else if (userByMobile && userByMobile.email) {
-          emailForAuth = userByMobile.email;
-        } else {
-          // Fall back to generated email pattern
-          emailForAuth = `${identifier}@internal.app`;
-        }
-      }
-
-      console.log('🔐 Attempting sign in with email:', emailForAuth);
-
-      const { data: signInData, error } = await supabase.auth.signInWithPassword({
-        email: emailForAuth,
-        password,
-      });
-
-      if (error) {
-        console.error('❌ Sign in error:', error);
-        toast({
-          title: "Sign in failed",
-          description: error.message || "Invalid email/mobile or password",
-          variant: "destructive",
-        });
-        return { error };
-      }
-
-      if (signInData?.user) {
-        console.log('✅ Supabase Auth successful:', signInData.user);
-        setUser(signInData.user);
-        await fetchUserProfile(signInData.user.id, signInData.user as AuthUser);
-        
-        toast({
-          title: "Sign in successful! ✨",
-          description: "Welcome back!",
-        });
-        
-        return { error: null };
-      }
-
-      // If Supabase Auth failed, try custom student auth
+      // 1) Try custom student authentication first (email or mobile)
       try {
         console.log('🔄 Attempting custom student authentication...');
         const idTrim = identifier.trim();
@@ -744,23 +687,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(mockUser);
           setSession(mockSession);
           setIsCustomAuth(true);
-          
-          // Fetch profile and wait for it to complete
           await fetchUserProfile(studentUser.user_id, mockUser);
-          
-          // Ensure loading is set to false after profile is fetched
           setLoading(false);
-          
-          // Save custom auth state to localStorage
-          // Note: We need to save the profile in fetchUserProfile after it's set
           localStorage.setItem('customAuth', 'true');
           localStorage.setItem('customUser', JSON.stringify(mockUser));
-          
-          console.log('🎓 Custom student authentication complete - user and profile set');
           toast({ title: 'Sign in successful! ✨', description: `Welcome back, ${studentUser.full_name}!` });
           return { error: null };
         }
-      } catch {}
+      } catch (customErr) {
+        console.log('Custom auth not applicable or failed:', customErr);
+      }
+
+      // 2) Fallback to Supabase Auth (teachers/admins or students registered via email/password)
+      const isEmail = identifier.includes('@');
+      let emailForAuth: string;
+
+      if (isEmail) {
+        emailForAuth = identifier;
+      } else {
+        const { data: userByMobile, error: userByMobileError } = await supabase
+          .from('users')
+          .select('email')
+          .eq('mobile', identifier)
+          .maybeSingle();
+        if (userByMobileError) {
+          console.error('Error looking up user by mobile:', userByMobileError);
+          emailForAuth = `${identifier}@internal.app`;
+        } else if (userByMobile && userByMobile.email) {
+          emailForAuth = userByMobile.email;
+        } else {
+          emailForAuth = `${identifier}@internal.app`;
+        }
+      }
+
+      console.log('🔐 Attempting Supabase Auth sign in with email:', emailForAuth);
+      const { data: signInData, error } = await supabase.auth.signInWithPassword({
+        email: emailForAuth,
+        password,
+      });
+
+      if (error) {
+        console.error('❌ Sign in error:', error);
+        toast({
+          title: "Sign in failed",
+          description: error.message || "Invalid email/mobile or password",
+          variant: "destructive",
+        });
+        return { error };
+      }
+
+      if (signInData?.user) {
+        console.log('✅ Supabase Auth successful:', signInData.user);
+        setUser(signInData.user);
+        await fetchUserProfile(signInData.user.id, signInData.user as AuthUser);
+        toast({ title: "Sign in successful! ✨", description: "Welcome back!" });
+        return { error: null };
+      }
 
       return { error: new Error('Sign in failed') };
     } catch (error) {
