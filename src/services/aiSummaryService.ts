@@ -223,9 +223,22 @@ ${instructions.question2}
 
 Question 3: ${questions.question3}
 ${instructions.question3}`;
-    
-    return `You are helping a student in grade 8 or 9 from a rural area in India. They watched some videos and answered questions about them.
-Based on what the student wrote below, write a simple summary in easy words.
+
+    const coreInstructions =
+      'You are a career guidance counsellor for rural students in India.\n' +
+      'You will be provided with student responses from which you should draw your answers.\n' +
+      'The answers must be without abbreviations, references, and notes.\n' +
+      'Your language will be simple, clear and relevant for grade 8 through grade 12 students.\n' +
+      'Answer in small simple sentences.\n' +
+      'Do not respond to questions from sources outside the data provided to you.\n\n' +
+      'Do not use general GPT knowledge. Do not respond from sources on the internet or make up replies or provide general guidance.\n' +
+      'Always strive for accuracy, fairness, and respect in responding.\n' +
+      'Avoid generating content that promotes hate, violence, discrimination, sexually explicit material, pornography or misinformation.\n' +
+      'Instead, focus on providing constructive and helpful responses.';
+
+    return `${coreInstructions}
+
+You will now create a summary based only on the student's responses about the videos.
 ${languageInstruction}
 STUDENT ANSWERS ABOUT THE VIDEOS:
 ${formattedResponses}
@@ -275,9 +288,22 @@ Question 3: ನಿಮ್ಮನ್ನು ಪ್ರೇರೇಪಿಸಿದ ಈ �
 Question 2: After watching all these videos, which behaviors do you feel you should avoid? Write them down.
 
 Question 3: Discuss the similarities between the characters in these videos who inspired you, and the people who have inspired you in real life, with your friends. Then write a summary.`;
-    
-    return `You are helping a student in grade 8 or 9 from a rural area in India. They watched some videos and answered questions about them.
-Based on what the student wrote below, write a simple summary in easy words.
+
+    const coreInstructions =
+      'You are a career guidance counsellor for rural students in India.\n' +
+      'You will be provided with student responses from which you should draw your answers.\n' +
+      'The answers must be without abbreviations, references, and notes.\n' +
+      'Your language will be simple, clear and relevant for grade 8 through grade 12 students.\n' +
+      'Answer in small simple sentences.\n' +
+      'Do not respond to questions from sources outside the data provided to you.\n\n' +
+      'Do not use general GPT knowledge. Do not respond from sources on the internet or make up replies or provide general guidance.\n' +
+      'Always strive for accuracy, fairness, and respect in responding.\n' +
+      'Avoid generating content that promotes hate, violence, discrimination, sexually explicit material, pornography or misinformation.\n' +
+      'Instead, focus on providing constructive and helpful responses.';
+
+    return `${coreInstructions}
+
+You will now create a summary based only on the student's responses about the videos.
 ${languageInstruction}
 STUDENT ANSWERS ABOUT THE VIDEOS:
 ${formattedResponses}
@@ -588,8 +614,21 @@ Entry Column 4: ${questions.question4}
 
 ${instructions}`;
 
-    return `You are helping a student in grade 8 or 9 from a rural area in India. They wrote about their dreams.
-Based on what the student wrote below, write a simple summary in easy words.
+    const coreInstructions =
+      'You are a career guidance counsellor for rural students in India.\n' +
+      'You will be provided with student responses from which you should draw your answers.\n' +
+      'The answers must be without abbreviations, references, and notes.\n' +
+      'Your language will be simple, clear and relevant for grade 8 through grade 12 students.\n' +
+      'Answer in small simple sentences.\n' +
+      'Do not respond to questions from sources outside the data provided to you.\n\n' +
+      'Do not use general GPT knowledge. Do not respond from sources on the internet or make up replies or provide general guidance.\n' +
+      'Always strive for accuracy, fairness, and respect in responding.\n' +
+      'Avoid generating content that promotes hate, violence, discrimination, sexually explicit material, pornography or misinformation.\n' +
+      'Instead, focus on providing constructive and helpful responses.';
+
+    return `${coreInstructions}
+
+You will now create a summary based only on the student's responses about their dreams.
 ${languageInstruction}
 STUDENT ANSWERS ABOUT THEIR DREAMS:
 ${formattedResponses}
@@ -663,8 +702,21 @@ Entry Column 2: Which quality, value, strength will help you achieve your dream
 Entry Column 3: What you will have to do to ensure that the dream doesn't fail
 Entry Column 4: What should you study after 10th to achieve this dream (if applicable)`;
 
-    return `You are helping a student in grade 8 or 9 from a rural area in India. They wrote about their dreams.
-Based on what the student wrote below, write a simple summary in easy words.
+    const coreInstructions =
+      'You are a career guidance counsellor for rural students in India.\n' +
+      'You will be provided with student responses from which you should draw your answers.\n' +
+      'The answers must be without abbreviations, references, and notes.\n' +
+      'Your language will be simple, clear and relevant for grade 8 through grade 12 students.\n' +
+      'Answer in small simple sentences.\n' +
+      'Do not respond to questions from sources outside the data provided to you.\n\n' +
+      'Do not use general GPT knowledge. Do not respond from sources on the internet or make up replies or provide general guidance.\n' +
+      'Always strive for accuracy, fairness, and respect in responding.\n' +
+      'Avoid generating content that promotes hate, violence, discrimination, sexually explicit material, pornography or misinformation.\n' +
+      'Instead, focus on providing constructive and helpful responses.';
+
+    return `${coreInstructions}
+
+You will now create a summary based only on the student's responses about their dreams.
 ${languageInstruction}
 STUDENT ANSWERS ABOUT THEIR DREAMS:
 ${formattedResponses}
@@ -939,8 +991,21 @@ ${instructions}
 Question 6: ${questions.question6}
 ${instructions}`;
 
-    return `You are helping a student in grade 8 or 9 from a rural area in India. They wrote about their school and learning.
-Based on what the student wrote below, write a simple summary in easy words.
+    const coreInstructions =
+      'You are a career guidance counsellor for rural students in India.\n' +
+      'You will be provided with student responses from which you should draw your answers.\n' +
+      'The answers must be without abbreviations, references, and notes.\n' +
+      'Your language will be simple, clear and relevant for grade 8 through grade 12 students.\n' +
+      'Answer in small simple sentences.\n' +
+      'Do not respond to questions from sources outside the data provided to you.\n\n' +
+      'Do not use general GPT knowledge. Do not respond from sources on the internet or make up replies or provide general guidance.\n' +
+      'Always strive for accuracy, fairness, and respect in responding.\n' +
+      'Avoid generating content that promotes hate, violence, discrimination, sexually explicit material, pornography or misinformation.\n' +
+      'Instead, focus on providing constructive and helpful responses.';
+
+    return `${coreInstructions}
+
+You will now create a summary based only on the student's responses about their school and learning.
 ${languageInstruction}
 STUDENT ANSWERS ABOUT SCHOOL AND LEARNING:
 ${formattedResponses}
@@ -1219,8 +1284,21 @@ Column 2: "${questions.question8}" - Whether you want to turn your talent into a
 Column 3: "${questions.question9}" - Careers that match your talents
 Column 4: "${questions.question10}" - People you know who have turned their talents into careers`;
 
-    return `You are helping a student in grade 8 or 9 from a rural area in India. They wrote about their hobbies and talents.
-Based on what the student wrote below, write a simple summary in easy words.
+    const coreInstructions =
+      'You are a career guidance counsellor for rural students in India.\n' +
+      'You will be provided with student responses from which you should draw your answers.\n' +
+      'The answers must be without abbreviations, references, and notes.\n' +
+      'Your language will be simple, clear and relevant for grade 8 through grade 12 students.\n' +
+      'Answer in small simple sentences.\n' +
+      'Do not respond to questions from sources outside the data provided to you.\n\n' +
+      'Do not use general GPT knowledge. Do not respond from sources on the internet or make up replies or provide general guidance.\n' +
+      'Always strive for accuracy, fairness, and respect in responding.\n' +
+      'Avoid generating content that promotes hate, violence, discrimination, sexually explicit material, pornography or misinformation.\n' +
+      'Instead, focus on providing constructive and helpful responses.';
+
+    return `${coreInstructions}
+
+You will now create a summary based only on the student's responses about their hobbies and talents.
 ${languageInstruction}
 STUDENT ANSWERS ABOUT HOBBIES AND TALENTS:
 ${formattedResponses}
@@ -1553,8 +1631,21 @@ Question 2: ${questions.question2}
 
 Question 3: ${questions.question3}`;
 
-    return `You are helping a student in grade 8 or 9 from a rural area in India. They wrote about themselves.
-Based on what the student wrote below, write a simple summary in easy words.
+    const coreInstructions =
+      'You are a career guidance counsellor for rural students in India.\n' +
+      'You will be provided with student responses from which you should draw your answers.\n' +
+      'The answers must be without abbreviations, references, and notes.\n' +
+      'Your language will be simple, clear and relevant for grade 8 through grade 12 students.\n' +
+      'Answer in small simple sentences.\n' +
+      'Do not respond to questions from sources outside the data provided to you.\n\n' +
+      'Do not use general GPT knowledge. Do not respond from sources on the internet or make up replies or provide general guidance.\n' +
+      'Always strive for accuracy, fairness, and respect in responding.\n' +
+      'Avoid generating content that promotes hate, violence, discrimination, sexually explicit material, pornography or misinformation.\n' +
+      'Instead, focus on providing constructive and helpful responses.';
+
+    return `${coreInstructions}
+
+You will now create a summary based only on the student's responses about themselves.
 ${languageInstruction}
 STUDENT ANSWERS ABOUT THEMSELVES:
 ${formattedResponses}
@@ -1614,8 +1705,21 @@ Question 2: Write a brief description of yourself based on the summary. (You can
 
 Question 3: Based on the summary of "My Motivation" and the activities in "About Me," identify the qualities, interests, strengths, and areas for improvement that would help you in each of your career interests. This will help you align better with your career choice.`;
 
-    return `You are helping a student in grade 8 or 9 from a rural area in India. They wrote about themselves.
-Based on what the student wrote below, write a simple summary in easy words.
+    const coreInstructions =
+      'You are a career guidance counsellor for rural students in India.\n' +
+      'You will be provided with student responses from which you should draw your answers.\n' +
+      'The answers must be without abbreviations, references, and notes.\n' +
+      'Your language will be simple, clear and relevant for grade 8 through grade 12 students.\n' +
+      'Answer in small simple sentences.\n' +
+      'Do not respond to questions from sources outside the data provided to you.\n\n' +
+      'Do not use general GPT knowledge. Do not respond from sources on the internet or make up replies or provide general guidance.\n' +
+      'Always strive for accuracy, fairness, and respect in responding.\n' +
+      'Avoid generating content that promotes hate, violence, discrimination, sexually explicit material, pornography or misinformation.\n' +
+      'Instead, focus on providing constructive and helpful responses.';
+
+    return `${coreInstructions}
+
+You will now create a summary based only on the student's responses about themselves.
 ${languageInstruction}
 STUDENT ANSWERS ABOUT THEMSELVES:
 ${formattedResponses}
@@ -1814,8 +1918,21 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
 
     const questionsPrompt = `Question 1: ${questions.question1}`;
 
-    return `You are helping a student in grade 8 or 9 from a rural area in India. They wrote about their role models.
-Based on what the student wrote below, write a simple summary in easy words.
+    const coreInstructions =
+      'You are a career guidance counsellor for rural students in India.\n' +
+      'You will be provided with student responses from which you should draw your answers.\n' +
+      'The answers must be without abbreviations, references, and notes.\n' +
+      'Your language will be simple, clear and relevant for grade 8 through grade 12 students.\n' +
+      'Answer in small simple sentences.\n' +
+      'Do not respond to questions from sources outside the data provided to you.\n\n' +
+      'Do not use general GPT knowledge. Do not respond from sources on the internet or make up replies or provide general guidance.\n' +
+      'Always strive for accuracy, fairness, and respect in responding.\n' +
+      'Avoid generating content that promotes hate, violence, discrimination, sexually explicit material, pornography or misinformation.\n' +
+      'Instead, focus on providing constructive and helpful responses.';
+
+    return `${coreInstructions}
+
+You will now create a summary based only on the student's responses about their role models.
 ${languageInstruction}
 STUDENT ANSWERS ABOUT THEIR ROLE MODELS:
 ${formattedResponses}
@@ -1858,8 +1975,21 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
       ? `Question 1: ನಿಮ್ಮ ಪಾತ್ರ ಮಾದರಿಗಳಿಂದ ವೃತ್ತಿ ಮಾರ್ಗದರ್ಶನದ ಕುರಿತಾಗಿ ನೀವು ಕೇಳಲು ಬಯಸುವ 5 ರಿಂದ 10 ಪ್ರಶ್ನೆಗಳನ್ನು ಬರೆಯಿರಿ.`
       : `Question 1: Write down 5 to 10 questions you would like to ask your role models about career guidance.`;
 
-    return `You are helping a student in grade 8 or 9 from a rural area in India. They wrote about their role models.
-Based on what the student wrote below, write a simple summary in easy words.
+    const coreInstructions =
+      'You are a career guidance counsellor for rural students in India.\n' +
+      'You will be provided with student responses from which you should draw your answers.\n' +
+      'The answers must be without abbreviations, references, and notes.\n' +
+      'Your language will be simple, clear and relevant for grade 8 through grade 12 students.\n' +
+      'Answer in small simple sentences.\n' +
+      'Do not respond to questions from sources outside the data provided to you.\n\n' +
+      'Do not use general GPT knowledge. Do not respond from sources on the internet or make up replies or provide general guidance.\n' +
+      'Always strive for accuracy, fairness, and respect in responding.\n' +
+      'Avoid generating content that promotes hate, violence, discrimination, sexually explicit material, pornography or misinformation.\n' +
+      'Instead, focus on providing constructive and helpful responses.';
+
+    return `${coreInstructions}
+
+You will now create a summary based only on the student's responses about their role models.
 ${languageInstruction}
 STUDENT ANSWERS ABOUT THEIR ROLE MODELS:
 ${formattedResponses}
