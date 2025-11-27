@@ -788,7 +788,12 @@ export default function MyInspirationAssessment() {
 
     // Ensure the text box reflects what was recorded for validation/progress
     // Prefer transcription; if unavailable, add a clear placeholder line
-    const fallbackText = lang === 'kn' ? 'ಆಡಿಯೊ ರೆಕಾರ್ಡ್ ಮಾಡಲಾಗಿದೆ — ಬರಹ ಲಭ್ಯವಿಲ್ಲ.' : 'Audio recorded — transcription unavailable.';
+    const fallbackText =
+      lang === 'kn'
+        ? 'ಆಡಿಯೊ ರೆಕಾರ್ಡ್ ಮಾಡಲಾಗಿದೆ — ಬರಹ ಲಭ್ಯವಿಲ್ಲ.'
+        : lang === 'ta'
+        ? 'ஆடியோ பதிவு செய்யப்பட்டது — எழுத்து வடிவம் இல்லை.'
+        : 'Audio recorded — transcription unavailable.';
     const textToSet = (transcription && transcription.trim()) ? transcription : fallbackText;
     
     console.log('📝 Setting text in textarea:', {
@@ -911,10 +916,13 @@ export default function MyInspirationAssessment() {
     const video = videoProgress.find(v => v.videoId === videoIndex + 1);
     if (!video || !video.isComplete) {
       toast({
-        title: lang === 'kn' ? "ಇನ್ನೂ ಉಳಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ" : "Cannot Save Yet",
-        description: lang === 'kn' 
-          ? `ಉಳಿಸುವ ಮೊದಲು ಈ ವೀಡಿಯೊಗೆ ಎಲ್ಲಾ ${questionCount} ಪ್ರಶ್ನೆಗಳನ್ನು ಪೂರ್ಣಗೊಳಿಸಿ.` 
-          : `Please complete all ${questionCount} questions for this video before saving.`,
+        title: lang === 'kn' ? "ಇನ್ನೂ ಉಳಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ" : lang === 'ta' ? 'இப்போ சேமிக்க முடியாது' : "Cannot Save Yet",
+        description:
+          lang === 'kn'
+            ? `ಉಳಿಸುವ ಮೊದಲು ಈ ವೀಡಿಯೊಗೆ ಎಲ್ಲಾ ${questionCount} ಪ್ರಶ್ನೆಗಳನ್ನು ಪೂರ್ಣಗೊಳಿಸಿ.`
+            : lang === 'ta'
+            ? `இந்த வீடியோவை சேமிக்க முன் இந்த வீடியோவுக்கான எல்லா ${questionCount} கேள்விகளுக்கும் பதில் எழுதுங்கள்.`
+            : `Please complete all ${questionCount} questions for this video before saving.`,
         variant: "destructive",
       });
       return;
@@ -1323,13 +1331,13 @@ export default function MyInspirationAssessment() {
                       navigate(`/student/assessment/inspiration?${params.toString()}`);
                     }}
                   >
-                    {lang === 'kn' ? 'ನನ್ನ ಉತ್ತರಗಳನ್ನು ವೀಕ್ಷಿಸಿ' : 'View My Answers'}
+                    {lang === 'kn' ? 'ನನ್ನ ಉತ್ತರಗಳನ್ನು ವೀಕ್ಷಿಸಿ' : lang === 'ta' ? 'என் பதில்களை பார்' : 'View My Answers'}
                   </Button>
                   <Button
                     onClick={() => navigate('/student')}
                     className="bg-blue-600 hover:bg-blue-700"
                   >
-                    {lang === 'kn' ? 'ಡ್ಯಾಶ್‌ಬೋರ್ಡ್‌ಗೆ ಹಿಂತಿರುಗಿ' : 'Back to Dashboard'}
+                    {lang === 'kn' ? 'ಡ್ಯಾಶ್‌ಬೋರ್ಡ್‌ಗೆ ಹಿಂತಿರುಗಿ' : lang === 'ta' ? 'முதல் பக்கத்திற்கு போ' : 'Back to Dashboard'}
                   </Button>
                 </div>
               </div>
@@ -1730,17 +1738,19 @@ export default function MyInspirationAssessment() {
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <h4 className="font-medium text-gray-800">Video {index + 1}</h4>
+                          <h4 className="font-medium text-gray-800">
+                            {t('videoLabelN', '', index + 1)}
+                          </h4>
                           {isVideoSaved(index) && (
                             <div className="flex items-center gap-1 text-green-600 text-xs">
                               <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-                              <span>Saved</span>
+                              <span>{t('saved')}</span>
                             </div>
                           )}
                           {!isVideoSaved(index) && isVideoComplete(index) && (
                             <div className="flex items-center gap-1 text-yellow-600 text-xs">
                               <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full"></div>
-                              <span>Complete</span>
+                              <span>{t('complete')}</span>
                             </div>
                           )}
                         </div>

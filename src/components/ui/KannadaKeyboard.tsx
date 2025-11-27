@@ -8,23 +8,45 @@ interface KannadaKeyboardProps {
   targetInputId?: string;
   targetElement?: HTMLInputElement | HTMLTextAreaElement | null;
   onInput?: (char: string) => void;
-  lang?: 'en' | 'kn';
+  // Support English UI plus Kannada + Tamil input
+  lang?: 'en' | 'kn' | 'ta';
 }
 
-// Kannada script layout - Complete alphabet
-// Vowels (ಸ್ವರಗಳು): 13 vowels - ಅ, ಆ, ಇ, ಈ, ಉ, ಊ, ಋ, ಎ, ಏ, ಐ, ಒ, ಓ, ಔ
-// Consonants (ವ್ಯಂಜನಗಳು): 35 consonants organized in phonetic groups
-// Total: 48 letters (13 vowels + 35 consonants)
+// Kannada script layout - closer to Google Inscript style (grouped for familiarity)
+// Includes independent vowels, common vowel signs, and grouped consonants.
 const KANNADA_LAYOUT = {
-  vowels: ['ಅ', 'ಆ', 'ಇ', 'ಈ', 'ಉ', 'ಊ', 'ಋ', 'ಎ', 'ಏ', 'ಐ', 'ಒ', 'ಓ', 'ಔ'], // 13 vowels
-  row1: ['ಕ', 'ಖ', 'ಗ', 'ಘ', 'ಙ'], // Velar consonants (ಕವರ್ಗ)
-  row2: ['ಚ', 'ಛ', 'ಜ', 'ಝ', 'ಞ'], // Palatal consonants (ಚವರ್ಗ)
-  row3: ['ಟ', 'ಠ', 'ಡ', 'ಢ', 'ಣ'], // Retroflex consonants (ಟವರ್ಗ)
-  row4: ['ತ', 'ಥ', 'ದ', 'ಧ', 'ನ'], // Dental consonants (ತವರ್ಗ)
-  row5: ['ಪ', 'ಫ', 'ಬ', 'ಭ', 'ಮ'], // Labial consonants (ಪವರ್ಗ)
-  row6: ['ಯ', 'ರ', 'ಲ', 'ವ', 'ಶ'], // Semi-vowels and fricatives
-  row7: ['ಷ', 'ಸ', 'ಹ', 'ಳ', 'ಱ'], // Additional consonants
-  numbers: ['೦', '೧', '೨', '೩', '೪', '೫', '೬', '೭', '೮', '೯'], // Kannada numerals
+  // Independent vowels
+  vowels: ['ಅ', 'ಆ', 'ಇ', 'ಈ', 'ಉ', 'ಊ', 'ಋ', 'ಎ', 'ಏ', 'ಐ', 'ಒ', 'ಓ', 'ಔ'],
+  // Vowel signs and virama (used after consonants)
+  row1: ['ಾ', 'ಿ', 'ೀ', 'ು', 'ೂ', 'ೃ', 'ೆ', 'ೇ', 'ೈ', 'ೊ', 'ೋ', 'ೌ', '್'],
+  // Consonants grouped broadly like Inscript rows
+  row2: ['ಕ', 'ಖ', 'ಗ', 'ಘ', 'ಙ', 'ಚ', 'ಛ', 'ಜ', 'ಝ', 'ಞ'],
+  row3: ['ಟ', 'ಠ', 'ಡ', 'ಢ', 'ಣ', 'ತ', 'ಥ', 'ದ', 'ಧ', 'ನ'],
+  row4: ['ಪ', 'ಫ', 'ಬ', 'ಭ', 'ಮ', 'ಯ', 'ರ', 'ಲ', 'ವ'],
+  row5: ['ಶ', 'ಷ', 'ಸ', 'ಹ', 'ಳ', 'ೞ', 'ಱ'],
+  row6: [] as string[],
+  row7: [] as string[],
+  numbers: ['೦', '೧', '೨', '೩', '೪', '೫', '೬', '೭', '೮', '೯'],
+};
+
+// Tamil script layout – approximates Google Tamil99 / INSCRIPT groupings
+// Shows independent vowels, common vowel signs, and grouped consonants.
+const TAMIL_LAYOUT = {
+  // Independent vowels
+  vowels: ['அ', 'ஆ', 'இ', 'ஈ', 'உ', 'ஊ', 'எ', 'ஏ', 'ஐ', 'ஒ', 'ஓ', 'ஔ'],
+  // Vowel signs and pulli
+  row1: ['ா', 'ி', 'ீ', 'ு', 'ூ', 'ெ', 'ே', 'ை', 'ொ', 'ோ', 'ௌ', '்', 'ஃ'],
+  // Core consonants – first row
+  row2: ['க', 'ங', 'ச', 'ஞ', 'ட', 'ண', 'த', 'ந', 'ப', 'ம'],
+  // Second row of consonants
+  row3: ['ய', 'ர', 'ல', 'வ', 'ழ', 'ள', 'ற', 'ன'],
+  // Additional consonants used in loanwords
+  row4: ['ஜ', 'ஷ', 'ஸ', 'ஹ'],
+  row5: [] as string[],
+  row6: [] as string[],
+  row7: [] as string[],
+  // Hide dedicated number row for Tamil keyboard to avoid extra yellow strip
+  numbers: [] as string[],
 };
 
 export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 'en' }: KannadaKeyboardProps) {
@@ -33,8 +55,11 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
   const keyboardRef = useRef<HTMLDivElement>(null);
   const lastFocusedElementRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
 
-  // Only show when lang is Kannada
-  if (lang !== 'kn') return null;
+  // Only show when a supported Indian language is active
+  if (lang !== 'kn' && lang !== 'ta') return null;
+
+  const isKannada = lang === 'kn';
+  const layout = isKannada ? KANNADA_LAYOUT : TAMIL_LAYOUT;
 
   const insertChar = (char: string) => {
     console.log('🔹 Keyboard: insertChar called with:', char);
@@ -66,10 +91,12 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
     // Method 4: Search for the most recently focused input/textarea in the document
     // This is a fallback when focus is lost
     if (!element) {
-      // Find all textarea/input elements with lang="kn" or inside [lang="kn"]
-      // Using descendant selector to find inputs anywhere inside lang="kn" containers
+      // Find all textarea/input elements with lang="kn"/"ta" or inside [lang="kn"/"ta"]
+      // Using descendant selector to find inputs anywhere inside lang containers
       const allInputs = document.querySelectorAll(
-        'textarea[lang="kn"], input[lang="kn"], [lang="kn"] textarea, [lang="kn"] input, textarea:not([readonly]), input:not([readonly])'
+        'textarea[lang="kn"], input[lang="kn"], [lang="kn"] textarea, [lang="kn"] input,' +
+        'textarea[lang="ta"], input[lang="ta"], [lang="ta"] textarea, [lang="ta"] input,' +
+        'textarea:not([readonly]), input:not([readonly])'
       );
       console.log('🔍 Keyboard: Searching DOM for inputs, found:', allInputs.length);
       
@@ -373,7 +400,10 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
   // Auto-register all inputs/textarea elements for keyboard support
   useEffect(() => {
     const registerInputs = () => {
-      const inputs = document.querySelectorAll('textarea[lang="kn"], input[lang="kn"], [lang="kn"] textarea, [lang="kn"] input');
+      const inputs = document.querySelectorAll(
+        'textarea[lang="kn"], input[lang="kn"], [lang="kn"] textarea, [lang="kn"] input,' +
+        'textarea[lang="ta"], input[lang="ta"], [lang="ta"] textarea, [lang="ta"] input'
+      );
       inputs.forEach((input) => {
         if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
           // Find the onChange handler from React
@@ -445,12 +475,14 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
     return () => observer.disconnect();
   }, []);
 
-  // Auto-show keyboard when focus on textarea/input with lang=kn
+  // Auto-show keyboard when focus on textarea/input with lang=kn or lang=ta
   useEffect(() => {
     const handleFocus = (e: FocusEvent) => {
       const target = e.target as HTMLElement;
-      if ((target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') && 
-          (target.getAttribute('lang') === 'kn' || target.closest('[lang="kn"]'))) {
+      const isTextInput = target.tagName === 'TEXTAREA' || target.tagName === 'INPUT';
+      const hasLangKn = target.getAttribute('lang') === 'kn' || target.closest('[lang="kn"]');
+      const hasLangTa = target.getAttribute('lang') === 'ta' || target.closest('[lang="ta"]');
+      if (isTextInput && (hasLangKn || hasLangTa)) {
         // Store the focused element for later use
         lastFocusedElementRef.current = target as HTMLInputElement | HTMLTextAreaElement;
         setIsOpen(true);
@@ -514,6 +546,15 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
   }, []);
 
   if (!isOpen) {
+    const openLabel =
+      lang === 'ta'
+        ? 'விசைப்பலகை'
+        : 'ಕೀಬೋರ್ಡ್';
+    const aria =
+      lang === 'ta'
+        ? 'Show Tamil Keyboard'
+        : 'Show Kannada Keyboard';
+
     return (
       <Button
         type="button"
@@ -521,10 +562,10 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
         size="sm"
         onClick={() => setIsOpen(true)}
         className="fixed bottom-4 right-4 z-40 shadow-lg bg-blue-50 hover:bg-blue-100 border-blue-300"
-        aria-label="Show Kannada Keyboard"
+        aria-label={aria}
       >
         <Keyboard className="w-4 h-4 mr-2" />
-        ಕೀಬೋರ್ಡ್
+        {openLabel}
       </Button>
     );
   }
@@ -537,7 +578,9 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
     >
       <div className="container mx-auto">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-semibold text-gray-700">ಕನ್ನಡ ಕೀಬೋರ್ಡ್</h3>
+          <h3 className="text-sm font-semibold text-gray-700">
+            {isKannada ? 'ಕನ್ನಡ ಕೀಬೋರ್ಡ್' : 'தமிழ் விசைப்பலகை'}
+          </h3>
           <Button
             type="button"
             variant="ghost"
@@ -553,7 +596,7 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
         <div className="space-y-1">
           {/* Vowels */}
           <div className="flex flex-wrap gap-1 justify-center">
-            {KANNADA_LAYOUT.vowels.map((char) => (
+            {layout.vowels.map((char) => (
               <button
                 key={char}
                 type="button"
@@ -569,7 +612,7 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
 
           {/* Consonants Row 1 */}
           <div className="flex flex-wrap gap-1 justify-center">
-            {KANNADA_LAYOUT.row1.map((char) => (
+            {layout.row1.map((char) => (
               <button
                 key={char}
                 type="button"
@@ -585,7 +628,7 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
 
           {/* Consonants Row 2 */}
           <div className="flex flex-wrap gap-1 justify-center">
-            {KANNADA_LAYOUT.row2.map((char) => (
+            {layout.row2.map((char) => (
               <button
                 key={char}
                 type="button"
@@ -601,7 +644,7 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
 
           {/* Consonants Row 3 */}
           <div className="flex flex-wrap gap-1 justify-center">
-            {KANNADA_LAYOUT.row3.map((char) => (
+            {layout.row3.map((char) => (
               <button
                 key={char}
                 type="button"
@@ -617,7 +660,7 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
 
           {/* Consonants Row 4 */}
           <div className="flex flex-wrap gap-1 justify-center">
-            {KANNADA_LAYOUT.row4.map((char) => (
+            {layout.row4.map((char) => (
               <button
                 key={char}
                 type="button"
@@ -633,7 +676,7 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
 
           {/* Consonants Row 5 */}
           <div className="flex flex-wrap gap-1 justify-center">
-            {KANNADA_LAYOUT.row5.map((char) => (
+            {layout.row5.map((char) => (
               <button
                 key={char}
                 type="button"
@@ -649,7 +692,7 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
 
           {/* Consonants Row 6 */}
           <div className="flex flex-wrap gap-1 justify-center">
-            {KANNADA_LAYOUT.row6.map((char) => (
+            {layout.row6.map((char) => (
               <button
                 key={char}
                 type="button"
@@ -665,7 +708,7 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
 
           {/* Consonants Row 7 */}
           <div className="flex flex-wrap gap-1 justify-center">
-            {KANNADA_LAYOUT.row7.map((char) => (
+            {layout.row7.map((char) => (
               <button
                 key={char}
                 type="button"
@@ -682,7 +725,7 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
           {/* Numbers and Actions */}
           <div className="flex flex-wrap gap-1 justify-center items-center mt-2">
             <div className="flex flex-wrap gap-1">
-              {KANNADA_LAYOUT.numbers.map((char) => (
+              {layout.numbers.map((char) => (
                 <button
                   key={char}
                   type="button"

@@ -119,6 +119,59 @@ export default function MySchoolLearningAssessment() {
   const readOnlyView = viewParam === '1' || viewParam === 'true';
   const isReadOnly = isCompleted || readOnlyView;
 
+  // Helper to get Tamil question labels while preserving existing English structure
+  const qLabel = (id: number, en: string): string => {
+    if (lang === 'ta') {
+      switch (id) {
+        case 1:
+          return '1. உங்களுக்கு பள்ளிக்கு வருவது பிடிக்கிறதா? ஏன்?';
+        case 2:
+          return '2. பள்ளியில் நீங்கள் என்ன கற்றுக்கொள்ள விரும்புகிறீர்கள்?';
+        case 3:
+          return '3. பள்ளியில் படிப்பது உங்களுக்கு பிடிக்காமல் இருக்கக் காரணங்கள் ஏதேனும் உள்ளனவா?';
+        case 4:
+          return '4. பள்ளியில் உங்கள் மிக நெருக்கமான நண்பர்கள் யார்? அவர்கள் எந்த குணங்கள்/அனுபவங்கள் காரணமாக உங்கள் நல்ல நண்பர்களாக இருக்கிறார்கள்?';
+        case 5:
+          return '5. நீங்கள் கற்றுக்கொள்ள விரும்பும் பாடங்கள்/தலைப்புகள் எவை? எழுதுங்கள்.';
+        case 6:
+          return '6. இந்த பாடங்கள் அல்லது தலைப்புகள் உங்களை ஏன் ஈர்க்கின்றன? காரணங்களை எழுதுங்கள்.';
+        case 7:
+          return '7. நீங்கள் கற்றுக்கொள்ள விரும்பாத பாடங்கள் எவை?';
+        case 8:
+          return '8. மேலே குறிப்பிடப்பட்ட பாடங்களில் உங்களுக்கு குறைந்த ஆர்வம் இருப்பதற்கு காரணம் என்ன? அவற்றை கற்றுக்கொள்ளும்போது எந்த சிரமங்களை எதிர்கொள்கிறீர்கள்?';
+        case 9:
+          return '9. நீங்கள் எத்தகைய பாடங்களில் நல்ல மதிப்பெண்கள் பெறுகிறீர்கள்?';
+        case 10:
+          return '10. எந்த பாடங்களில் அதிக மதிப்பெண்கள் பெறுவது உங்களுக்கு கஷ்டமாக இருக்கிறது?';
+        case 11:
+          return '11. கீழே கொடுக்கப்பட்டுள்ள எந்த வகை கற்றல் முறைகள் உங்களை அதிகம் ஈர்க்கின்றன? (உங்களுக்கு பொருந்தும் அனைத்தையும் ✔ வைத்து குறியிடுங்கள்)';
+        case 12:
+          return '12. நீங்கள் தனியாக படிப்பதற்கு விரும்புகிறீர்களா அல்லது குழுவில் படிப்பதற்கு விரும்புகிறீர்களா? ஏன்?';
+        case 13:
+          return '13. பள்ளியில் உங்கள் நண்பர்களிடமிருந்து நீங்கள் கற்றுக்கொள்கிறீர்களா? சமீபத்தில் அவர்களிடமிருந்து நீங்கள் கற்றுக் கொண்ட சில விஷயங்களை எழுதுங்கள்.';
+        case 14:
+          return '14. பாடங்களைக் காட்டிலும், பள்ளியில் உங்களுக்கு மிகவும் பிடித்த விஷயங்கள் எவை?';
+        case 15:
+          return '15. உங்களுக்கு மிகவும் பிடித்த ஆசிரியர் யார்? ஏன்? இந்த ஆசிரியர் உங்களை எப்படி பாதித்து உதவியுள்ளார்?';
+        case 16:
+          return '16. பள்ளியில் நீங்கள் மிகவும் வெற்றி பெற்றதாக அல்லது பெருமை பட்டதாக உணர்ந்த ஒரு நிகழ்வு இருந்ததா? அது என்ன?';
+        case 17:
+          return '17. பள்ளியில் நீங்கள் கற்றுக் கொண்ட விஷயங்கள் உங்கள் கனவுகள் மற்றும் இலக்குகளை அடைய எப்படி உதவும்? விளக்குங்கள்.';
+        case 18:
+          return '18. உங்கள் பள்ளியில் மாற்ற வேண்டும் என்று நீங்கள் விரும்பும் ஒரு விஷயம் என்ன? காரணங்களைக் குறிப்பிடுங்கள்.';
+        case 19:
+          return '19. உங்களுக்கு படிப்பு/பயிற்சி செய்ய தனி இடம் இருக்கிறதா? இருந்தால் அது ஏன் அவசியம் என்று நினைக்கிறீர்கள்?';
+        case 20:
+          return '20. உங்கள் வாழ்க்கையில் கற்றலுக்கு பள்ளி ஒரு முக்கிய பங்கு வகிக்கிறதா? உங்கள் கருத்தை எழுதுங்கள்.';
+        case 21:
+          return '21. பள்ளி செயல்பாடுகள் மற்றும் நீங்கள் கற்றுக் கொண்ட விஷயங்களைப் பற்றி உங்கள் பெற்றோருடன் பேச நீங்கள் விரும்புகிறீர்களா? அவர்களுடன் எந்த விஷயங்களைப் பற்றி பேசுகிறீர்கள்?';
+        default:
+          return en;
+      }
+    }
+    return en;
+  };
+
   useEffect(() => {
     const checkUnlock = async () => {
       if (!userProfile) return;
@@ -131,9 +184,11 @@ export default function MySchoolLearningAssessment() {
       const unlockResult = await checkAssessmentUnlock(studentId, 'school_learning');
       if (!unlockResult.isUnlocked) {
         toast({
-          title: lang === 'kn' ? 'ಮೌಲ್ಯಮಾಪನ ಲಾಕ್ ಮಾಡಲಾಗಿದೆ' : 'Assessment Locked',
+          title: lang === 'kn' ? 'ಮೌಲ್ಯಮಾಪನ ಲಾಕ್ ಮಾಡಲಾಗಿದೆ' : lang === 'ta' ? 'செயல் பூட்டப்பட்டுள்ளது' : 'Assessment Locked',
           description: lang === 'kn' 
             ? `ದಯವಿಟ್ಟು ಮೊದಲು "${unlockResult.missingPrerequisites.join(', ')}" ಪೂರ್ಣಗೊಳಿಸಿ.`
+            : lang === 'ta'
+            ? `"${unlockResult.missingPrerequisites.join(', ')}" செயல்களை முதலில் முடித்தால் இந்த பகுதி திறக்கும்.`
             : `Please complete "${unlockResult.missingPrerequisites.join(', ')}" first.`,
           variant: 'destructive',
         });
@@ -691,7 +746,7 @@ export default function MySchoolLearningAssessment() {
               <CardContent className="p-6 space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    1. Do you like coming to school? Why?
+                    {qLabel(1, '1. Do you like coming to school? Why?')}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" className="text-green-700 hover:text-green-800">💬</button>
@@ -711,7 +766,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    2. What do you like to learn at school?
+                    {qLabel(2, '2. What do you like to learn at school?')}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" className="text-green-700 hover:text-green-800">💬</button>
@@ -731,7 +786,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    3. Are there reasons why you don't like learning at school?
+                    {qLabel(3, "3. Are there reasons why you don't like learning at school?")}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" className="text-green-700 hover:text-green-800">💬</button>
@@ -751,7 +806,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    4. Who are your best friends at school, and what qualities or shared experiences make them your best friends?
+                    {qLabel(4, '4. Who are your best friends at school, and what qualities or shared experiences make them your best friends?')}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" className="text-green-700 hover:text-green-800">💬</button>
@@ -795,7 +850,8 @@ export default function MySchoolLearningAssessment() {
               <CardContent className="p-6 space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    5. Which topics/subjects do you enjoy learning? Write.
+                    {qLabel(5, '5. Which topics/subjects do you enjoy learning? Write.')}
+                    {qLabel(5, '5. Which topics/subjects do you enjoy learning? Write.')}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" className="text-blue-700 hover:text-blue-800">💬</button>
@@ -815,7 +871,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    6. What specifically draws you towards these topics/subjects? Write the reasons.
+                    {qLabel(6, '6. What specifically draws you towards these topics/subjects? Write the reasons.')}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" className="text-blue-700 hover:text-blue-800">💬</button>
@@ -835,7 +891,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    7. Which subjects do you dislike learning?
+                    {qLabel(7, '7. Which subjects do you dislike learning?')}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" className="text-blue-700 hover:text-blue-800">💬</button>
@@ -855,7 +911,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    8. Why do you have less interest in the above mentioned subjects? What challenges do you find in learning those subjects?
+                    {qLabel(8, '8. Why do you have less interest in the above mentioned subjects? What challenges do you find in learning those subjects?')}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" className="text-blue-700 hover:text-blue-800">💬</button>
@@ -899,7 +955,7 @@ export default function MySchoolLearningAssessment() {
               <CardContent className="p-6 space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    9. In which subjects do you score/get marks well?
+                    {qLabel(9, '9. In which subjects do you score/get marks well?')}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" className="text-purple-700 hover:text-purple-800">💬</button>
@@ -919,7 +975,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    10. In which subjects do you find it challenging to achieve high scores?
+                    {qLabel(10, '10. In which subjects do you find it challenging to achieve high scores?')}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" className="text-purple-700 hover:text-purple-800">💬</button>
@@ -939,7 +995,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    11. Which learning methodologies from the following options resonate with you the most? (Mark with ✔ that applies to you)
+                    {qLabel(11, '11. Which learning methodologies from the following options resonate with you the most? (Mark with ✔ that applies to you)')}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" className="text-purple-700 hover:text-purple-800">💬</button>
@@ -995,7 +1051,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    12. Do you enjoy studying alone or in a group? Why? Write the reason.
+                    {qLabel(12, '12. Do you enjoy studying alone or in a group? Why? Write the reason.')}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" className="text-purple-700 hover:text-purple-800">💬</button>
@@ -1039,7 +1095,7 @@ export default function MySchoolLearningAssessment() {
               <CardContent className="p-6 space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    13. Do you learn from your friends in school? Can you list a few things that you learnt from your friends in school recently.
+                    {qLabel(13, '13. Do you learn from your friends in school? Can you list a few things that you learnt from your friends in school recently.')}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" className="text-orange-700 hover:text-orange-800">💬</button>
@@ -1059,7 +1115,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    14. Besides academics, what aspects of school do you enjoy the most?
+                    {qLabel(14, '14. Besides academics, what aspects of school do you enjoy the most?')}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" className="text-orange-700 hover:text-orange-800">💬</button>
@@ -1079,7 +1135,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    15. Who is your favourite teacher and why? How has this teacher influenced you?
+                    {qLabel(15, '15. Who is your favourite teacher and why? How has this teacher influenced you?')}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" className="text-orange-700 hover:text-orange-800">💬</button>
@@ -1099,7 +1155,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    16. Was there a specific instance in school that made you feel very successful or proud? What was it?
+                    {qLabel(16, '16. Was there a specific instance in school that made you feel very successful or proud? What was it?')}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" className="text-orange-700 hover:text-orange-800">💬</button>
@@ -1143,7 +1199,7 @@ export default function MySchoolLearningAssessment() {
               <CardContent className="p-6 space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    17. How will the things you learned in school help you achieve your dreams and aspirations? Explain.
+                    {qLabel(17, '17. How will the things you learned in school help you achieve your dreams and aspirations? Explain.')}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" className="text-teal-700 hover:text-teal-800">💬</button>
@@ -1163,7 +1219,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    18. What is the one thing you would like to change in your school? Give reasons.
+                    {qLabel(18, '18. What is the one thing you would like to change in your school? Give reasons.')}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" className="text-teal-700 hover:text-teal-800">💬</button>
@@ -1183,7 +1239,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    19. Do you have a separate place to practice? Explain why it is necessary.
+                    {qLabel(19, '19. Do you have a separate place to practice? Explain why it is necessary.')}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" className="text-teal-700 hover:text-teal-800">💬</button>
@@ -1203,7 +1259,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    20. Does school play an important role in your life's learning process? Write your opinion.
+                    {qLabel(20, "20. Does school play an important role in your life's learning process? Write your opinion.")}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" className="text-teal-700 hover:text-teal-800">💬</button>
@@ -1223,7 +1279,7 @@ export default function MySchoolLearningAssessment() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    21. Do you like talking to your parents about school activities and your learnings? What topics do you discuss with them?
+                    {qLabel(21, '21. Do you like talking to your parents about school activities and your learnings? What topics do you discuss with them?')}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" className="text-teal-700 hover:text-teal-800">💬</button>

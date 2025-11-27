@@ -963,7 +963,7 @@ export default function TeacherDashboard() {
       <pre className="text-xs whitespace-pre-wrap break-words bg-gray-50 p-3 rounded-md border">
         {JSON.stringify(responses, null, 2)}
       </pre>
-    );
+  );
   };
 
   return (
@@ -1293,7 +1293,7 @@ export default function TeacherDashboard() {
                                     (ar||[]).forEach((r:any)=>{
                                       // Only consider responses with completed_at for completion status
                                       if (r.completed_at) {
-                                        const prev = latest[r.assessment_type];
+                                      const prev = latest[r.assessment_type];
                                         if (!prev || new Date(r.completed_at) > new Date(prev)) {
                                           latest[r.assessment_type] = r.completed_at;
                                         }
@@ -1908,7 +1908,7 @@ export default function TeacherDashboard() {
                     <CardTitle className="text-base">
                       <span className="capitalize">{r.assessment_type.replace('_',' ')}</span> – {r.assessment_title}
                       {r.completed_at && (
-                        <span className="ml-2 text-sm text-gray-500">{new Date(r.completed_at).toLocaleString()}</span>
+                      <span className="ml-2 text-sm text-gray-500">{new Date(r.completed_at).toLocaleString()}</span>
                       )}
                     </CardTitle>
               </CardHeader>

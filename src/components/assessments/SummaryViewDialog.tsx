@@ -57,9 +57,9 @@ export default function SummaryViewDialog({
   const isHobbiesAssessment = assessmentType === 'hobbies';
   const isRoleModelsAssessment = assessmentType === 'role_models';
   const [questionTitles, setQuestionTitles] = useState<{ q1: string; q2: string; q3: string; q4?: string; q5?: string; q6?: string; q7?: string; q8?: string; q9?: string; q10?: string }>({
-    q1: lang === 'kn' ? '1. ಪ್ರಶ್ನೆ 1' : '1. Question 1',
-    q2: lang === 'kn' ? '2. ಪ್ರಶ್ನೆ 2' : '2. Question 2',
-    q3: lang === 'kn' ? '3. ಪ್ರಶ್ನೆ 3' : '3. Question 3'
+    q1: lang === 'kn' ? '1. ಪ್ರಶ್ನೆ 1' : lang === 'ta' ? '1. கேள்வி 1' : '1. Question 1',
+    q2: lang === 'kn' ? '2. ಪ್ರಶ್ನೆ 2' : lang === 'ta' ? '2. கேள்வி 2' : '2. Question 2',
+    q3: lang === 'kn' ? '3. ಪ್ರಶ್ನೆ 3' : lang === 'ta' ? '3. கேள்வி 3' : '3. Question 3'
   });
   const [editedSummary, setEditedSummary] = useState<SummaryQuestions>({
     question1: '',
@@ -151,23 +151,23 @@ export default function SummaryViewDialog({
           
           if (questions[langKey]) {
             const defaultTitles = {
-              q1: questions[langKey].question1 || (lang === 'kn' ? '1. ಪ್ರಶ್ನೆ 1' : '1. Question 1'),
-              q2: questions[langKey].question2 || (lang === 'kn' ? '2. ಪ್ರಶ್ನೆ 2' : '2. Question 2'),
-              q3: questions[langKey].question3 || (lang === 'kn' ? '3. ಪ್ರಶ್ನೆ 3' : '3. Question 3'),
-              q4: questions[langKey].question4 || (lang === 'kn' ? '4. ಪ್ರಶ್ನೆ 4' : '4. Question 4'),
-              q5: questions[langKey].question5 || (lang === 'kn' ? '5. ಪ್ರಶ್ನೆ 5' : '5. Question 5'),
-              q6: questions[langKey].question6 || (lang === 'kn' ? '6. ಪ್ರಶ್ನೆ 6' : '6. Question 6')
+              q1: questions[langKey].question1 || (lang === 'kn' ? '1. ಪ್ರಶ್ನೆ 1' : lang === 'ta' ? '1. கேள்வி 1' : '1. Question 1'),
+              q2: questions[langKey].question2 || (lang === 'kn' ? '2. ಪ್ರಶ್ನೆ 2' : lang === 'ta' ? '2. கேள்வி 2' : '2. Question 2'),
+              q3: questions[langKey].question3 || (lang === 'kn' ? '3. ಪ್ರಶ್ನೆ 3' : lang === 'ta' ? '3. கேள்வி 3' : '3. Question 3'),
+              q4: questions[langKey].question4 || (lang === 'kn' ? '4. ಪ್ರಶ್ನೆ 4' : lang === 'ta' ? '4. கேள்வி 4' : '4. Question 4'),
+              q5: questions[langKey].question5 || (lang === 'kn' ? '5. ಪ್ರಶ್ನೆ 5' : lang === 'ta' ? '5. கேள்வி 5' : '5. Question 5'),
+              q6: questions[langKey].question6 || (lang === 'kn' ? '6. ಪ್ರಶ್ನೆ 6' : lang === 'ta' ? '6. கேள்வி 6' : '6. Question 6')
             };
 
             if (assessmentType === 'about_me') {
               setQuestionTitles({
-                q1: lang === 'kn' ? '15 ಅಂಶಗಳಲ್ಲಿ ನನ್ನ ಬಗ್ಗೆ ಚಿತ್ರಣ' : '15-Point Personal Snapshot',
-                q2: lang === 'kn' ? 'ಸ್ವ-ಪರಿಶೀಲನೆಯ ಸಾರಾಂಶ' : 'Self-Reflection Summary',
-                q3: lang === 'kn' ? 'ಬೆಂಬಲ ಮತ್ತು ಕ್ರಿಯಾತ್ಮಕ ಯೋಜನೆ' : 'Support & Action Plan'
+                q1: lang === 'kn' ? '15 ಅಂಶಗಳಲ್ಲಿ ನನ್ನ ಬಗ್ಗೆ ಚಿತ್ರಣ' : lang === 'ta' ? 'என்னை பற்றி 15 முக்கிய புள்ளிகள்' : '15-Point Personal Snapshot',
+                q2: lang === 'kn' ? 'ಸ್ವ-ಪರಿಶೀಲನೆಯ ಸಾರಾಂಶ' : lang === 'ta' ? 'சுய சிந்தனை சுருக்கம்' : 'Self-Reflection Summary',
+                q3: lang === 'kn' ? 'ಬೆಂಬಲ ಮತ್ತು ಕ್ರಿಯಾತ್ಮಕ ಯೋಜನೆ' : lang === 'ta' ? 'ஆதரவு மற்றும் செயல் திட்டம்' : 'Support & Action Plan'
               });
             } else if (assessmentType === 'dreams') {
               setQuestionTitles({
-                q1: lang === 'kn' ? 'ಕನಸು ಪೋರ್ಟ್‌ಫೋಲಿಯೋ' : 'Dream Portfolio',
+                q1: lang === 'kn' ? 'ಕನಸು ಪೋರ್ಟ್‌ಫೋಲಿಯೋ' : lang === 'ta' ? 'கனவு திட்டம்' : 'Dream Portfolio',
                 q2: defaultTitles.q2,
                 q3: defaultTitles.q3
               });
@@ -182,12 +182,12 @@ export default function SummaryViewDialog({
               });
             } else if (assessmentType === 'hobbies') {
               setQuestionTitles({
-                q1: lang === 'kn' ? 'ಹವ್ಯಾಸಗಳ ಪೋರ್ಟ್‌ಫೋಲಿಯೋ' : 'Hobbies Portfolio',
+                q1: lang === 'kn' ? 'ಹವ್ಯಾಸಗಳ ಪೋರ್ಟ್‌ಫೋಲಿಯೋ' : lang === 'ta' ? 'பொழுதுபோக்கு திட்டம்' : 'Hobbies Portfolio',
                 q2: questions[langKey].question2 || '',
                 q3: questions[langKey].question3 || '',
                 q4: questions[langKey].question4 || '',
                 q5: questions[langKey].question5 || '',
-                q6: lang === 'kn' ? 'ಪ್ರತಿಭೆಗಳ ಪೋರ್ಟ್‌ಫೋಲಿಯೋ' : 'Talents Portfolio',
+                q6: lang === 'kn' ? 'ಪ್ರತಿಭೆಗಳ ಪೋರ್ಟ್‌ಫೋಲಿಯೋ' : lang === 'ta' ? 'திறமைகள் திட்டம்' : 'Talents Portfolio',
                 q7: questions[langKey].question7 || '',
                 q8: questions[langKey].question8 || '',
                 q9: questions[langKey].question9 || '',
@@ -259,10 +259,13 @@ export default function SummaryViewDialog({
     if (!allFilled) {
       const questionCount = isSchoolLearningAssessment ? 6 : isHobbiesAssessment ? 2 : 3;
       toast({
-        title: lang === 'kn' ? "ಅಪೂರ್ಣ ಸಾರಾಂಶ" : "Incomplete Summary",
-        description: lang === 'kn' 
-          ? `ಉಳಿಸುವ ಮೊದಲು ಎಲ್ಲಾ ${questionCount} ಪ್ರಶ್ನೆಗಳನ್ನು ಭರ್ತಿ ಮಾಡಿ.` 
-          : `Please fill in all ${questionCount} questions before saving.`,
+        title: lang === 'kn' ? "ಅಪೂರ್ಣ ಸಾರಾಂಶ" : lang === 'ta' ? 'சுருக்கம் இன்னும் முழுமை அடையவில்லை' : "Incomplete Summary",
+        description:
+          lang === 'kn'
+            ? `ಉಳಿಸುವ ಮೊದಲು ಎಲ್ಲಾ ${questionCount} ಪ್ರಶ್ನೆಗಳನ್ನು ಭರ್ತಿ ಮಾಡಿ.`
+            : lang === 'ta'
+            ? `சேமிக்க முன் எல்லா ${questionCount} கேள்விகளுக்கும் பதில் எழுதுங்கள்.`
+            : `Please fill in all ${questionCount} questions before saving.`,
         variant: "destructive"
       });
       return;
@@ -278,8 +281,13 @@ export default function SummaryViewDialog({
 
       if (result.success) {
         toast({
-          title: lang === 'kn' ? "ಸಾರಾಂಶ ನವೀಕರಿಸಲಾಗಿದೆ! ✨" : "Summary Updated! ✨",
-          description: lang === 'kn' ? "ನಿಮ್ಮ ಪ್ರತಿಬಿಂಬ ಸಾರಾಂಶ ಯಶಸ್ವಿಯಾಗಿ ಉಳಿಸಲಾಗಿದೆ." : "Your reflection summary has been saved successfully."
+          title: lang === 'kn' ? "ಸಾರಾಂಶ ನವೀಕರಿಸಲಾಗಿದೆ! ✨" : lang === 'ta' ? 'சுருக்கம் சேமிக்கப்பட்டது! ✨' : "Summary Updated! ✨",
+          description:
+            lang === 'kn'
+              ? "ನಿಮ್ಮ ಪ್ರತಿಬಿಂಬ ಸಾರಾಂಶ ಯಶಸ್ವಿಯಾಗಿ ಉಳಿಸಲಾಗಿದೆ."
+              : lang === 'ta'
+              ? 'உங்கள் சுருக்கம் வெற்றிகரமாக சேமிக்கப்பட்டது.'
+              : "Your reflection summary has been saved successfully."
         });
         setIsEditing(false);
         onSummaryUpdated?.();
@@ -289,8 +297,13 @@ export default function SummaryViewDialog({
     } catch (error) {
       console.error('Error saving summary:', error);
       toast({
-        title: lang === 'kn' ? "ದೋಷ" : "Error",
-        description: lang === 'kn' ? "ನಿಮ್ಮ ಬದಲಾವಣೆಗಳನ್ನು ಉಳಿಸಲು ವಿಫಲವಾಗಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ." : "Failed to save your changes. Please try again.",
+        title: lang === 'kn' ? "ದೋಷ" : lang === 'ta' ? 'பிழை' : "Error",
+        description:
+          lang === 'kn'
+            ? "ನಿಮ್ಮ ಬದಲಾವಣೆಗಳನ್ನು ಉಳಿಸಲು ವಿಫಲವಾಗಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ."
+            : lang === 'ta'
+            ? 'உங்கள் மாற்றங்களை சேமிக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.'
+            : "Failed to save your changes. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -324,15 +337,21 @@ export default function SummaryViewDialog({
   const isStudentEdited = summary.summary_type === 'student_edited';
 
   const dreamColumnHeadings = {
-    dream: lang === 'kn' ? 'ಕನಸು' : 'Dream',
+    dream: lang === 'kn' ? 'ಕನಸು' : lang === 'ta' ? 'கனவு' : 'Dream',
     quality: lang === 'kn'
       ? 'ಕನಸನ್ನು ಸಾಧಿಸಲು\nಸಹಾಯ ಮಾಡುವ ಗುಣ,\nಮೌಲ್ಯ, ಶಕ್ತಿ'
+      : lang === 'ta'
+      ? 'இந்த கனவை அடைய\nஉதவும் குணம்,\nமதிப்பு, பலம்'
       : 'Which quality,\nvalue, strength will\nhelp you achieve\nyou dream',
     prevent: lang === 'kn'
       ? 'ಕನಸು ವಿಫಲವಾಗದಂತೆ\nಮಾಡಲು ನೀನು ಏನು\nಮಾಡಬೇಕು'
+      : lang === 'ta'
+      ? 'கனவு தோல்வி\nஆகாமல் இருக்க\nநீ என்ன செய்ய வேண்டும்'
       : 'What you will have\nto do to ensure that\nthe dream doesn’t\nfail',
     study: lang === 'kn'
       ? 'ಈ ಕನಸನ್ನು ಸಾಧಿಸಲು\n10ನೇ ನಂತರ ಏನು\nಅಧ್ಯಯನ ಮಾಡಬೇಕು\n(ಬೇಕಿದ್ದರೆ)'
+      : lang === 'ta'
+      ? 'இந்த கனவை அடைய\n10ம் பிறகு என்ன\nபடிக்க வேண்டும்\n(தேவையெனில்)'
       : 'What should you\nstudy after 10th\nto achieve this dream\n(if applicable)'
   };
 
@@ -716,7 +735,7 @@ export default function SummaryViewDialog({
             </div>
           </div>
         </div>
-        {lang === 'kn' && <KannadaKeyboard lang={lang} />}
+        {(lang === 'kn' || lang === 'ta') && <KannadaKeyboard lang={lang} />}
       </DialogContent>
     </Dialog>
   );

@@ -337,8 +337,8 @@ class SpeechToTextService {
       'vil': 'will',
       'bi': 'be',
       'vel': 'well',
-        'off': 'of',
-        'ho gaya': 'happened',
+      'off': 'of',
+      'ho gaya': 'happened',
       
       // Common v/w confusion in Indian English
       'vith': 'with',

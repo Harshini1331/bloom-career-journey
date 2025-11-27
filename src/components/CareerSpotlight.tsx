@@ -52,7 +52,7 @@ export default function CareerSpotlight({ title = 'Career Spotlight' }: Spotligh
   }, [allImages]);
 
   const displayTitle = title === 'Career Spotlight' 
-    ? (lang === 'kn' ? 'ವೃತ್ತಿ ಸ್ಪಾಟ್ಲೈಟ್' : 'Career Spotlight')
+    ? (lang === 'kn' ? 'ವೃತ್ತಿ ಸ್ಪಾಟ್ಲೈಟ್' : lang === 'ta' ? 'தொழில் அறிமுகம்' : 'Career Spotlight')
     : title;
 
   return (
@@ -71,12 +71,12 @@ export default function CareerSpotlight({ title = 'Career Spotlight' }: Spotligh
                 loading="lazy"
               />
             </div>
-            <div className="mt-3 flex justify-between items-center">
+            <div className="mt-3 flex justify_between items-center">
               <span className="text-sm text-gray-600">
-                {lang === 'kn' ? 'ಪ್ರತಿದಿನ ಹೊಸ ಸ್ಪಾಟ್ಲೈಟ್' : 'New spotlight each day'}
+                {lang === 'kn' ? 'ಪ್ರತಿದಿನ ಹೊಸ ಸ್ಪಾಟ್ಲೈಟ್' : lang === 'ta' ? 'ஒவ்வொரு நாளும் ஒரு புதிய தொழில் அட்டை' : 'New spotlight each day'}
               </span>
               <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => navigate('/careers')}>
-                {lang === 'kn' ? 'ಎಲ್ಲಾ ವೃತ್ತಿಗಳನ್ನು ಅನ್ವೇಷಿಸಿ' : 'Explore all careers'}
+                {lang === 'kn' ? 'ಎಲ್ಲಾ ವೃತ್ತಿಗಳನ್ನು ಅನ್ವೇಷಿಸಿ' : lang === 'ta' ? 'அனைத்து தொழில்களையும் பார்' : 'Explore all careers'}
               </Button>
             </div>
           </div>
@@ -85,11 +85,13 @@ export default function CareerSpotlight({ title = 'Career Spotlight' }: Spotligh
             <div className="text-sm text-gray-600 mb-3">
               {lang === 'kn' 
                 ? 'ವೃತ್ತಿ ಕಾರ್ಡ್‌ಗಳು ಕಂಡುಬಂದಿಲ್ಲ.'
+                : lang === 'ta'
+                ? 'தொழில் அட்டைகள் கிடைக்கவில்லை.'
                 : 'Career cards not found in public/career_cards, src/assets/career_cards, or src/career_cards.'
               }
             </div>
             <Button size="sm" variant="outline" onClick={() => navigate('/careers')}>
-              {lang === 'kn' ? 'ಎಲ್ಲಾ ವೃತ್ತಿಗಳನ್ನು ಅನ್ವೇಷಿಸಿ' : 'Explore all careers'}
+              {lang === 'kn' ? 'ಎಲ್ಲಾ ವೃತ್ತಿಗಳನ್ನು ಅನ್ವೇಷಿಸಿ' : lang === 'ta' ? 'அனைத்து தொழில்களையும் பார்' : 'Explore all careers'}
             </Button>
           </div>
         )}

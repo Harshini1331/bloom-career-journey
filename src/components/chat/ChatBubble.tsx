@@ -165,8 +165,12 @@ export default function ChatBubble({ role }: ChatBubbleProps) {
     } catch (error) {
       console.error('Error initializing channel:', error);
       toast({
-        title: lang === 'kn' ? "ದೋಷ" : "Error",
-        description: lang === 'kn' ? "ಚಾಟ್ ತೆರೆಯಲು ವಿಫಲವಾಗಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ." : "Failed to open chat. Please try again.",
+        title: lang === 'kn' ? "ದೋಷ" : lang === 'ta' ? "பிழை" : "Error",
+        description: lang === 'kn'
+          ? "ಚಾಟ್ ತೆರೆಯಲು ವಿಫಲವಾಗಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ."
+          : lang === 'ta'
+          ? "அரட்டை திறக்க முடியவில்லை. தயவு செய்து மீண்டும் முயற்சிக்கவும்."
+          : "Failed to open chat. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -238,8 +242,12 @@ export default function ChatBubble({ role }: ChatBubbleProps) {
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
-        title: lang === 'kn' ? "ದೋಷ" : "Error",
-        description: lang === 'kn' ? "ಸಂದೇಶವನ್ನು ಕಳುಹಿಸಲು ವಿಫಲವಾಗಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ." : "Failed to send message. Please try again.",
+        title: lang === 'kn' ? "ದೋಷ" : lang === 'ta' ? "பிழை" : "Error",
+        description: lang === 'kn'
+          ? "ಸಂದೇಶವನ್ನು ಕಳುಹಿಸಲು ವಿಫಲವಾಗಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ."
+          : lang === 'ta'
+          ? "செய்தியை அனுப்ப முடியவில்லை. தயவு செய்து மீண்டும் முயற்சிக்கவும்."
+          : "Failed to send message. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -455,7 +463,7 @@ export default function ChatBubble({ role }: ChatBubbleProps) {
                   }}
                   className="text-blue-700 hover:bg-blue-100 text-sm"
                 >
-                  {lang === 'kn' ? '← ಹಿಂದೆ' : '← Back'}
+                    {lang === 'kn' ? '← ಹಿಂದೆ' : lang === 'ta' ? '← பின் செல்ல' : '← Back'}
                 </Button>
               )}
               <Button
@@ -491,14 +499,22 @@ export default function ChatBubble({ role }: ChatBubbleProps) {
                     <MessageSquare className="h-12 w-12 text-blue-400" />
                   </div>
                   <h3 className="text-xl font-bold text-gray-800 mb-2">
-                    {lang === 'kn' ? 'ಇನ್ನೂ ವಿದ್ಯಾ ಸಾಥಿ ನಿಯೋಜಿಸಲಾಗಿಲ್ಲ' : 'No Vidya Saathi Assigned Yet'}
+                    {lang === 'kn' ? 'ಇನ್ನೂ ವಿದ್ಯಾ ಸಾಥಿ ನಿಯೋಜಿಸಲಾಗಿಲ್ಲ' : lang === 'ta' ? 'இன்னும் ஆசிரியர் இணைக்கப்படவில்லை' : 'No Vidya Saathi Assigned Yet'}
                   </h3>
                   <p className="text-sm text-gray-600 mb-4 leading-relaxed">
-                    {lang === 'kn' ? 'ನಿಮ್ಮ ಶಿಕ್ಷಕರನ್ನು ನಿಯೋಜಿಸಿದ ನಂತರ ನೀವು ನಿಮ್ಮ ವಿದ್ಯಾ ಸಾಥಿಗೆ ಸಂದೇಶ ಕಳುಹಿಸಲು ಸಾಧ್ಯವಾಗುತ್ತದೆ.' : "You'll be able to message your Vidya Saathi once your teacher is assigned."}
+                    {lang === 'kn'
+                      ? 'ನಿಮ್ಮ ಶಿಕ್ಷಕರನ್ನು ನಿಯೋಜಿಸಿದ ನಂತರ ನೀವು ನಿಮ್ಮ ವಿದ್ಯಾ ಸಾಥಿಗೆ ಸಂದೇಶ ಕಳುಹಿಸಲು ಸಾಧ್ಯವಾಗುತ್ತದೆ.'
+                      : lang === 'ta'
+                      ? 'ஆசிரியர் இணைக்கப்பட்ட பிறகு நீங்கள் உங்கள் விட்யா சாதியை தொடர்பு கொள்ளலாம்.'
+                      : "You'll be able to message your Vidya Saathi once your teacher is assigned."}
                   </p>
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                     <p className="text-xs text-blue-700">
-                      💡 {lang === 'kn' ? 'ದಯವಿಟ್ಟು ಸಹಾಯಕ್ಕಾಗಿ ನಿಮ್ಮ ನಿರ್ವಾಹಕರನ್ನು ಸಂಪರ್ಕಿಸಿ.' : 'Please contact your administrator for assistance.'}
+                      💡 {lang === 'kn'
+                        ? 'ದಯವಿಟ್ಟು ಸಹಾಯಕ್ಕಾಗಿ ನಿಮ್ಮ ನಿರ್ವಾಹಕರನ್ನು ಸಂಪರ್ಕಿಸಿ.'
+                        : lang === 'ta'
+                        ? 'உதவி தேவை என்றால் நிர்வாகியை தொடர்பு கொள்ளவும்.'
+                        : 'Please contact your administrator for assistance.'}
                     </p>
                   </div>
                 </div>
@@ -511,10 +527,14 @@ export default function ChatBubble({ role }: ChatBubbleProps) {
                       <MessageSquare className="h-10 w-10 text-gray-400" />
                     </div>
                     <p className="font-medium text-gray-700">
-                      {lang === 'kn' ? 'ಇನ್ನೂ ವಿದ್ಯಾರ್ಥಿಗಳನ್ನು ನಿಯೋಜಿಸಲಾಗಿಲ್ಲ' : 'No students assigned yet'}
+                      {lang === 'kn' ? 'ಇನ್ನೂ ವಿದ್ಯಾರ್ಥಿಗಳನ್ನು ನಿಯೋಜಿಸಲಾಗಿಲ್ಲ' : lang === 'ta' ? 'இன்னும் மாணவர்கள் இணைக்கப்படவில்லை' : 'No students assigned yet'}
                     </p>
                     <p className="text-sm text-gray-500 mt-1">
-                      {lang === 'kn' ? 'ವಿದ್ಯಾರ್ಥಿಗಳನ್ನು ನಿಯೋಜಿಸಿದ ನಂತರ ಅವರು ಇಲ್ಲಿ ಕಾಣಿಸುತ್ತಾರೆ' : 'Students will appear here once assigned'}
+                      {lang === 'kn'
+                        ? 'ವಿದ್ಯಾರ್ಥಿಗಳನ್ನು ನಿಯೋಜಿಸಿದ ನಂತರ ಅವರು ಇಲ್ಲಿ ಕಾಣಿಸುತ್ತಾರೆ'
+                        : lang === 'ta'
+                        ? 'மாணவர்கள் இணைக்கப்பட்ட பிறகு அவர்கள் இங்கே தோன்றுவர்'
+                        : 'Students will appear here once assigned'}
                     </p>
                   </div>
                 ) : (
@@ -548,10 +568,10 @@ export default function ChatBubble({ role }: ChatBubbleProps) {
                         <MessageSquare className="h-10 w-10 text-blue-400" />
                       </div>
                       <p className="text-sm font-medium text-gray-700">
-                        {lang === 'kn' ? 'ಇನ್ನೂ ಸಂದೇಶಗಳಿಲ್ಲ' : 'No messages yet'}
+                        {lang === 'kn' ? 'ಇನ್ನೂ ಸಂದೇಶಗಳಿಲ್ಲ' : lang === 'ta' ? 'இன்னும் செய்தி இல்லை' : 'No messages yet'}
                       </p>
                       <p className="text-xs mt-1 text-gray-500">
-                        {lang === 'kn' ? 'ಸಂಭಾಷಣೆಯನ್ನು ಪ್ರಾರಂಭಿಸಿ!' : 'Start the conversation!'}
+                        {lang === 'kn' ? 'ಸಂಭಾಷಣೆಯನ್ನು ಪ್ರಾರಂಭಿಸಿ!' : lang === 'ta' ? 'பேச்சை தொடங்குங்கள்!' : 'Start the conversation!'}
                       </p>
                     </div>
                   ) : (
@@ -596,7 +616,13 @@ export default function ChatBubble({ role }: ChatBubbleProps) {
                   <div className="flex gap-2">
                     <Input
                       lang={lang}
-                      placeholder={lang === 'kn' ? 'ನಿಮ್ಮ ಸಂದೇಶವನ್ನು ಟೈಪ್ ಮಾಡಿ...' : 'Type your message...'}
+                      placeholder={
+                        lang === 'kn'
+                          ? 'ನಿಮ್ಮ ಸಂದೇಶವನ್ನು ಟೈಪ್ ಮಾಡಿ...'
+                          : lang === 'ta'
+                          ? 'உங்கள் செய்தியை எழுதுங்கள்...'
+                          : 'Type your message...'
+                      }
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       onKeyPress={handleKeyPress}
@@ -620,7 +646,7 @@ export default function ChatBubble({ role }: ChatBubbleProps) {
               </>
             )}
           </CardContent>
-          {lang === 'kn' && <KannadaKeyboard lang={lang} />}
+          {(lang === 'kn' || lang === 'ta') && <KannadaKeyboard lang={lang} />}
         </Card>
       )}
     </>

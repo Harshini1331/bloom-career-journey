@@ -424,7 +424,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           mobile: currentUser.user_metadata.mobile,
           role: 'student',
           state_id: null,
-          preferred_language: (currentUser as any)?.user_metadata?.preferred_language || 'en'
+          // We will enrich preferred_language and profile_picture_url from the users table below
+          preferred_language: (currentUser as any)?.user_metadata?.preferred_language || 'en',
+          profile_picture_url: null,
         };
         
         setUserProfile(baseProfile);
@@ -436,10 +438,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         // Try to fetch student-specific data without blocking
         try {
-          // Fetch preferred_language from users table (authoritative)
+          // Fetch preferred_language and profile_picture_url from users table (authoritative)
           const { data: userRow } = await supabase
             .from('users')
-            .select('preferred_language')
+            .select('preferred_language, profile_picture_url')
             .eq('id', userId)
             .maybeSingle();
 
@@ -447,10 +449,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUserProfile((prev: any) => ({
               ...prev,
               preferred_language: userRow.preferred_language || prev?.preferred_language || 'en',
+              profile_picture_url: (userRow as any).profile_picture_url ?? prev?.profile_picture_url ?? null,
             }));
             localStorage.setItem('customProfile', JSON.stringify({
               ...(baseProfile || {}),
               preferred_language: userRow.preferred_language || 'en',
+              profile_picture_url: (userRow as any).profile_picture_url ?? null,
             }));
           }
 
@@ -465,10 +469,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               ...(baseProfile || {}), 
               studentProfile: studentData,
               preferred_language: userRow?.preferred_language || baseProfile?.preferred_language || 'en',
+              profile_picture_url: (userRow as any)?.profile_picture_url ?? baseProfile?.profile_picture_url ?? null,
             };
             setUserProfile(finalProfile);
             localStorage.setItem('customProfile', JSON.stringify(finalProfile));
-            console.log('✅ Student profile updated with database data:', finalProfile);
+            console.log('✅ Student profile updated with database data (including avatar URL if present):', finalProfile);
             console.log('💾 Saved updated profile to localStorage');
           }
         } catch (error) {
@@ -846,10 +851,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (authError) {
         console.error('Supabase auth error:', authError);
+        const lang = preferredLanguage === 'kn' || preferredLanguage === 'ta' ? preferredLanguage : 'en';
         toast({
-          title: "Registration failed",
+          title:
+            lang === 'kn'
+              ? 'ನೋಂದಣಿ ವಿಫಲವಾಗಿದೆ'
+              : lang === 'ta'
+              ? 'பதிவு முடியவில்லை'
+              : 'Registration failed',
           description: authError.message,
-          variant: "destructive",
+          variant: 'destructive',
         });
         return { error: authError };
       }
@@ -897,10 +908,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } else {
             // Profile truly doesn't exist
             console.error('❌ User profile truly does not exist');
+            const lang = preferredLanguage === 'kn' || preferredLanguage === 'ta' ? preferredLanguage : 'en';
             toast({
-              title: "Registration failed",
-              description: "Failed to create user profile. Please contact support.",
-              variant: "destructive",
+              title:
+                lang === 'kn'
+                  ? 'ನೋಂದಣಿ ವಿಫಲವಾಗಿದೆ'
+                  : lang === 'ta'
+                  ? 'பதிவு முடியவில்லை'
+                  : 'Registration failed',
+              description:
+                lang === 'kn'
+                  ? 'ಬಳಕೆದಾರರ ಪ್ರೊಫೈಲ್ ರಚಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ದಯವಿಟ್ಟು ಸಹಾಯಕ್ಕೆ ಸಂಪರ್ಕಿಸಿ.'
+                  : lang === 'ta'
+                  ? 'பயனர் விவரத்தை உருவாக்க முடியவில்லை. தயவு செய்து உதவியை தொடர்பு கொள்ளவும்.'
+                  : 'Failed to create user profile. Please contact support.',
+              variant: 'destructive',
             });
             return { error: userInsertError };
           }
@@ -923,10 +945,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             if (teacherError) {
               console.error('Error creating teacher profile:', teacherError);
+              const lang = preferredLanguage === 'kn' || preferredLanguage === 'ta' ? preferredLanguage : 'en';
               toast({
-                title: "Registration warning",
-                description: "Account created but teacher profile setup failed. Please contact support.",
-                variant: "destructive",
+                title:
+                  lang === 'kn'
+                    ? 'ನೋಂದಣಿ ಎಚ್ಚರಿಕೆ'
+                    : lang === 'ta'
+                    ? 'பதிவு எச்சரிக்கை'
+                    : 'Registration warning',
+                description:
+                  lang === 'kn'
+                    ? 'ಖಾತೆ ರಚಿಸಲಾಗಿದೆ ಆದರೆ ಶಿಕ್ಷಕರ ಪ್ರೊಫೈಲ್ ಸಿದ್ಧಪಡಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ದಯವಿಟ್ಟು ಸಹಾಯಕ್ಕೆ ಸಂಪರ್ಕಿಸಿ.'
+                    : lang === 'ta'
+                    ? 'கணக்கு உருவாகியுள்ளது ஆனால் ஆசிரியர் விவரம் அமைக்கப்படவில்லை. தயவு செய்து உதவியை தொடர்பு கொள்ளவும்.'
+                    : 'Account created but teacher profile setup failed. Please contact support.',
+                variant: 'destructive',
               });
             }
           } else if (role === 'student') {
@@ -943,10 +976,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             if (studentError) {
               console.error('Error creating student profile:', studentError);
+              const lang = preferredLanguage === 'kn' || preferredLanguage === 'ta' ? preferredLanguage : 'en';
               toast({
-                title: "Registration warning",
-                description: "Account created but student profile setup failed. Please contact support.",
-                variant: "destructive",
+                title:
+                  lang === 'kn'
+                    ? 'ನೋಂದಣಿ ಎಚ್ಚರಿಕೆ'
+                    : lang === 'ta'
+                    ? 'பதிவு எச்சரிக்கை'
+                    : 'Registration warning',
+                description:
+                  lang === 'kn'
+                    ? 'ಖಾತೆ ರಚಿಸಲಾಗಿದೆ ಆದರೆ ವಿದ್ಯಾರ್ಥಿ ಪ್ರೊಫೈಲ್ ಸಿದ್ಧಪಡಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ದಯವಿಟ್ಟು ಸಹಾಯಕ್ಕೆ ಸಂಪರ್ಕಿಸಿ.'
+                    : lang === 'ta'
+                    ? 'கணக்கு உருவாகியுள்ளது ஆனால் மாணவர் விவரம் அமைக்கப்படவில்லை. தயவு செய்து உதவியை தொடர்பு கொள்ளவும்.'
+                    : 'Account created but student profile setup failed. Please contact support.',
+                variant: 'destructive',
               });
             }
           }
@@ -969,9 +1013,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (signInError) {
             console.error('Auto sign-in failed:', signInError);
             // Even if auto sign-in fails, registration was successful
+            const lang = preferredLanguage === 'kn' || preferredLanguage === 'ta' ? preferredLanguage : 'en';
             toast({
-              title: "Registration successful",
-              description: `Welcome to CareerCompass, ${fullName}! Please sign in manually.`,
+              title:
+                lang === 'kn'
+                  ? 'ನೋಂದಣಿ ಯಶಸ್ವಿಯಾಗಿದೆ'
+                  : lang === 'ta'
+                  ? 'பதிவு முடிந்தது'
+                  : 'Registration successful',
+              description:
+                lang === 'kn'
+                  ? `CareerCompass‌ಗೆ ಸ್ವಾಗತ, ${fullName}! ದಯವಿಟ್ಟು ಕೈಯಾರೆ ಲಾಗಿನ್ ಆಗಿ.`
+                  : lang === 'ta'
+                  ? `CareerCompass-க்கு வரவேற்பு, ${fullName}! தயவு செய்து உங்களே நுழையுங்கள்.`
+                  : `Welcome to CareerCompass, ${fullName}! Please sign in manually.`,
             });
           } else {
             console.log('Auto sign-in successful');
@@ -995,17 +1050,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
             
             // Auto sign-in successful
+            const lang = preferredLanguage === 'kn' || preferredLanguage === 'ta' ? preferredLanguage : 'en';
             toast({
-              title: "Registration successful",
-              description: `Welcome to CareerCompass, ${fullName}! You're now signed in.`,
+              title:
+                lang === 'kn'
+                  ? 'ನೋಂದಣಿ ಯಶಸ್ವಿಯಾಗಿದೆ'
+                  : lang === 'ta'
+                  ? 'பதிவு முடிந்தது'
+                  : 'Registration successful',
+              description:
+                lang === 'kn'
+                  ? `CareerCompass‌ಗೆ ಸ್ವಾಗತ, ${fullName}! ನೀವು ಈಗ ಲಾಗಿನ್ ಆಗಿದ್ದೀರಿ.`
+                  : lang === 'ta'
+                  ? `CareerCompass-க்கு வரவேற்பு, ${fullName}! நீங்கள் இப்போது உள்ளே வந்துவிட்டீர்கள்.`
+                  : `Welcome to CareerCompass, ${fullName}! You're now signed in.`,
             });
           }
         } catch (signInError) {
           console.error('Auto sign-in error:', signInError);
-        toast({
-          title: "Registration successful",
-            description: `Welcome to CareerCompass, ${fullName}! Please sign in manually.`,
-        });
+          const lang = preferredLanguage === 'kn' || preferredLanguage === 'ta' ? preferredLanguage : 'en';
+          toast({
+            title:
+              lang === 'kn'
+                ? 'ನೋಂದಣಿ ಯಶಸ್ವಿಯಾಗಿದೆ'
+                : lang === 'ta'
+                ? 'பதிவு முடிந்தது'
+                : 'Registration successful',
+            description:
+              lang === 'kn'
+                ? `CareerCompass‌ಗೆ ಸ್ವಾಗತ, ${fullName}! ದಯವಿಟ್ಟು ಕೈಯಾರೆ ಲಾಗಿನ್ ಆಗಿ.`
+                : lang === 'ta'
+                ? `CareerCompass-க்கு வரவேற்பு, ${fullName}! தயவு செய்து உங்களே நுழையுங்கள்.`
+                : `Welcome to CareerCompass, ${fullName}! Please sign in manually.`,
+          });
         }
       }
 

@@ -957,7 +957,7 @@ export function AudioRecorder({
             variant: 'destructive'
           });
         });
-        setState(prev => ({ ...prev, isPlaying: true }));
+    setState(prev => ({ ...prev, isPlaying: true }));
       }
     }
   }, [state.audioUrl, state.isPlaying, initialAudioUrl, toast, lang]);

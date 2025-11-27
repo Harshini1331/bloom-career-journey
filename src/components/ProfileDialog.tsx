@@ -109,15 +109,6 @@ export default function ProfileDialog({ open, onOpenChange }: Props) {
             fileType: avatarFile.type
           });
           
-          // First check if bucket exists
-          const { data: buckets, error: bucketCheckError } = await supabase.storage.listBuckets();
-          const avatarsBucketExists = buckets?.some(b => b.id === 'avatars');
-          
-          if (!avatarsBucketExists) {
-            console.error('❌ Avatars bucket does not exist');
-            throw new Error('Storage bucket "avatars" not found. Please run the database migration to create it, or contact your administrator.');
-          }
-          
           const { error: upErr } = await supabase.storage.from('avatars').upload(path, avatarFile, { upsert: true });
           if (upErr) {
             console.error('❌ Avatar upload error:', upErr);
@@ -226,9 +217,30 @@ export default function ProfileDialog({ open, onOpenChange }: Props) {
       onOpenChange(false);
     } catch (err: any) {
       console.error('Profile save error:', err);
+
+      const rawMessage = (err && err.message ? String(err.message) : '').toLowerCase();
+      let description: string;
+
+      if (rawMessage.includes('avatars') && rawMessage.includes('bucket')) {
+        // Storage bucket missing
+        description =
+          lang === 'kn'
+            ? 'ಪ್ರೊಫೈಲ್ ಚಿತ್ರವನ್ನು ಈಗ ಅಪ್‌ಲೋಡ್ ಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ. ದಯವಿಟ್ಟು ನಿರ್ವಾಹಕರು "avatars" ಸ್ಟೋರೇಜ್ ಬಕೆಟ್ ಅನ್ನು ಸೃಷ್ಟಿಸಲಿ.'
+            : lang === 'ta'
+            ? 'சுயவிவர படத்தை இப்போது பதிவேற்ற முடியவில்லை. நிர்வாகி "avatars" சேமிப்பு பக்கெட்டை உருவாக்க வேண்டும்.'
+            : 'We cannot upload your profile picture right now. Please ask your administrator to create the "avatars" storage bucket.';
+      } else {
+        description =
+          lang === 'kn'
+            ? 'ಪ್ರೊಫೈಲ್ ಅನ್ನು ನವೀಕರಿಸಲು ವಿಫಲವಾಗಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.'
+            : lang === 'ta'
+            ? 'சுயவிவரத்தை மாற்ற முடியவில்லை. தயவு செய்து மீண்டும் முயற்சிக்கவும்.'
+            : 'Failed to update profile. Please try again.';
+      }
+
       toast({
         title: lang === 'kn' ? "ನವೀಕರಣ ವಿಫಲವಾಗಿದೆ" : lang === 'ta' ? "மாற்ற முடியவில்லை" : "Update Failed",
-        description: err.message || (lang === 'kn' ? "ಪ್ರೊಫೈಲ್ ಅನ್ನು ನವೀಕರಿಸಲು ವಿಫಲವಾಗಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ." : lang === 'ta' ? "சுயவிவரத்தை மாற்ற முடியவில்லை. மீண்டும் முயற்சிக்கவும்." : "Failed to update profile. Please try again."),
+        description,
         variant: "destructive",
       });
     } finally {
@@ -328,7 +340,7 @@ export default function ProfileDialog({ open, onOpenChange }: Props) {
             </Button>
           </div>
         </div>
-        {lang === 'kn' && <KannadaKeyboard lang={lang} />}
+        {(lang === 'kn' || lang === 'ta') && <KannadaKeyboard lang={lang} />}
       </DialogContent>
     </Dialog>
   );

@@ -56,6 +56,31 @@ export default function CareerGuidanceToolsAssessment() {
   const [helpOpen, setHelpOpen] = useState<Record<string, boolean>>({});
   const toggleHelp = (k: string) => setHelpOpen(prev => ({ ...prev, [k]: !prev[k] }));
 
+  // Helper to localize question text for Tamil while preserving DB English as fallback
+  const localizeQuestionText = (index: number, defaultText: string): string => {
+    if (lang === 'ta') {
+      switch (index + 1) {
+        case 1:
+          return 'கேரியர் சார்ட் மற்றும் கேரியர் பிளானரை பார்க்கும் முன், இத்தனை விதமான வேலை வாய்ப்புகள் இருப்பதைப் பற்றிச் செல்பதற்கு முன்பே உங்களுக்கு தெரியுமா?';
+        case 2:
+          return 'இந்தப் பயிற்சியில், நீங்கள் முன்பு அறியாத ஆனால் இப்போது அறிந்துகொண்ட 5 புதிய தொழில் வாய்ப்புகளை பட்டியலிடுங்கள்.';
+        case 3:
+          return 'ஒரு தொழிலை அடைய ஒன்றுக்கு மேற்பட்ட பாதை (பாடப்பிரிவு) இருக்க முடியும். அத்தகைய 2 தொழில்களை கேரியர் சார்டிலிருந்து எடுத்துக்காட்டாக எழுதி விளக்குங்கள்.';
+        case 4:
+          return 'உங்களுக்கு விருப்பமான ஒரு தொழிலைத் தேர்ந்தெடுத்து, அதற்கான படிப்பு, தகுதி, தேர்வுகள், வேலை வாய்ப்பு போன்ற சேர்க்கை செயல்முறையைச் சுருக்கமாக எழுதுங்கள்.';
+        case 5:
+          return 'ILP இணையதளத்தைப் பார்த்து, கேரியர் வழிகாட்டுதலுக்குத் தேவையான எந்த எந்த தகவல்கள் கிடைக்கின்றன என்பதை பட்டியலிடுங்கள்.';
+        case 6:
+          return 'ILP-இன் மொபைல் செயலி (mobile application) ஆன்ட்ராய்டு ப்ளே ஸ்டோரில் கிடைக்கிறதா?';
+        case 7:
+          return 'ILP-இன் மொபைல் வாட்ஸ்அப் சாட்-பாட் எண்ணை (WhatsApp number) எழுதுங்கள்.';
+        default:
+          return defaultText;
+      }
+    }
+    return defaultText;
+  };
+
   // Check if assessment is unlocked
   useEffect(() => {
     const checkUnlock = async () => {
@@ -72,9 +97,11 @@ export default function CareerGuidanceToolsAssessment() {
       
       if (!unlockResult.isUnlocked) {
         toast({
-          title: lang === 'kn' ? 'ಮೌಲ್ಯಮಾಪನ ಲಾಕ್ ಮಾಡಲಾಗಿದೆ' : 'Assessment Locked',
+          title: lang === 'kn' ? 'ಮೌಲ್ಯಮಾಪನ ಲಾಕ್ ಮಾಡಲಾಗಿದೆ' : lang === 'ta' ? 'செயல் பூட்டப்பட்டுள்ளது' : 'Assessment Locked',
           description: lang === 'kn' 
             ? `ದಯವಿಟ್ಟು ಮೊದಲು "${unlockResult.missingPrerequisites.join(', ')}" ಪೂರ್ಣಗೊಳಿಸಿ.`
+            : lang === 'ta'
+            ? `"${unlockResult.missingPrerequisites.join(', ')}" செயல்களை முதலில் முடித்தால் இந்த பகுதி திறக்கும்.`
             : `Please complete "${unlockResult.missingPrerequisites.join(', ')}" first.`,
           variant: 'destructive',
         });
@@ -319,10 +346,10 @@ export default function CareerGuidanceToolsAssessment() {
                       navigate(`/student/assessment/career-guidance-tools?${params.toString()}`);
                     }}
                   >
-                    {lang === 'kn' ? 'ನನ್ನ ಉತ್ತರಗಳನ್ನು ವೀಕ್ಷಿಸಿ' : 'View My Answers'}
+                    {lang === 'kn' ? 'ನನ್ನ ಉತ್ತರಗಳನ್ನು ವೀಕ್ಷಿಸಿ' : lang === 'ta' ? 'என் பதில்களை பார்' : 'View My Answers'}
                   </Button>
                   <Button onClick={() => navigate('/student')} className="bg-purple-600 hover:bg-purple-700">
-                    Back to Dashboard
+                    {lang === 'kn' ? 'ಡ್ಯಾಶ್‌ಬೋರ್ಡ್‌ಗೆ ಹಿಂತಿರುಗಿ' : lang === 'ta' ? 'முதல் பக்கத்திற்கு போ' : 'Back to Dashboard'}
                   </Button>
                 </div>
               </div>
@@ -339,7 +366,8 @@ export default function CareerGuidanceToolsAssessment() {
         <TooltipProvider>
         <div className="mb-6">
           <Button variant="ghost" onClick={() => navigate('/student')} className="text-purple-700 hover:text-purple-800 hover:bg-purple-50">
-            <ArrowLeft className="w-4 h-4 mr-2" />Back to Dashboard
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            {t('backToDashboard')}
           </Button>
         </div>
 
@@ -391,7 +419,7 @@ export default function CareerGuidanceToolsAssessment() {
                   <div key={question.id} className="border-l-4 border-purple-400 pl-6">
                     <label className="block text-base font-medium text-gray-800 mb-2 flex items-center gap-2">
                       <span className="font-semibold">{index + 1}.</span>
-                      {question.question_text}
+                      {localizeQuestionText(index, question.question_text)}
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button 

@@ -8,7 +8,7 @@ import { safeObjectEntries, handleDatabaseError, validateApiResponse } from '@/u
 
 type CategoryKey = 'R' | 'I' | 'A' | 'S' | 'E' | 'C';
 
-const CATEGORY_LABELS: Record<'en' | 'kn', Record<CategoryKey, string>> = {
+const CATEGORY_LABELS: Record<'en' | 'kn' | 'ta', Record<CategoryKey, string>> = {
   en: {
     R: 'Realistic',
     I: 'Investigative',
@@ -24,6 +24,14 @@ const CATEGORY_LABELS: Record<'en' | 'kn', Record<CategoryKey, string>> = {
     S: 'ಸಾಮಾಜಿಕ',
     E: 'ಉದ್ಯಮಶೀಲ',
     C: 'ಸಾಂಪ್ರದಾಯಿಕ',
+  },
+  ta: {
+    R: 'நடைமுறை வேலைகள்',
+    I: 'ஆராயும் வேலைகள்',
+    A: 'கலை சார்ந்த வேலைகள்',
+    S: 'மக்களுக்கு உதவும் வேலைகள்',
+    E: 'வியாபாரம் / தலைமை வேலைகள்',
+    C: 'அலுவலக வேலைகள்',
   },
 };
 
@@ -194,46 +202,64 @@ export default function HollandCodeTest({ onCompleted }: { onCompleted?: (code: 
     <Card className="border-0 shadow-lg" lang={lang} dir="auto">
       <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
         <CardTitle className="text-2xl font-bold text-blue-800">
-          {lang === 'kn' ? '🧭 ಮಾನಸಿಕ ಪರೀಕ್ಷೆಗಳು – ಹಾಲೆಂಡ್ ಕೋಡ್ ಅಸೆಸ್ಮೆಂಟ್' : '🧭 Psychometric Tests – Holland Code Assessment'}
+          {lang === 'kn'
+            ? '🧭 ಮಾನಸಿಕ ಪರೀಕ್ಷೆಗಳು – ಹಾಲೆಂಡ್ ಕೋಡ್ ಅಸೆಸ್ಮೆಂಟ್'
+            : lang === 'ta'
+              ? '🧭 மனப்பாங்கு சோதனை – ஹால்லண்ட் கோட் தேர்வு'
+              : '🧭 Psychometric Tests – Holland Code Assessment'}
         </CardTitle>
       </CardHeader>
       <CardContent className="p-6">
         {/* Intro text */}
         <div className="mb-6 text-gray-700 text-sm leading-relaxed">
           <p className="mb-2">
-            {lang === 'kn' 
+            {lang === 'kn'
               ? 'ಈ ಪ್ರಶ್ನೋತ್ತರಿ ನಿಮ್ಮ ಆಸಕ್ತಿಗಳು, ಪ್ರತಿಭೆಗಳು ಮತ್ತು ಸಾಮರ್ಥ್ಯಕ್ಕೆ ಸೂಕ್ತವಾದ ಉದ್ಯೋಗಗಳನ್ನು ತೋರಿಸಲು ವೈಜ್ಞಾನಿಕ ಹಾಲೆಂಡ್ ಕೋಡ್ ಮಾದರಿಯನ್ನು ಬಳಸುತ್ತದೆ.'
-              : 'This quiz uses the scientific Holland Code model to show you which jobs will suit your interests, talents, and aptitude.'
-            }
+              : lang === 'ta'
+                ? 'இந்த சோதனை ஹால்லண்ட் கோட் முறையை பயன்படுத்துகிறது. இது உங்களுக்கு எந்த வகை வேலைகள் பொருத்தம் என்று எளிய முறையில் காட்டும்.'
+                : 'This quiz uses the scientific Holland Code model to show you which jobs will suit your interests, talents, and aptitude.'}
           </p>
           <p className="mb-2">
-            {lang === 'kn' 
+            {lang === 'kn'
               ? 'ನೀವು ಚಟುವಟಿಕೆಯನ್ನು ಮಾಡಲು ಕೌಶಲ್ಯಗಳು ಅಥವಾ ತರಬೇತಿ ಹೊಂದಿದ್ದೀರಾ ಎಂಬುದರ ಬಗ್ಗೆ ಅಥವಾ ನೀವು ಎಷ್ಟು ಹಣವನ್ನು ಗಳಿಸಬಹುದು ಎಂಬುದರ ಬಗ್ಗೆ ಚಿಂತಿಸಬೇಡಿ. ನೀವು ಚಟುವಟಿಕೆಯನ್ನು ಮಾಡಲು ಆನಂದಿಸುತ್ತೀರೋ ಅಥವಾ ಇಲ್ಲವೋ ಎಂದು ಯೋಚಿಸಿ.'
-              : 'Do not worry about whether you have the skills or training to do an activity, or how much money you might make. Think whether you would enjoy doing the activity or not.'
-            }
+              : lang === 'ta'
+                ? 'இந்த செயலை செய்ய உங்களிடம் திறமை இருக்கிறதா, எவ்வளவு சம்பளம் கிடைக்கும் என்று யோசிக்க வேண்டாம். அந்த செயலை செய்ய உங்களுக்கு பிடிக்குமா என்று மட்டும் நினைக்கவும்.'
+                : 'Do not worry about whether you have the skills or training to do an activity, or how much money you might make. Think whether you would enjoy doing the activity or not.'}
           </p>
           <p className="mb-2">
-            {lang === 'kn' 
+            {lang === 'kn'
               ? 'ಈ ಪ್ರಶ್ನೋತ್ತರಿಯನ್ನು ಪೂರ್ಣಗೊಳಿಸುವುದು ನಿಮಗೆ ಹೆಚ್ಚಿನ ಆಸಕ್ತಿ ಮತ್ತು ಹೆಚ್ಚಿನ ತೃಪ್ತಿಯನ್ನು ಪಡೆಯುವ ಉದ್ಯೋಗಗಳನ್ನು ಗುರುತಿಸಲು ಸಹಾಯ ಮಾಡಬಹುದು ಮತ್ತು ಇದು ನಿಮ್ಮ ವೃತ್ತಿ ಅನ್ವೇಷಣೆಯನ್ನು ಪ್ರಾರಂಭಿಸಲು ಒಂದು ಸ್ಥಳವನ್ನು ನಿಮಗೆ ನೀಡುತ್ತದೆ.'
-              : 'Completing this quiz might help you identify the types of occupations in which you would have the most interest and get the most satisfaction, and it will give you a place to start your career exploration.'
-            }
+              : lang === 'ta'
+                ? 'இந்த சோதனையை முடித்தால், எந்த வகை வேலைகள் உங்களுக்கு மிகவும் சுவாரஸ்யமாகவும், திருப்தியாகவும் இருக்கும் என்று தெரிந்துகொள்ளலாம். இது உங்கள் தொழில் பற்றி யோசிக்க ஒரு நல்ல தொடக்கம் தரும்.'
+                : 'Completing this quiz might help you identify the types of occupations in which you would have the most interest and get the most satisfaction, and it will give you a place to start your career exploration.'}
           </p>
           <p className="mt-1">
-            {lang === 'kn' 
+            {lang === 'kn'
               ? 'ದಯವಿಟ್ಟು ಈ ಗುಂಪುಗಳಲ್ಲಿ ನೀವು ಇಷ್ಟಪಡುವ ಅಥವಾ ಆಸಕ್ತಿ ಹೊಂದಿರುವ ಎಲ್ಲಾ ಚಟುವಟಿಕೆಗಳನ್ನು ಆಯ್ಕೆಮಾಡಿ.'
-              : 'Please select all activities that you like or are interested in from each of these groups.'
-            }
+              : lang === 'ta'
+                ? 'ஒவ்வொரு குழுவிலும் உங்களுக்கு பிடிக்கும் அல்லது சுவாரஸ்யமாக இருக்கும் செயல்களை எல்லாம் குறி வையுங்கள்.'
+                : 'Please select all activities that you like or are interested in from each of these groups.'}
           </p>
         </div>
 
         {result ? (
           <div className="space-y-4">
             <div className="p-6 bg-green-50 border border-green-200 rounded-lg shadow-sm">
-              <div className="text-sm text-green-800">{lang === 'kn' ? '✅ ನಿಮ್ಮ ಹಾಲೆಂಡ್ ಕೋಡ್' : '✅ Your Holland Code'}</div>
+                <div className="text-sm text-green-800">
+                  {lang === 'kn'
+                    ? '✅ ನಿಮ್ಮ ಹಾಲೆಂಡ್ ಕೋಡ್'
+                    : lang === 'ta'
+                      ? '✅ உங்கள் ஹால்லண்ட் கோட்'
+                      : '✅ Your Holland Code'}
+                </div>
               <div className="text-3xl font-bold text-green-900">{result}</div>
             </div>
             <Button variant="outline" onClick={reset} className="border-blue-200 text-blue-700 hover:bg-blue-50">
-              {lang === 'kn' ? '↻ ಪರೀಕ್ಷೆಯನ್ನು ಮತ್ತೆ ತೆಗೆದುಕೊಳ್ಳಿ' : '↻ Retake Test'}
+              {lang === 'kn'
+                ? '↻ ಪರೀಕ್ಷೆಯನ್ನು ಮತ್ತೆ ತೆಗೆದುಕೊಳ್ಳಿ'
+                : lang === 'ta'
+                  ? '↻ சோதனையை மீண்டும் செய்யவும்'
+                  : '↻ Retake Test'}
             </Button>
           </div>
         ) : (
