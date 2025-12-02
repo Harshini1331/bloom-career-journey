@@ -147,7 +147,10 @@ export default function SummaryViewDialog({
 
         if (template?.summary_questions) {
           const questions = template.summary_questions as any;
-          const langKey = lang === 'kn' ? 'kn' : 'en';
+          // Prefer exact language block (en | kn | ta), but always fall back to English if missing
+          const preferredKey = lang === 'kn' ? 'kn' : lang === 'ta' ? 'ta' : 'en';
+          const hasPreferred = questions[preferredKey];
+          const langKey = hasPreferred ? preferredKey : 'en';
           
           if (questions[langKey]) {
             const defaultTitles = {

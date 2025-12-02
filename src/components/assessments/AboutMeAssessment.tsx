@@ -16,6 +16,7 @@ import { handleDatabaseError, validateApiResponse } from '@/utils/errorHandler';
 import { useLang } from '@/hooks/useLang';
 import { KannadaKeyboard } from '@/components/ui/KannadaKeyboard';
 import { checkAssessmentUnlock } from '@/utils/assessmentUnlock';
+import { fetchTranslations } from '@/services/translationService';
 
 interface AboutMeField {
   field_key: string;
@@ -48,6 +49,7 @@ export default function AboutMeAssessment() {
   const [helpOpen, setHelpOpen] = useState<Record<string, boolean>>({});
   const [aboutMeFields, setAboutMeFields] = useState<AboutMeField[]>([]);
   const [currentSection, setCurrentSection] = useState<string>('');
+  const [helpTranslations, setHelpTranslations] = useState<Record<string, string>>({});
   const toggleHelp = (k: string) => setHelpOpen(prev => ({ ...prev, [k]: !prev[k] }));
   
   // Initialize responses based on database fields
@@ -201,6 +203,45 @@ export default function AboutMeAssessment() {
     
     loadFields();
   }, [lang]);
+
+  // Load localized help text overrides from content_translations (about_me_help)
+  useEffect(() => {
+    const loadHelpTranslations = async () => {
+      try {
+        if (!aboutMeFields.length) {
+          setHelpTranslations({});
+          return;
+        }
+        const keys = aboutMeFields.map(f => f.field_key);
+        const map = await fetchTranslations('about_me_help', keys, lang);
+        setHelpTranslations(map);
+      } catch (error) {
+        console.warn('AboutMeAssessment: failed to load help translations', error);
+        setHelpTranslations({});
+      }
+    };
+
+    loadHelpTranslations();
+  }, [aboutMeFields, lang]);
+
+  // Localize section titles for display while keeping original section keys
+  const getLocalizedSectionTitle = (sectionTitle: string) => {
+    if (lang === 'kn') {
+      if (sectionTitle.startsWith('A.')) return 'A. ನನ್ನ ವೈಯಕ್ತಿಕ ಸ್ಥಳ';
+      if (sectionTitle.startsWith('B.')) return 'B. ನಾನು ಆನಂದಿಸುವ ಚಟುವಟಿಕೆಗಳು';
+      if (sectionTitle.startsWith('C.')) return 'C. ನನಗೆ ಸವಾಲಾಗಿರುವ ಕೆಲಸಗಳು';
+      if (sectionTitle.startsWith('D.')) return 'D. ನನ್ನ ಬಗ್ಗೆ ಇನ್ನಷ್ಟು ತಿಳಿದುಕೊಳ್ಳೋಣ';
+      return sectionTitle;
+    }
+    if (lang === 'ta') {
+      if (sectionTitle.startsWith('A.')) return 'A. என் தனிப்பட்ட இடம்';
+      if (sectionTitle.startsWith('B.')) return 'B. நான் விரும்பும் செயல்கள்';
+      if (sectionTitle.startsWith('C.')) return 'C. எனக்கு சிரமமாக இருக்கும் வேலைகள்';
+      if (sectionTitle.startsWith('D.')) return 'D. என்னைப் பற்றி ஆழமாக அறிதல்';
+      return sectionTitle;
+    }
+    return sectionTitle;
+  };
 
   // Keep URL ?lang in sync without re-rendering
   useEffect(() => {
@@ -532,7 +573,9 @@ export default function AboutMeAssessment() {
                     return (
                       <TabsContent key={sectionTitle} value={sectionTitle} className="space-y-4 mt-0">
                         <div className="mb-4 pb-3 border-b border-gray-200">
-                          <h3 className="text-lg font-semibold text-gray-800">{sectionTitle}</h3>
+                          <h3 className="text-lg font-semibold text-gray-800">
+                            {getLocalizedSectionTitle(sectionTitle)}
+                          </h3>
                         </div>
                         {fields.map((field, index) => {
                           const fieldValue = responses[field.field_key];
@@ -544,8 +587,15 @@ export default function AboutMeAssessment() {
                             ? field.question_text 
                             : `${index + 1}. ${field.question_text}`;
                           
-                          // Use help_text from database
-                          const helpText = field.help_text || '';
+                          // Use localized help text when available; otherwise fall back
+                          // to the database help_text (usually English). When Tamil
+                          // translations are added to `about_me_help`, they will
+                          // automatically override the fallback.
+                          const translatedHelp = helpTranslations[field.field_key];
+                          const helpText =
+                            translatedHelp !== undefined
+                              ? translatedHelp
+                              : (field.help_text || '');
                           
                           if (field.field_type === 'triple') {
                             const tripleValue = (Array.isArray(fieldValue) && fieldValue.length === 3) 
@@ -674,6 +724,10 @@ function Question({ label, help, value, onChange, area, helpKey, open, onToggle,
 
 function TripleInput({ label, help, values, onChange, helpKey, open, onToggle, readOnly }: { label: string; help: string; values: Triple; onChange: (v: Triple) => void; helpKey: string; open: boolean; onToggle: () => void; readOnly?: boolean }) {
   const [a, b, c] = values;
+  const { lang } = useLang();
+  const p1 = lang === 'kn' ? 'ಉತ್ತರ 1' : lang === 'ta' ? 'பதில் 1' : 'Answer 1';
+  const p2 = lang === 'kn' ? 'ಉತ್ತರ 2' : lang === 'ta' ? 'பதில் 2' : 'Answer 2';
+  const p3 = lang === 'kn' ? 'ಉತ್ತರ 3' : lang === 'ta' ? 'பதில் 3' : 'Answer 3';
   return (
     <div>
       <label className="block text-base font-medium text-gray-800 mb-2 flex items-center gap-2">
@@ -689,9 +743,9 @@ function TripleInput({ label, help, values, onChange, helpKey, open, onToggle, r
         <div className="mb-2 p-3 rounded border bg-blue-50 border-blue-200 text-sm text-blue-800">{help}</div>
       )}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <Input readOnly={readOnly} value={a} onChange={(e) => { const v = e.target.value; onChange([v, b, c]); if (open && v.trim().length > 0) onToggle(); }} placeholder="Answer 1" />
-        <Input readOnly={readOnly} value={b} onChange={(e) => { const v = e.target.value; onChange([a, v, c]); if (open && v.trim().length > 0) onToggle(); }} placeholder="Answer 2" />
-        <Input readOnly={readOnly} value={c} onChange={(e) => { const v = e.target.value; onChange([a, b, v]); if (open && v.trim().length > 0) onToggle(); }} placeholder="Answer 3" />
+        <Input readOnly={readOnly} value={a} onChange={(e) => { const v = e.target.value; onChange([v, b, c]); if (open && v.trim().length > 0) onToggle(); }} placeholder={p1} />
+        <Input readOnly={readOnly} value={b} onChange={(e) => { const v = e.target.value; onChange([a, v, c]); if (open && v.trim().length > 0) onToggle(); }} placeholder={p2} />
+        <Input readOnly={readOnly} value={c} onChange={(e) => { const v = e.target.value; onChange([a, b, v]); if (open && v.trim().length > 0) onToggle(); }} placeholder={p3} />
       </div>
     </div>
   );
@@ -699,6 +753,9 @@ function TripleInput({ label, help, values, onChange, helpKey, open, onToggle, r
 
 function DoubleInput({ label, help, values, onChange, helpKey, open, onToggle, readOnly }: { label: string; help: string; values: Double; onChange: (v: Double) => void; helpKey: string; open: boolean; onToggle: () => void; readOnly?: boolean }) {
   const [a, b] = values;
+  const { lang } = useLang();
+  const p1 = lang === 'kn' ? 'ಉತ್ತರ 1' : lang === 'ta' ? 'பதில் 1' : 'Answer 1';
+  const p2 = lang === 'kn' ? 'ಉತ್ತರ 2' : lang === 'ta' ? 'பதில் 2' : 'Answer 2';
   return (
     <div>
       <label className="block text-base font-medium text-gray-800 mb-2 flex items-center gap-2">
@@ -714,8 +771,8 @@ function DoubleInput({ label, help, values, onChange, helpKey, open, onToggle, r
         <div className="mb-2 p-3 rounded border bg-blue-50 border-blue-200 text-sm text-blue-800">{help}</div>
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <Input readOnly={readOnly} value={a} onChange={(e) => { const v = e.target.value; onChange([v, b]); if (open && v.trim().length > 0) onToggle(); }} placeholder="Answer 1" />
-        <Input readOnly={readOnly} value={b} onChange={(e) => { const v = e.target.value; onChange([a, v]); if (open && v.trim().length > 0) onToggle(); }} placeholder="Answer 2" />
+        <Input readOnly={readOnly} value={a} onChange={(e) => { const v = e.target.value; onChange([v, b]); if (open && v.trim().length > 0) onToggle(); }} placeholder={p1} />
+        <Input readOnly={readOnly} value={b} onChange={(e) => { const v = e.target.value; onChange([a, v]); if (open && v.trim().length > 0) onToggle(); }} placeholder={p2} />
       </div>
     </div>
   );

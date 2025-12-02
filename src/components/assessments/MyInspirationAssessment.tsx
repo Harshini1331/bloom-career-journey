@@ -1308,15 +1308,29 @@ export default function MyInspirationAssessment() {
           <Card className="max-w-2xl mx-auto border-0 shadow-lg">
             <CardHeader className="text-center bg-gradient-to-r from-blue-50 to-indigo-50">
               <Lightbulb className="w-16 h-16 text-blue-500 mx-auto mb-4" />
-              <CardTitle className="text-2xl text-blue-800">Inspiration Assessment Completed! ✨</CardTitle>
+              <CardTitle className="text-2xl text-blue-800">
+                {lang === 'kn'
+                  ? 'ಪ್ರೇರಣೆ ಮೌಲ್ಯಮಾಪನ ಪೂರ್ಣಗೊಂಡಿದೆ! ✨'
+                  : lang === 'ta'
+                    ? 'ஊக்கம் செயல்பாடு முடிந்தது! ✨'
+                    : 'Inspiration Assessment Completed! ✨'}
+              </CardTitle>
               <CardDescription className="text-blue-600">
-                You've successfully reflected on all inspirational videos
+                {lang === 'kn'
+                  ? 'ಎಲ್ಲಾ ಪ್ರೇರಣಾದಾಯಕ ವೀಡಿಯೊಗಳ ಬಗ್ಗೆ ನೀವು ಯಶಸ್ವಿಯಾಗಿ ಚಿಂತಿಸಿದ್ದಾರೆ.'
+                  : lang === 'ta'
+                    ? 'அனைத்து ஊக்கமான வீடியோக்கள் பற்றியும் நீங்கள் வெற்றிகரமாக சிந்தித்து எழுதியுள்ளீர்கள்.'
+                    : "You've successfully reflected on all inspirational videos"}
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6">
               <div className="text-center space-y-4">
                 <p className="text-gray-600">
-                  Thank you for completing the inspiration assessment! Your reflections on the inspirational videos have been saved and your teacher can now review them to help guide your career journey.
+                  {lang === 'kn'
+                    ? 'ಪ್ರೇರಣೆ ಮೌಲ್ಯಮಾಪನವನ್ನು ಪೂರ್ಣಗೊಳಿಸಿದಕ್ಕಾಗಿ ಧನ್ಯವಾದಗಳು! ನಿಮ್ಮ ಪ್ರೇರಣಾದಾಯಕ ವೀಡಿಯೊಗಳ ಬಗ್ಗೆ ಮಾಡಿದ ಬರಹಗಳನ್ನು ನಾವು ಉಳಿಸಿದ್ದೇವೆ. ಈಗ ನಿಮ್ಮ ಶಿಕ್ಷಕರು ಅವನ್ನು ಓದಿ, ನಿಮ್ಮ ವೃತ್ತಿ ಪ್ರಯಾಣಕ್ಕೆ ಮಾರ್ಗದರ್ಶನ ನೀಡಲು ಬಳಸಬಹುದು.'
+                    : lang === 'ta'
+                      ? 'இந்த ஊக்கம் செயல்பாட்டை முழுமையாக முடித்ததற்கு நன்றி! இந்த வீடியோக்கள் பற்றி நீங்கள் எழுதிய சிந்தனைகள் அனைத்தும் பாதுகாக்கப்பட்டுள்ளன. இப்போது உங்கள் ஆசிரியர் அவற்றை படித்து, உங்கள் தொழில் பயணத்திற்கு வழிகாட்ட உதவ முடியும்.'
+                      : 'Thank you for completing the inspiration assessment! Your reflections on the inspirational videos have been saved and your teacher can now review them to help guide your career journey.'}
                 </p>
                 <div className="flex justify-center gap-4">
                   <Button
