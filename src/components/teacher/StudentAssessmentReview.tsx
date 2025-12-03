@@ -42,6 +42,11 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
   const [inspirationQuestions, setInspirationQuestions] = useState<any[]>([]);
   const [dreamsQuestions, setDreamsQuestions] = useState<any[]>([]);
   const [aboutMeFields, setAboutMeFields] = useState<any[]>([]);
+  const [aboutMeFieldsByLang, setAboutMeFieldsByLang] = useState<Record<string, any[]>>({});
+  const [dreamsQuestionTextByLang, setDreamsQuestionTextByLang] = useState<Record<string, Record<string, string>>>({});
+  const [schoolQuestionTextByLang, setSchoolQuestionTextByLang] = useState<Record<string, Record<string, string>>>({});
+  const [hobbiesQuestionTextByLang, setHobbiesQuestionTextByLang] = useState<Record<string, Record<string, string>>>({});
+  const [roleModelsQuestionTextByLang, setRoleModelsQuestionTextByLang] = useState<Record<string, Record<string, string>>>({});
   const [schoolLearningQuestions, setSchoolLearningQuestions] = useState<any[]>([]);
   const [hobbiesQuestions, setHobbiesQuestions] = useState<any[]>([]);
   const [roleModelsQuestions, setRoleModelsQuestions] = useState<any[]>([]);
@@ -80,8 +85,46 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
         console.error('Error fetching dreams questions:', error);
         return;
       }
-      console.log('✅ Loaded dreams questions:', data);
-      setDreamsQuestions(data || []);
+      const baseQuestions = Array.isArray(data) ? data : [];
+      console.log('✅ Loaded dreams questions:', baseQuestions);
+      setDreamsQuestions(baseQuestions);
+
+      // Build language-specific question text maps so teacher sees questions in student's answer language
+      const textByLang: Record<string, Record<string, string>> = {};
+
+      // English from base questions
+      const enMap: Record<string, string> = {};
+      baseQuestions.forEach((q: any) => {
+        if (q?.sequence_number != null && q.question_text) {
+          enMap[`question${q.sequence_number}`] = q.question_text;
+        }
+      });
+      textByLang.en = enMap;
+
+      // Tamil and Kannada translations from i18n RPC
+      const langs: Array<'ta' | 'kn'> = ['ta', 'kn'];
+      for (const lang of langs) {
+        try {
+          const { data: i18nData } = await supabase.rpc('get_dreams_questions_i18n', { p_lang: lang } as any);
+          const langMap: Record<string, string> = {};
+          const rows: any[] = Array.isArray(i18nData)
+            ? i18nData
+            : (i18nData as any)?.data && Array.isArray((i18nData as any).data)
+            ? (i18nData as any).data
+            : [];
+          rows.forEach((row: any) => {
+            if (row?.key && row?.text) {
+              langMap[row.key] = row.text;
+            }
+          });
+          console.log(`✅ Loaded Dreams i18n for ${lang}:`, Object.keys(langMap).length);
+          textByLang[lang] = langMap;
+        } catch (i18nError) {
+          console.warn(`⚠️ Error loading Dreams i18n for lang=${lang}:`, i18nError);
+        }
+      }
+
+      setDreamsQuestionTextByLang(textByLang);
     } catch (error) {
       console.error('Error loading dreams questions:', error);
     }
@@ -89,13 +132,58 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
 
   const fetchAboutMeFields = async () => {
     try {
-      const { data, error } = await supabase.rpc('get_about_me_fields');
-      if (error) {
-        console.error('Error fetching about me fields:', error);
-        return;
+      console.log('📥 Fetching About Me fields for all languages...');
+      const langs: Array<'en' | 'ta' | 'kn'> = ['en', 'ta', 'kn'];
+      const fieldsByLang: Record<string, any[]> = {};
+
+      for (const lang of langs) {
+        try {
+          let rows: any[] | null = null;
+          try {
+            const { data: i18nData } = await supabase.rpc('get_about_me_fields_i18n', { p_lang: lang } as any);
+            if (Array.isArray(i18nData)) rows = i18nData as any[];
+            if (i18nData && !Array.isArray(i18nData)) rows = (i18nData as any) as any[];
+            if (rows && typeof rows === 'object' && !Array.isArray(rows)) {
+              const maybe = (rows as any).data;
+              if (Array.isArray(maybe)) rows = maybe;
+            }
+          } catch (err) {
+            console.warn(`About Me: get_about_me_fields_i18n failed for lang=${lang}`, err);
+          }
+
+          if (!rows && lang === 'en') {
+            const { data, error } = await supabase.rpc('get_about_me_fields');
+            if (error) {
+              console.error('Error fetching about me fields (fallback en):', error);
+              continue;
+            }
+            rows = data as any[];
+          }
+
+          if (rows && Array.isArray(rows)) {
+            console.log(`✅ Loaded About Me fields for ${lang}:`, rows.length);
+            fieldsByLang[lang] = rows;
+          } else {
+            console.warn(`⚠️ No About Me fields returned for lang=${lang}`);
+          }
+        } catch (innerError) {
+          console.error(`Error loading about me fields for lang=${lang}:`, innerError);
+        }
       }
-      console.log('✅ Loaded about me fields:', data);
-      setAboutMeFields(data || []);
+
+      // Set default English fields for backwards compatibility
+      if (fieldsByLang.en && fieldsByLang.en.length > 0) {
+        setAboutMeFields(fieldsByLang.en);
+      } else {
+        // If we somehow didn't get English, but have some other lang, pick first
+        const firstLang = Object.keys(fieldsByLang)[0];
+        if (firstLang) {
+          setAboutMeFields(fieldsByLang[firstLang]);
+        } else {
+          setAboutMeFields([]);
+        }
+      }
+      setAboutMeFieldsByLang(fieldsByLang);
     } catch (error) {
       console.error('Error loading about me fields:', error);
     }
@@ -108,8 +196,44 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
         console.error('Error fetching school learning questions:', error);
         return;
       }
-      console.log('✅ Loaded school learning questions:', data);
-      setSchoolLearningQuestions(data || []);
+      const baseQuestions = Array.isArray(data) ? data : [];
+      console.log('✅ Loaded school learning questions:', baseQuestions);
+      setSchoolLearningQuestions(baseQuestions);
+
+      // Build language-specific maps for question text (en from base, ta/kn from i18n RPC)
+      const textByLang: Record<string, Record<string, string>> = {};
+
+      const enMap: Record<string, string> = {};
+      baseQuestions.forEach((q: any) => {
+        if (q?.sequence_number != null && q.question_text) {
+          enMap[`question${q.sequence_number}`] = q.question_text;
+        }
+      });
+      textByLang.en = enMap;
+
+      const langs: Array<'ta' | 'kn'> = ['ta', 'kn'];
+      for (const lang of langs) {
+        try {
+          const { data: i18nData } = await supabase.rpc('get_school_learning_questions_i18n', { p_lang: lang } as any);
+          const langMap: Record<string, string> = {};
+          const rows: any[] = Array.isArray(i18nData)
+            ? i18nData
+            : (i18nData as any)?.data && Array.isArray((i18nData as any).data)
+            ? (i18nData as any).data
+            : [];
+          rows.forEach((row: any) => {
+            if (row?.key && row?.text) {
+              langMap[row.key] = row.text;
+            }
+          });
+          console.log(`✅ Loaded School Learning i18n for ${lang}:`, Object.keys(langMap).length);
+          textByLang[lang] = langMap;
+        } catch (i18nError) {
+          console.warn(`⚠️ Error loading School Learning i18n for lang=${lang}:`, i18nError);
+        }
+      }
+
+      setSchoolQuestionTextByLang(textByLang);
     } catch (error) {
       console.error('Error loading school learning questions:', error);
     }
@@ -122,8 +246,43 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
         console.error('Error fetching hobbies questions:', error);
         return;
       }
-      console.log('✅ Loaded hobbies questions:', data);
-      setHobbiesQuestions(data || []);
+      const baseQuestions = Array.isArray(data) ? data : [];
+      console.log('✅ Loaded hobbies questions:', baseQuestions);
+      setHobbiesQuestions(baseQuestions);
+
+      const textByLang: Record<string, Record<string, string>> = {};
+
+      const enMap: Record<string, string> = {};
+      baseQuestions.forEach((q: any) => {
+        if (q?.sequence_number != null && q.question_text) {
+          enMap[`question${q.sequence_number}`] = q.question_text;
+        }
+      });
+      textByLang.en = enMap;
+
+      const langs: Array<'ta' | 'kn'> = ['ta', 'kn'];
+      for (const lang of langs) {
+        try {
+          const { data: i18nData } = await supabase.rpc('get_hobbies_questions_i18n', { p_lang: lang } as any);
+          const langMap: Record<string, string> = {};
+          const rows: any[] = Array.isArray(i18nData)
+            ? i18nData
+            : (i18nData as any)?.data && Array.isArray((i18nData as any).data)
+            ? (i18nData as any).data
+            : [];
+          rows.forEach((row: any) => {
+            if (row?.key && row?.text) {
+              langMap[row.key] = row.text;
+            }
+          });
+          console.log(`✅ Loaded Hobbies i18n for ${lang}:`, Object.keys(langMap).length);
+          textByLang[lang] = langMap;
+        } catch (i18nError) {
+          console.warn(`⚠️ Error loading Hobbies i18n for lang=${lang}:`, i18nError);
+        }
+      }
+
+      setHobbiesQuestionTextByLang(textByLang);
     } catch (error) {
       console.error('Error loading hobbies questions:', error);
     }
@@ -136,8 +295,46 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
         console.error('Error fetching role models questions:', error);
         return;
       }
-      console.log('✅ Loaded role models questions:', data);
-      setRoleModelsQuestions(data || []);
+      const baseQuestions = Array.isArray(data) ? data : [];
+      console.log('✅ Loaded role models questions:', baseQuestions);
+      setRoleModelsQuestions(baseQuestions || []);
+
+      const textByLang: Record<string, Record<string, string>> = {};
+
+      // We don't strictly need an English map because base question_text is already English,
+      // but we include it for completeness.
+      const enMap: Record<string, string> = {};
+      baseQuestions.forEach((q: any, index: number) => {
+        const key = `rm_q${(q as any).sequence_number || index + 1}`;
+        if (q?.question_text) {
+          enMap[key] = q.question_text;
+        }
+      });
+      textByLang.en = enMap;
+
+      const langs: Array<'ta' | 'kn'> = ['ta', 'kn'];
+      for (const lang of langs) {
+        try {
+          const { data: i18nData } = await supabase.rpc('get_role_models_questions_i18n', { p_lang: lang } as any);
+          const langMap: Record<string, string> = {};
+          const rows: any[] = Array.isArray(i18nData)
+            ? i18nData
+            : (i18nData as any)?.data && Array.isArray((i18nData as any).data)
+            ? (i18nData as any).data
+            : [];
+          rows.forEach((row: any) => {
+            if (row?.key && row?.text) {
+              langMap[row.key] = row.text;
+            }
+          });
+          console.log(`✅ Loaded Role Models i18n for ${lang}:`, Object.keys(langMap).length);
+          textByLang[lang] = langMap;
+        } catch (i18nError) {
+          console.warn(`⚠️ Error loading Role Models i18n for lang=${lang}:`, i18nError);
+        }
+      }
+
+      setRoleModelsQuestionTextByLang(textByLang);
     } catch (error) {
       console.error('Error loading role models questions:', error);
     }
@@ -369,6 +566,48 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
     }
   };
 
+  const detectLangKeyFromResponses = (responses: any): 'en' | 'ta' | 'kn' => {
+    const stack: any[] = [responses];
+    const tamilRegex = /[\u0B80-\u0BFF]/;
+    const kannadaRegex = /[\u0C80-\u0CFF]/;
+
+    while (stack.length) {
+      const value = stack.pop();
+      if (!value) continue;
+      if (typeof value === 'string') {
+        if (tamilRegex.test(value)) return 'ta';
+        if (kannadaRegex.test(value)) return 'kn';
+      } else if (Array.isArray(value)) {
+        for (const v of value) stack.push(v);
+      } else if (typeof value === 'object') {
+        for (const v of Object.values(value)) stack.push(v);
+      }
+    }
+    return 'en';
+  };
+
+  const countNonEmptyResponses = (responses: any): number => {
+    if (!responses || typeof responses !== 'object') return 0;
+    return Object.values(responses).reduce((count, value) => {
+      if (typeof value === 'string') {
+        return value.trim() ? count + 1 : count;
+      }
+      if (Array.isArray(value)) {
+        const hasContent = value.some(v => (v ?? '').toString().trim());
+        return hasContent ? count + 1 : count;
+      }
+      if (value && typeof value === 'object') {
+        const hasContent = Object.values(value).some(inner => {
+          if (typeof inner === 'string') return inner.trim().length > 0;
+          if (Array.isArray(inner)) return inner.some(v => (v ?? '').toString().trim());
+          return false;
+        });
+        return hasContent ? count + 1 : count;
+      }
+      return count;
+    }, 0);
+  };
+
   const renderAssessmentResponses = (assessment: Assessment) => {
     const responses = assessment.responses;
 
@@ -526,6 +765,12 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
       // Check if it's the new structure (has "part" keys)
       const hasPartStructure = Object.keys(responses).some(key => key.startsWith('part'));
       
+      const dreamsLangKey = detectLangKeyFromResponses(responses);
+      const dreamsLangMap =
+        dreamsQuestionTextByLang[dreamsLangKey] ||
+        dreamsQuestionTextByLang.en ||
+        {};
+
       if (hasPartStructure) {
         // New structure: { part1: { question1: "...", question2: "..." }, part2: {...} }
         const parts = Object.keys(responses).filter(key => key.startsWith('part')).sort();
@@ -658,6 +903,13 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
                         
                         console.log(`  Part ${partKey}, Seq ${question.sequence_number}, Q${questionIndex + 1}: questionKey="${questionKey}", hasResponse=${!!responseText}, responseLength=${displayText.length}`);
                         
+                        const seqNum = question.sequence_number || questionIndex + 1;
+                        const translationKey = `question${seqNum}`;
+                        const questionText =
+                          dreamsLangMap[translationKey] ||
+                          question.question_text ||
+                          `Question ${seqNum}`;
+
                         return (
                           <div key={question.id || questionIndex} className="border-l-4 border-blue-500 pl-4">
                             <div className="flex items-start gap-2 mb-2">
@@ -665,7 +917,7 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
                                 Q{displayQuestionNum}
                               </span>
                               <p className="text-sm font-medium text-gray-700 flex-1">
-                                {question.question_text}
+                                {questionText}
                               </p>
                             </div>
                             
@@ -753,7 +1005,10 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
         return (
           <div className="space-y-4">
             {qaList.map(({ question, answer }, index) => {
-              const questionText = question.question_text || `Question ${index + 1}`;
+              const seqNum = question.sequence_number || index + 1;
+              const translationKey = `question${seqNum}`;
+              const questionText =
+                dreamsLangMap[translationKey] || question.question_text || `Question ${index + 1}`;
               const responseText = typeof answer === 'string' ? answer : String(answer || '');
 
               return (
@@ -802,12 +1057,21 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
       console.log('👤 Rendering About Me assessment responses');
       console.log('📊 About Me responses:', responses);
       console.log('📊 About Me responses keys:', Object.keys(responses || {}));
-      console.log('📋 About Me fields:', aboutMeFields);
+      console.log('📋 About Me fields (default):', aboutMeFields);
       console.log('📋 About Me fields count:', aboutMeFields.length);
+
+      // Detect language of the student's answers so we can show questions in same language
+      const langKey = detectLangKeyFromResponses(responses);
+      const localizedFields =
+        (langKey === 'ta' || langKey === 'kn') && aboutMeFieldsByLang[langKey]?.length
+          ? aboutMeFieldsByLang[langKey]
+          : aboutMeFields;
+
+      console.log('🌐 Using About Me fields for lang:', langKey, 'count:', localizedFields.length);
 
       // About Me responses are stored as { question1: "...", question2: "...", ... }
       // Sort fields by sequence_number
-      const sortedFields = [...aboutMeFields].sort((a, b) => 
+      const sortedFields = [...localizedFields].sort((a, b) => 
         (a.sequence_number || 0) - (b.sequence_number || 0)
       );
 
@@ -980,6 +1244,12 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
         { id: 'section5', title: 'Section 5: Additional Information & Future Plans', questions: [17, 18, 19, 20, 21] },
       ];
 
+      const schoolLangKey = detectLangKeyFromResponses(responses);
+      const schoolLangMap =
+        schoolQuestionTextByLang[schoolLangKey] ||
+        schoolQuestionTextByLang.en ||
+        {};
+
       return (
         <div className="space-y-6">
           {sections.map((section) => (
@@ -1003,6 +1273,12 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
                     responseText = selectedOptions.join(', ');
                   }
 
+                  const translationKey = `question${qNum}`;
+                  const questionText =
+                    schoolLangMap[translationKey] ||
+                    question?.question_text ||
+                    `Question ${qNum}`;
+
                   return (
                     <div key={qNum} className="border-l-4 border-blue-500 pl-4">
                       <div className="flex items-start gap-2 mb-2">
@@ -1010,7 +1286,7 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
                           Q{idx + 1}
                         </span>
                         <p className="text-sm font-medium text-gray-700 flex-1">
-                          {question?.question_text || `Question ${qNum}`}
+                          {questionText}
                         </p>
                       </div>
 
@@ -1053,6 +1329,12 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
         return <div className="text-sm text-gray-500">No questions found</div>;
       }
 
+      const hobbiesLangKey = detectLangKeyFromResponses(responses);
+      const hobbiesLangMap =
+        hobbiesQuestionTextByLang[hobbiesLangKey] ||
+        hobbiesQuestionTextByLang.en ||
+        {};
+
       return (
         <div className="space-y-4">
           {sortedQuestions.map((question, index) => {
@@ -1060,13 +1342,18 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
             const displayText =
               typeof raw === 'string' ? raw : Array.isArray(raw) ? raw.join(', ') : String(raw || '');
 
+            const seqNum = question.sequence_number || index + 1;
+            const translationKey = `question${seqNum}`;
+            const questionText =
+              hobbiesLangMap[translationKey] || question.question_text || `Question ${index + 1}`;
+
             return (
               <div key={question.id || index} className="border-l-4 border-blue-500 pl-4">
                 <div className="flex items-start gap-2 mb-2">
                   <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded">
                     Q{index + 1}
                   </span>
-                  <p className="text-sm font-medium text-gray-700 flex-1">{question.question_text}</p>
+                  <p className="text-sm font-medium text-gray-700 flex-1">{questionText}</p>
                 </div>
 
                 <div className="ml-8">
@@ -1125,6 +1412,12 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
         (a, b) => (a.sequence_number || 0) - (b.sequence_number || 0)
       );
 
+      const roleModelsLangKey = detectLangKeyFromResponses(responses);
+      const roleModelsLangMap =
+        roleModelsQuestionTextByLang[roleModelsLangKey] ||
+        roleModelsQuestionTextByLang.en ||
+        {};
+
       return (
         <div className="space-y-6">
           {roleModels.map((roleModel: any, roleIndex: number) => (
@@ -1177,6 +1470,12 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
                   const displayText =
                     typeof responseText === 'string' ? responseText : String(responseText || '');
 
+                  const translationKey = `rm_q${questionIndex + 1}`;
+                  const questionText =
+                    roleModelsLangMap[translationKey] ||
+                    question.question_text ||
+                    `Question ${questionIndex + 1}`;
+
                   return (
                     <div key={question.id || questionIndex} className="border-l-4 border-blue-500 pl-4">
                       <div className="flex items-start gap-2 mb-2">
@@ -1184,7 +1483,7 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
                           Q{questionIndex + 1}
                         </span>
                         <p className="text-sm font-medium text-gray-700 flex-1">
-                          {question.question_text}
+                          {questionText}
                         </p>
                       </div>
                       

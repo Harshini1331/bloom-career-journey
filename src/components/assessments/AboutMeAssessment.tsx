@@ -391,8 +391,18 @@ export default function AboutMeAssessment() {
               if (saveResult.success) {
                 console.log('✅ AI summary saved successfully:', saveResult.summaryId);
                 toast({
-                  title: "Summary Generated! 📝",
-                  description: "Your teacher will review your reflection summary.",
+                  title:
+                    lang === 'kn'
+                      ? 'ಸಾರಾಂಶ ಸಿದ್ಧವಾಗಿದೆ! 📝'
+                      : lang === 'ta'
+                        ? 'சுருக்கம் உருவாக்கப்பட்டது! 📝'
+                        : 'Summary Generated! 📝',
+                  description:
+                    lang === 'kn'
+                      ? 'ನಿಮ್ಮ “ನನ್ನ ಬಗ್ಗೆ” ಉತ್ತರಗಳ ಸಾರಾಂಶವನ್ನು ನಿಮ್ಮ ಶಿಕ್ಷಕರು ಪರಿಶೀಲಿಸಲಿದ್ದಾರೆ.'
+                      : lang === 'ta'
+                        ? 'உங்கள் “என்னைப் பற்றி” பதில்களின் சுருக்கத்தை உங்கள் ஆசிரியா் விரைவில் பார்வையிடுவார்.'
+                        : 'Your teacher will review your reflection summary.',
                 });
 
                 // Notify teacher(s) assigned to this student
@@ -504,11 +514,18 @@ export default function AboutMeAssessment() {
   }
 
   if (loading) {
+    const loadingText =
+      lang === 'kn'
+        ? '"ನನ್ನ ಬಗ್ಗೆ" ಮೌಲ್ಯಮಾಪನವನ್ನು ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...'
+        : lang === 'ta'
+          ? '"என்னைப் பற்றி" மதிப்பீடு ஏற்றப்படுகிறது...'
+          : 'Loading About Me...';
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-lg text-gray-600">Loading About Me...</p>
+          <p className="mt-4 text-lg text-gray-600">{loadingText}</p>
         </div>
       </div>
     );

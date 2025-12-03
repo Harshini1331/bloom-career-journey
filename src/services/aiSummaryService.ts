@@ -90,33 +90,47 @@ class AISummaryService {
 
   /**
    * Detect if student responses are primarily in Kannada, Tamil, or default to English.
-   * This is based purely on the script used in the written answers, not UI language.
+   * - Works for BOTH flat and deeply nested response objects (sections, question groups, etc.).
+   * - Looks only at the actual answer strings, not at UI language.
    */
   private detectLanguage(responses: AssessmentResponses): SummaryLanguage {
     let kannadaCount = 0;
     let tamilCount = 0;
     let totalCount = 0;
-    
-    Object.keys(responses).forEach((key) => {
-      const videoData = responses[key];
-      
-      if (videoData && typeof videoData === 'object') {
-        const videoResponses = videoData.responses || videoData;
-        
-        Object.keys(videoResponses).forEach((qKey) => {
-          const answer = videoResponses[qKey];
-          if (answer && typeof answer === 'string' && answer.trim()) {
-            totalCount++;
-            if (this.containsKannada(answer)) {
-              kannadaCount++;
-            } else if (this.containsTamil(answer)) {
-              tamilCount++;
-            }
-          }
+
+    const scanNode = (node: any) => {
+      if (!node) return;
+
+      if (typeof node === 'string') {
+        const trimmed = node.trim();
+        if (!trimmed) return;
+        totalCount++;
+        if (this.containsKannada(trimmed)) {
+          kannadaCount++;
+        } else if (this.containsTamil(trimmed)) {
+          tamilCount++;
+        }
+        return;
+      }
+
+      if (Array.isArray(node)) {
+        node.forEach((item) => scanNode(item));
+        return;
+      }
+
+      if (typeof node === 'object') {
+        // Some assessment responses store answers under a nested "responses" key
+        const maybeResponses = (node as any).responses || node;
+        Object.keys(maybeResponses).forEach((k) => {
+          scanNode(maybeResponses[k]);
         });
       }
+    };
+
+    Object.keys(responses).forEach((key) => {
+      scanNode(responses[key]);
     });
-    
+
     if (totalCount === 0) {
       return 'en';
     }
@@ -1044,9 +1058,9 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
       (hasPreferred ? preferredKey : 'en') as keyof SummaryTemplate;
 
     const languageInstruction = isKannada
-      ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Kannada (ಕನ್ನಡ).\n- You MUST generate your summary answers in Kannada (ಕನ್ನಡ) script.\n- Write all answers in Kannada, maintaining the student\'s natural voice.\n'
+      ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Kannada (ಕನ್ನಡ).\n- You MUST generate your summary answers in Kannada (ಕನ್ನಡ) script ONLY.\n- Even though the questions may be written in English, ALL your answers must be in Kannada.\n- Write all answers in Kannada, maintaining the student\'s natural voice.\n'
       : isTamil
-        ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Tamil (தமிழ்).\n- You MUST generate your summary answers in Tamil (தமிழ்) script.\n- Write all answers in Tamil, maintaining the student\'s natural voice.\n'
+        ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Tamil (தமிழ்).\n- You MUST generate your summary answers in Tamil (தமிழ்) script ONLY.\n- Even though the questions may be written in English, ALL your answers must be in Tamil.\n- Write all answers in Tamil, maintaining the student\'s natural voice.\n'
         : '';
 
     // Get questions from database template
@@ -1078,12 +1092,20 @@ ${instructions}
 Question 6: ${questions.question6}
 ${instructions}`;
 
+    const languageRule =
+      isKannada
+        ? '- Use simple Kannada words – no difficult or English-heavy phrases.\n'
+        : isTamil
+          ? '- Use simple Tamil words – no difficult or English-heavy phrases.\n'
+          : '- Use plain English – no difficult words.\n';
+
     const coreInstructions =
       'You are a career guidance counsellor for rural students in India.\n' +
       'You will be provided with student responses from which you should draw your answers.\n' +
       'The answers must be without abbreviations, references, and notes.\n' +
       'Your language will be simple, clear and relevant for grade 8 through grade 12 students.\n' +
       'Answer in small simple sentences.\n' +
+      languageRule +
       'Do not respond to questions from sources outside the data provided to you.\n\n' +
       'Do not use general GPT knowledge. Do not respond from sources on the internet or make up replies or provide general guidance.\n' +
       'Always strive for accuracy, fairness, and respect in responding.\n' +

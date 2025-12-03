@@ -309,11 +309,18 @@ export default function CareerGuidanceToolsAssessment() {
   }, [responses, loading, isCompleted, userProfile, questions]);
 
   if (loading) {
+    const loadingText =
+      lang === 'kn'
+        ? 'Career Guidance Tools ಮೌಲ್ಯಮಾಪನವನ್ನು ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...'
+        : lang === 'ta'
+          ? 'Career Guidance Tools மதிப்பீடு ஏற்றப்படுகிறது...'
+          : 'Loading Career Guidance Tools assessment...';
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-indigo-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-purple-600 mx-auto"></div>
-          <p className="mt-4 text-lg text-gray-600">Loading Career Guidance Tools assessment...</p>
+          <p className="mt-4 text-lg text-gray-600">{loadingText}</p>
         </div>
       </div>
     );

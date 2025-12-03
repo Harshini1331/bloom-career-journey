@@ -92,6 +92,17 @@ export default function SummaryApprovalCard({
   const isHobbiesAssessment = assessmentType === 'hobbies';
   const isRoleModelsAssessment = assessmentType === 'role_models';
 
+  const detectLangKeyFromSummary = (): 'en' | 'ta' | 'kn' => {
+    try {
+      const content = JSON.stringify(getDisplaySummary(summary));
+      if (/[ಅ-ಹ]/u.test(content)) return 'kn';
+      if (/[அ-ஹ]/u.test(content)) return 'ta';
+    } catch {
+      // Fallback to English
+    }
+    return 'en';
+  };
+
   const parseAboutMeSummary = (content: string) => {
     return content
       .split(/\r?\n/)
@@ -194,31 +205,84 @@ export default function SummaryApprovalCard({
 
         if (template?.summary_questions) {
           const questions = template.summary_questions as any;
-          const langKey = 'en'; // Default to English, can be made dynamic later
-          
-          if (questions[langKey]) {
-            const defaultTitles = {
-              q1: questions[langKey].question1 || '1. Question 1',
-              q2: questions[langKey].question2 || '2. Question 2',
-              q3: questions[langKey].question3 || '3. Question 3',
-              q4: questions[langKey].question4 || '4. Question 4',
-              q5: questions[langKey].question5 || '5. Question 5',
-              q6: questions[langKey].question6 || '6. Question 6'
-            };
+          const langKey = detectLangKeyFromSummary();
+          const isTa = langKey === 'ta';
+          const isKn = langKey === 'kn';
 
-            if (assessmentTypeToUse === 'about_me') {
+          const baseBlock = questions.en || questions[langKey] || {};
+          const defaultTitles = {
+            q1: baseBlock.question1 || '1. Question 1',
+            q2: baseBlock.question2 || '2. Question 2',
+            q3: baseBlock.question3 || '3. Question 3',
+            q4: baseBlock.question4 || '4. Question 4',
+            q5: baseBlock.question5 || '5. Question 5',
+            q6: baseBlock.question6 || '6. Question 6',
+            q7: baseBlock.question7 || '7. Question 7',
+            q8: baseBlock.question8 || '8. Question 8',
+            q9: baseBlock.question9 || '9. Question 9',
+            q10: baseBlock.question10 || '10. Question 10'
+          };
+
+          if (assessmentTypeToUse === 'about_me') {
+            if (isTa) {
+              setQuestionTitles({
+                q1: '15 அம்சங்களுடன் என்னைப் பற்றிய சுருக்கம்',
+                q2: 'சுய சிந்தனைச் சுருக்கம்',
+                q3: 'ஆதரவு மற்றும் செயல்திட்டம்'
+              });
+            } else if (isKn) {
+              setQuestionTitles({
+                q1: '15 ಅಂಶಗಳ ವೈಯಕ್ತಿಕ ಚಿತ್ರಣ',
+                q2: 'ಸ್ವ-ಪರಿಚಯ ಸಾರಾಂಶ',
+                q3: 'ಬೆಂಬಲ ಮತ್ತು ಕ್ರಿಯಾ ಯೋಜನೆ'
+              });
+            } else {
               setQuestionTitles({
                 q1: '15-Point Personal Snapshot',
                 q2: 'Self-Reflection Summary',
                 q3: 'Support & Action Plan'
               });
-            } else if (assessmentTypeToUse === 'dreams') {
+            }
+          } else if (assessmentTypeToUse === 'dreams') {
+            if (isTa) {
+              setQuestionTitles({
+                q1: 'கனவுகள் திட்டம்',
+                q2: 'என் கனவுகளை நிறைவேற்ற உதவும் திறன்கள் / மதிப்புகள்',
+                q3: 'என் கனவுகளை அடைய படிப்பு மற்றும் அடுத்த படிகள்'
+              });
+            } else if (isKn) {
+              setQuestionTitles({
+                q1: 'ಕನಸಿನ ಪೋರ್ಟ್‌ಫೋಲಿಯೋ',
+                q2: 'ನನ್ನ ಕನಸಿಗೆ ಸಹಾಯ ಮಾಡುವ ಗುಣಗಳು / ಮೌಲ್ಯಗಳು / ಸಾಮರ್ಥ್ಯಗಳು',
+                q3: 'ಕನಸನ್ನು ಸಾಕಾರಗೊಳಿಸಲು ಅಗತ್ಯವಾದ ಅಧ್ಯಯನ ಮತ್ತು ಮುಂದಿನ ಹೆಜ್ಜೆಗಳು'
+              });
+            } else {
               setQuestionTitles({
                 q1: 'Dream Portfolio',
                 q2: defaultTitles.q2,
                 q3: defaultTitles.q3
               });
-            } else if (assessmentTypeToUse === 'school_learning') {
+            }
+          } else if (assessmentTypeToUse === 'school_learning') {
+            if (isTa) {
+              setQuestionTitles({
+                q1: 'எனக்கு பிடித்த பாடங்கள்',
+                q2: 'எனக்கு பிடித்த பாடங்களில் இருந்து சாத்தியமான தொழில்கள்',
+                q3: 'எனக்கு பிடிக்காத பாடங்கள்',
+                q4: 'பிடிக்காத பாடங்களில் நான் மேம்பட்டால் சாத்தியமான தொழில்கள்',
+                q5: 'பள்ளியில் படிப்பைத் தவிர நான் நன்றாகச் செய்யும் செயல்கள்',
+                q6: 'இந்த திறன்களை மேம்படுத்துவது என் தொழிலுக்கு எப்படி உதவும்'
+              });
+            } else if (isKn) {
+              setQuestionTitles({
+                q1: 'ನನಗೆ ಇಷ್ಟವಾದ ವಿಷಯಗಳು',
+                q2: 'ನನಗೆ ಇಷ್ಟವಾದ ವಿಷಯಗಳಿಂದ ಸಾಧ್ಯವಾದ ವೃತ್ತಿಗಳು',
+                q3: 'ನನಗೆ ಇಷ್ಟವಿಲ್ಲದ ವಿಷಯಗಳು',
+                q4: 'ಇಷ್ಟವಿಲ್ಲದ ವಿಷಯಗಳಲ್ಲಿ ನಾನು ಸುಧಾರಿಸಿದರೆ ಸಾಧ್ಯವಾದ ವೃತ್ತಿಗಳು',
+                q5: 'ಶಾಲೆಯಲ್ಲಿ ಅಧ್ಯಯನದ ಹೊರತಾಗಿ ನಾನು ಚೆನ್ನಾಗಿ ಮಾಡುವ ಕೆಲಸಗಳು',
+                q6: 'ಈ ಕೌಶಲ್ಯಗಳನ್ನು ಬೆಳೆಸುವುದು ನನ್ನ ವೃತ್ತಿಗೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡುತ್ತದೆ'
+              });
+            } else {
               setQuestionTitles({
                 q1: defaultTitles.q1,
                 q2: defaultTitles.q2,
@@ -227,22 +291,84 @@ export default function SummaryApprovalCard({
                 q5: defaultTitles.q5,
                 q6: defaultTitles.q6
               });
-            } else if (assessmentTypeToUse === 'hobbies') {
+            }
+          } else if (assessmentTypeToUse === 'hobbies') {
+            if (isTa) {
               setQuestionTitles({
-                q1: 'Hobbies Portfolio',
-                q2: questions[langKey].question2 || '',
-                q3: questions[langKey].question3 || '',
-                q4: questions[langKey].question4 || '',
-                q5: questions[langKey].question5 || '',
-                q6: 'Talents Portfolio',
-                q7: questions[langKey].question7 || '',
-                q8: questions[langKey].question8 || '',
-                q9: questions[langKey].question9 || '',
-                q10: questions[langKey].question10 || ''
+                q1: 'பொழுதுபோக்கு திட்டம்',
+                q2: 'பொழுதுபோக்குகள்',
+                q3: 'இந்தப் பொழுதுபோக்கை ஒரு தொழிலாக மாற்ற விரும்புகிறீர்களா?',
+                q4: 'இந்தப் பொழுதுபோக்குக்கு பொருத்தமான தொழில்கள்',
+                q5: 'இந்தப் பொழுதுபோக்கை தொழிலாக மாற்றியவர் யாரை நீங்கள் அறிவீர்கள்?',
+                q6: 'திறமைகள் திட்டம்',
+                q7: 'திறமைகள்',
+                q8: 'இந்த திறமையை ஒரு தொழிலாக மாற்ற விரும்புகிறீர்களா?',
+                q9: 'இந்த திறமைக்கு பொருத்தமான தொழில்கள்',
+                q10: 'இந்த திறமையை தொழிலாக மாற்றியவர் யாரை நீங்கள் அறிவீர்கள்?'
+              });
+            } else if (isKn) {
+              setQuestionTitles({
+                q1: 'ಹವ್ಯಾಸಗಳ ಪೋರ್ಟ್‌ಫೋಲಿಯೋ',
+                q2: 'ಹವ್ಯಾಸಗಳು',
+                q3: 'ಈ ಹವ್ಯಾಸವನ್ನು ವೃತ್ತಿಯಾಗಿಸಲು ನೀವು ಬಯಸುವಿರಾ?',
+                q4: 'ಈ ಹವ್ಯಾಸಗಳಿಗೆ ಹೊಂದುವ ವೃತ್ತಿಗಳು',
+                q5: 'ತಮ ಹವ್ಯಾಸವನ್ನು ವೃತ್ತಿಯಾಗಿಸಿಕೊಂಡಿರುವವರಲ್ಲಿ ನೀವು ಯಾರನ್ನು ತಿಳಿದಿದ್ದೀರಿ?',
+                q6: 'ಪ್ರತಿಭೆಗಳ ಪೋರ್ಟ್‌ಫೋಲಿಯೋ',
+                q7: 'ಪ್ರತಿಭೆಗಳು',
+                q8: 'ಈ ಪ್ರತಿಭೆಯನ್ನು ವೃತ್ತಿಯಾಗಿಸಲು ನೀವು ಬಯಸುವಿರಾ?',
+                q9: 'ನಿಮ್ಮ ಪ್ರತಿಭೆಗೆ ಹೊಂದುವ ವೃತ್ತಿಗಳು',
+                q10: 'ತಮ್ಮ ಪ್ರತಿಭೆಯನ್ನು ವೃತ್ತಿಯಾಗಿಸಿಕೊಂಡವರಲ್ಲಿ ನೀವು ಯಾರನ್ನು ತಿಳಿದಿದ್ದೀರಿ?'
               });
             } else {
-              setQuestionTitles(defaultTitles);
+              setQuestionTitles({
+                q1: baseBlock.question1 || 'Hobbies Portfolio',
+                q2: 'Hobbies',
+                q3: 'I would like to turn this hobby into a career',
+                q4: 'Careers that are compatible with these hobbies',
+                q5: 'People you know who have turned their hobbies into careers',
+                q6: baseBlock.question6 || 'Talents Portfolio',
+                q7: 'Talents',
+                q8: 'Do you want to turn your talent into a career?',
+                q9: 'Careers that match your talents',
+                q10: 'People you know who have turned their talents into careers'
+              });
             }
+          } else if (assessmentTypeToUse === 'role_models') {
+            if (isTa) {
+              setQuestionTitles({
+                q1: 'தொழில் வழிகாட்டல் குறித்து உங்கள் முன்மாதிரி நபர்களிடம் கேட்க விரும்பும் 5 முதல் 10 கேள்விகளை எழுதுங்கள்.'
+              });
+            } else if (isKn) {
+              setQuestionTitles({
+                q1: 'ನಿಮ್ಮ ಪಾತ್ರ ಮಾದರಿಗಳಿಂದ ವೃತ್ತಿ ಮಾರ್ಗದರ್ಶನದ ಕುರಿತಾಗಿ ನೀವು ಕೇಳಲು ಬಯಸುವ 5 ರಿಂದ 10 ಪ್ರಶ್ನೆಗಳನ್ನು ಬರೆಯಿರಿ.'
+              });
+            } else {
+              setQuestionTitles({
+                q1: defaultTitles.q1
+              });
+            }
+          } else if (assessmentTypeToUse === 'inspiration') {
+            if (isTa) {
+              setQuestionTitles({
+                q1: 'என்னை ஊக்கப்படுத்தியவை',
+                q2: 'தவிர்க்க வேண்டிய நடத்தைகள்',
+                q3: 'ஊக்கமூட்டும் நபர்கள் / நிகழ்வுகளுக்கு இடையிலான ஒற்றுமைகள்'
+              });
+            } else if (isKn) {
+              setQuestionTitles({
+                q1: 'ನನಗೆ ಪ್ರೇರಣೆ ನೀಡಿದವು',
+                q2: 'ತಪ್ಪಿಸಿಕೊಳ್ಳಬೇಕಾದ ವರ್ತನೆಗಳು',
+                q3: 'ಪ್ರೇರಣಾದಾಯಕ ವ್ಯಕ್ತಿಗಳು / ಘಟನೆಗಳ ನಡುವಿನ ಸಾಮ್ಯತೆಗಳು'
+              });
+            } else {
+              setQuestionTitles({
+                q1: defaultTitles.q1,
+                q2: defaultTitles.q2,
+                q3: defaultTitles.q3
+              });
+            }
+          } else {
+            setQuestionTitles(defaultTitles);
           }
         }
       } catch (error) {
@@ -773,11 +899,33 @@ export default function SummaryApprovalCard({
     }
   };
 
+  const summaryLangKey = detectLangKeyFromSummary();
+
   const dreamColumnHeadings = {
-    dream: 'Dream',
-    quality: 'Which quality,\nvalue, strength will\nhelp you achieve\nyou dream',
-    prevent: 'What you will have\nto do to ensure that\nthe dream doesn’t\nfail',
-    study: 'What should you\nstudy after 10th\nto achieve this dream\n(if applicable)'
+    dream:
+      summaryLangKey === 'ta'
+        ? 'கனவு'
+        : summaryLangKey === 'kn'
+          ? 'ಕನಸು'
+          : 'Dream',
+    quality:
+      summaryLangKey === 'ta'
+        ? 'இந்தக் கனவை அடைய\nஉங்களுக்கு உதவும்\nதிறன் / மதிப்பு /\nவலிமை என்ன?'
+        : summaryLangKey === 'kn'
+          ? 'ಈ ಕನಸನ್ನು ಸಾಧಿಸಲು\nಸಹಾಯ ಮಾಡುವ ಗುಣ,\nಮೂಲ್ಯ ಅಥವಾ ಸಾಮರ್ಥ್ಯ\nಯಾವುದು?'
+          : 'Which quality,\nvalue, strength will\nhelp you achieve\nyou dream',
+    prevent:
+      summaryLangKey === 'ta'
+        ? 'இந்த கனவு தோல்வியடையாமல்\nஇருக்க நீங்கள் என்ன\nசெய்ய வேண்டும்?'
+        : summaryLangKey === 'kn'
+          ? 'ಈ ಕನಸು ವಿಫಲವಾಗದಂತೆ\nನೀವು ಏನು ಮಾಡಬೇಕು?'
+          : 'What you will have\nto do to ensure that\nthe dream doesn’t\nfail',
+    study:
+      summaryLangKey === 'ta'
+        ? 'இந்தக் கனவை அடைய\n10ஆம் வகுப்புக்குப் பிறகு\n(தேவையெனில்) நீங்கள் என்ன\nபடிக்க வேண்டும்?'
+        : summaryLangKey === 'kn'
+          ? 'ಈ ಕನಸನ್ನು ಸಾಧಿಸಲು\n10ನೇ ತರಗತಿಯ ನಂತರ\n(ಅಗತ್ಯವಿದ್ದರೆ) ನೀವು\nಏನು ಓದಬೇಕು?'
+          : 'What should you\nstudy after 10th\nto achieve this dream\n(if applicable)'
   };
 
   return (

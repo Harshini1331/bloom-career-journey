@@ -1195,8 +1195,18 @@ export default function MyInspirationAssessment() {
             if (saveResult.success) {
               console.log('✅ AI summary saved successfully:', saveResult.summaryId);
               toast({
-                title: "Summary Generated! 📝",
-                description: "Your teacher will review your reflection summary.",
+                title:
+                  lang === 'kn'
+                    ? 'ಸಾರಾಂಶ ಸಿದ್ಧವಾಗಿದೆ! 📝'
+                    : lang === 'ta'
+                      ? 'சுருக்கம் உருவாக்கப்பட்டது! 📝'
+                      : 'Summary Generated! 📝',
+                description:
+                  lang === 'kn'
+                    ? 'ನೀವು ಬರೆದ ಚಿಂತನೆಗಳ ಸಾರಾಂಶವನ್ನು ನಿಮ್ಮ ಶಿಕ್ಷಕರು ಪರಿಶೀಲಿಸಲಿದ್ದಾರೆ.'
+                    : lang === 'ta'
+                      ? 'நீங்கள் எழுதிய சிந்தனைச் சுருக்கத்தை உங்கள் ஆசிரியா் விரைவில் பார்வையிடுவார்.'
+                      : 'Your teacher will review your reflection summary.',
               });
               
               // Notify teacher that summary is ready for review
@@ -1289,12 +1299,26 @@ export default function MyInspirationAssessment() {
   };
 
   if (loading || dataLoading) {
+    const loadingAssessmentText =
+      lang === 'kn'
+        ? 'ನಿಮ್ಮ ಪ್ರೇರಣೆ ಮೌಲ್ಯಮಾಪನವನ್ನು ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...'
+        : lang === 'ta'
+          ? 'உங்கள் ஊக்கம் மதிப்பீடு ஏற்றப்படுகிறது...'
+          : 'Loading your inspiration assessment...';
+
+    const loadingProgressText =
+      lang === 'kn'
+        ? 'ನಿಮ್ಮ ಉಳಿಸಿದ ಪ್ರಗತಿಯನ್ನು ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...'
+        : lang === 'ta'
+          ? 'உங்கள் சேமிக்கப்பட்ட முன்னேற்றம் ஏற்றப்படுகிறது...'
+          : 'Loading your saved progress...';
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-lg text-gray-600">
-            {loading ? 'Loading your inspiration assessment...' : 'Loading your saved progress...'}
+            {loading ? loadingAssessmentText : loadingProgressText}
           </p>
         </div>
       </div>

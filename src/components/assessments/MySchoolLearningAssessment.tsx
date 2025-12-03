@@ -11,6 +11,7 @@ import { School, Save, CheckCircle, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useLang } from '@/hooks/useLang';
+import { fetchTranslations } from '@/services/translationService';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { KannadaKeyboard } from '@/components/ui/KannadaKeyboard';
 import { checkAssessmentUnlock } from '@/utils/assessmentUnlock';
@@ -118,6 +119,102 @@ export default function MySchoolLearningAssessment() {
   const viewParam = (searchParams.get('readonly') || searchParams.get('view') || '').toLowerCase();
   const readOnlyView = viewParam === '1' || viewParam === 'true';
   const isReadOnly = isCompleted || readOnlyView;
+  const [helpTranslations, setHelpTranslations] = useState<Record<string, string>>({});
+
+  // Load localized help text from content_translations (school_help)
+  useEffect(() => {
+    const loadHelpTranslations = async () => {
+      try {
+        const keys = Array.from({ length: 21 }, (_, i) => `question${i + 1}`);
+        const map = await fetchTranslations('school_help', keys, lang);
+        setHelpTranslations(map);
+      } catch (error) {
+        console.warn('MySchoolLearningAssessment: failed to load help translations', error);
+        setHelpTranslations({});
+      }
+    };
+
+    loadHelpTranslations();
+  }, [lang]);
+
+  const getHelpText = (id: number, fallback: string) => {
+    const key = `question${id}`;
+    return helpTranslations[key] || fallback;
+  };
+
+  const getLearningMethodLabel = (key: string): string => {
+    if (lang === 'kn') {
+      switch (key) {
+        case 'visual':
+          return 'ವೀಡಿಯೋಗಳನ್ನು ನೋಡುವುದು ಅಥವಾ ಚಿತ್ರಗಳನ್ನು ನೋಡಿ ಕಲಿಯುವುದು (ದೃಶ್ಯ)';
+        case 'reading':
+          return 'ಓದುವುದು';
+        case 'listening':
+          return 'ಕೇಳುವುದು (ಆಡಿಯೋ)';
+        case 'experimenting':
+          return 'ಪ್ರಯೋಗ ಮಾಡುವುದು';
+        case 'discuss':
+          return 'ಚರ್ಚೆ / ಚಿಂತನೆ ಹಂಚಿಕೊಳ್ಳುವುದು';
+        case 'groupDiscussions':
+          return 'ಗುಂಪು ಚರ್ಚೆಗಳು';
+        case 'writing':
+          return 'ಬರೆಯುವುದು';
+        case 'readingByheart':
+          return 'ಓದಿ ಮನಪಾಠ ಮಾಡುವುದು';
+        case 'teaching':
+          return 'ಇತರರಿಗೆ ಕಲಿಸುವ ಮೂಲಕ ಅಥವಾ ಯಾರಾದರೂ ನನ್ನ ಮಾತು ಕೇಳುವುದರಿಂದ ನಾನು ಚೆನ್ನಾಗಿ ಕಲಿಯುತ್ತೇನೆ';
+        default:
+          return key;
+      }
+    }
+    if (lang === 'ta') {
+      switch (key) {
+        case 'visual':
+          return 'காணொளி/படங்களைப் பார்த்து கற்றல் (காண்பது மூலம் கற்றல்)';
+        case 'reading':
+          return 'வாசித்து கற்றல்';
+        case 'listening':
+          return 'கேட்டு கற்றல் (ஒலிப்பதிவு, உரை முதலியன)';
+        case 'experimenting':
+          return 'செய்முறை செய்து கற்றல் (பரிசோதனை)';
+        case 'discuss':
+          return 'விவாதம் / சேர்ந்து யோசித்து கற்றல்';
+        case 'groupDiscussions':
+          return 'குழு விவாதங்கள் மூலம் கற்றல்';
+        case 'writing':
+          return 'எழுதிக் கொண்டு கற்றல்';
+        case 'readingByheart':
+          return 'வாசித்து மனப்பாடம் செய்து கற்றல்';
+        case 'teaching':
+          return 'பிறருக்கு கற்றுக்கொடுப்பதன் மூலம் அல்லது யாராவது கவனமாக கேட்கும்போது நான் நன்றாக கற்றுக்கொள்கிறேன்';
+        default:
+          return key;
+      }
+    }
+    // default English labels
+    switch (key) {
+      case 'visual':
+        return 'Watching videos or relating to pictures (visual)';
+      case 'reading':
+        return 'Reading';
+      case 'listening':
+        return 'Listening (audio)';
+      case 'experimenting':
+        return 'Experimenting';
+      case 'discuss':
+        return 'Discuss / Brainstorming';
+      case 'groupDiscussions':
+        return 'Group discussions';
+      case 'writing':
+        return 'Writing';
+      case 'readingByheart':
+        return 'Reading & byheart';
+      case 'teaching':
+        return 'I learn by teaching others, or I like someone to listen to me';
+      default:
+        return key;
+    }
+  };
 
   // Helper to get Tamil question labels while preserving existing English structure
   const qLabel = (id: number, en: string): string => {
@@ -407,15 +504,35 @@ export default function MySchoolLearningAssessment() {
       }
 
       toast({
-        title: "Section Saved! ✅",
-        description: `Your ${section.replace('section', 'Section ')} responses have been saved.`,
+        title:
+          lang === 'kn'
+            ? 'ಭಾಗವು ಉಳಿಸಲಾಗಿದೆ! ✅'
+            : lang === 'ta'
+              ? 'பகுதி சேமிக்கப்பட்டது! ✅'
+              : 'Section Saved! ✅',
+        description:
+          lang === 'kn'
+            ? `ನಿಮ್ಮ ${section.replace('section', 'ಭಾಗ ')} ಉತ್ತರಗಳನ್ನು ಉಳಿಸಲಾಗಿದೆ.`
+            : lang === 'ta'
+              ? `உங்கள் ${section.replace('section', 'பகுதி ')} பதில்கள் சேமிக்கப்பட்டுள்ளன.`
+              : `Your ${section.replace('section', 'Section ')} responses have been saved.`,
       });
     } catch (error) {
       console.error('Error saving section:', error);
       toast({
-        title: "Error",
-        description: "Failed to save section. Please try again.",
-        variant: "destructive",
+        title:
+          lang === 'kn'
+            ? 'ದೋಷ'
+            : lang === 'ta'
+              ? 'பிழை'
+              : 'Error',
+        description:
+          lang === 'kn'
+            ? 'ಭಾಗವನ್ನು ಉಳಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.'
+            : lang === 'ta'
+              ? 'பகுதியை சேமிக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.'
+              : 'Failed to save section. Please try again.',
+        variant: 'destructive',
       });
     } finally {
       setSavingSection(null);
@@ -573,8 +690,18 @@ export default function MySchoolLearningAssessment() {
       if (error) throw error;
 
       toast({
-        title: "Assessment Completed! 📚",
-        description: "Your responses have been saved successfully!",
+        title:
+          lang === 'kn'
+            ? 'ಮೌಲ್ಯಮಾಪನ ಪೂರ್ಣಗೊಂಡಿದೆ! 📚'
+            : lang === 'ta'
+              ? 'மதிப்பீடு முடிந்துவிட்டது! 📚'
+              : 'Assessment Completed! 📚',
+        description:
+          lang === 'kn'
+            ? 'ನಿಮ್ಮ ಉತ್ತರಗಳನ್ನು ಯಶಸ್ವಿಯಾಗಿ ಉಳಿಸಲಾಗಿದೆ!'
+            : lang === 'ta'
+              ? 'உங்கள் பதில்கள் வெற்றிகரமாக சேமிக்கப்பட்டுள்ளன!'
+              : 'Your responses have been saved successfully!',
       });
 
       setIsCompleted(true);
@@ -597,8 +724,18 @@ export default function MySchoolLearningAssessment() {
             if (saveResult.success) {
               console.log('✅ AI summary saved successfully:', saveResult.summaryId);
               toast({
-                title: "Summary Generated! 📝",
-                description: "Your teacher will review it.",
+                title:
+                  lang === 'kn'
+                    ? 'ಸಾರಾಂಶ ಸಿದ್ಧವಾಗಿದೆ! 📝'
+                    : lang === 'ta'
+                      ? 'சுருக்கம் உருவாக்கப்பட்டது! 📝'
+                      : 'Summary Generated! 📝',
+                description:
+                  lang === 'kn'
+                    ? 'ನಿಮ್ಮ “ನನ್ನ ಶಾಲೆ, ನನ್ನ ಕಲಿಕೆ ಮತ್ತು ನಾನು” ಮೌಲ್ಯಮಾಪನದ ಸಾರಾಂಶವನ್ನು ನಿಮ್ಮ ಶಿಕ್ಷಕರು ಪರಿಶೀಲಿಸಲಿದ್ದಾರೆ.'
+                    : lang === 'ta'
+                      ? '“என் பள்ளி, என் படிப்பு மற்றும் நான்” மதிப்பீட்டின் சுருக்கத்தை உங்கள் ஆசிரியா் விரைவில் பார்வையிடுவார்.'
+                      : 'Your teacher will review it.',
               });
 
               try {
@@ -643,11 +780,18 @@ export default function MySchoolLearningAssessment() {
   };
 
   if (loading) {
+    const loadingText =
+      lang === 'kn'
+        ? '"ನನ್ನ ಶಾಲೆ, ನನ್ನ ಕಲಿಕೆ ಮತ್ತು ನಾನು" ಮೌಲ್ಯಮಾಪನವನ್ನು ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...'
+        : lang === 'ta'
+          ? '"என் பள்ளி, என் கற்றல் மற்றும் நான்" மதிப்பீடு ஏற்றப்படுகிறது...'
+          : 'Loading your school learning assessment...';
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-green-600 mx-auto"></div>
-          <p className="mt-4 text-lg text-gray-600">Loading...</p>
+          <p className="mt-4 text-lg text-gray-600">{loadingText}</p>
         </div>
       </div>
     );
@@ -660,24 +804,44 @@ export default function MySchoolLearningAssessment() {
           <Card className="max-w-2xl mx-auto border-0 shadow-lg">
             <CardHeader className="text-center bg-gradient-to-r from-green-50 to-emerald-50">
               <School className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <CardTitle className="text-2xl text-green-800">Assessment Completed! 🏫</CardTitle>
+              <CardTitle className="text-2xl text-green-800">
+                {lang === 'kn'
+                  ? 'ಮೌಲ್ಯಮಾಪನ ಪೂರ್ಣಗೊಂಡಿದೆ! 🏫'
+                  : lang === 'ta'
+                    ? 'மதிப்பீடு முடிந்துவிட்டது! 🏫'
+                    : 'Assessment Completed! 🏫'}
+              </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
               <div className="text-center space-y-4">
-                <p className="text-gray-600">Thank you for sharing your thoughts!</p>
+                <p className="text-gray-600">
+                  {lang === 'kn'
+                    ? 'ನಿಮ್ಮ ಆಲೋಚನೆಗಳನ್ನು ಹಂಚಿಕೊಂಡಿದ್ದಕ್ಕಾಗಿ ಧನ್ಯವಾದಗಳು!'
+                    : lang === 'ta'
+                      ? 'உங்கள் எண்ணங்களை எங்களுடன் பகிர்ந்ததற்கு நன்றி!'
+                      : 'Thank you for sharing your thoughts!'}
+                </p>
                 <div className="flex justify-center gap-4">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={() => {
                       const params = new URLSearchParams(searchParams.toString());
                       params.set('readonly', '1');
                       navigate(`/student/assessment/school-learning?${params.toString()}`);
                     }}
                   >
-                    View My Answers
+                    {lang === 'kn'
+                      ? 'ನನ್ನ ಉತ್ತರಗಳನ್ನು ನೋಡಿ'
+                      : lang === 'ta'
+                        ? 'என் பதில்களை காண'
+                        : 'View My Answers'}
                   </Button>
                   <Button onClick={() => navigate('/student')} className="bg-green-600 hover:bg-green-700">
-                    Back to Dashboard
+                    {lang === 'kn'
+                      ? 'ಡ್ಯಾಶ್‌ಬೋರ್ಡ್‌ಗೆ ಹಿಂತಿರುಗಿ'
+                      : lang === 'ta'
+                        ? 'டாஷ்போர்டுக்கு திரும்ப செல்ல'
+                        : 'Back to Dashboard'}
                   </Button>
                 </div>
               </div>
@@ -706,42 +870,69 @@ export default function MySchoolLearningAssessment() {
                 <ArrowLeft className="w-4 h-4 mr-2" />{t('backToDashboard')}
               </Button>
             </div>
-            <h1 className="text-3xl font-bold text-green-800 mb-2">🏫 My School, My Learning and I</h1>
+            <h1 className="text-3xl font-bold text-green-800 mb-2">
+              {lang === 'kn'
+                ? '🏫 ನನ್ನ ಶಾಲೆ, ನನ್ನ ಕಲಿಕೆ ಮತ್ತು ನಾನು'
+                : lang === 'ta'
+                  ? '🏫 என் பள்ளி, என் படிப்பு மற்றும் நான்'
+                  : '🏫 My School, My Learning and I'}
+            </h1>
             <p className="text-gray-700 mt-4">
-              Share your thoughts about school, learning, and your experiences. Take your time and answer honestly.
+              {lang === 'kn'
+                ? 'ಶಾಲೆ, ಕಲಿಕೆ ಮತ್ತು ನಿಮ್ಮ ಅನುಭವಗಳ ಬಗ್ಗೆ ನಿಮ್ಮ ಆಲೋಚನೆಗಳನ್ನು ಹಂಚಿಕೊಳ್ಳಿ. ನಿಧಾನವಾಗಿ ಯೋಚಿಸಿ, ಸತ್ಯವಾಗಿ ಉತ್ತರಿಸಿ.'
+                : lang === 'ta'
+                  ? 'பள்ளி, படிப்பு மற்றும் உங்கள் அனுபவங்களைப் பற்றி உங்கள் எண்ணங்களை பகிருங்கள். மெதுவாக யோசித்து நேர்மையாக பதில் எழுதுங்கள்.'
+                  : 'Share your thoughts about school, learning, and your experiences. Take your time and answer honestly.'}
             </p>
           </div>
 
           <Card className="mb-6 border-0 shadow-lg">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-800">Your Progress</h2>
-                <Badge variant="secondary">{Math.round(getProgressPercentage())}% Complete</Badge>
+                <h2 className="text-lg font-semibold text-gray-800">{t('yourProgress')}</h2>
+                <Badge variant="secondary">
+                  {Math.round(getProgressPercentage())}% {t('completeSuffix')}
+                </Badge>
               </div>
               <Progress value={getProgressPercentage()} className="h-3" />
             </CardContent>
           </Card>
 
           <div className="flex justify-center mb-6 gap-2 flex-wrap">
-            {(['section1', 'section2', 'section3', 'section4', 'section5'] as const).map((section) => (
-              <button
-                key={section}
-                onClick={() => setCurrentSection(section)}
-                className={`px-4 py-2 rounded-md transition-all text-sm ${
-                  currentSection === section
-                    ? 'bg-green-600 text-white shadow-md'
-                    : 'bg-white text-gray-600 hover:text-green-600 border border-gray-200'
-                }`}
-              >
-                {section.replace('section', 'Section ')}
-              </button>
-            ))}
+            {(['section1', 'section2', 'section3', 'section4', 'section5'] as const).map((section) => {
+              const sectionNumber = Number(section.replace('section', ''));
+              const label =
+                lang === 'kn'
+                  ? `ಭಾಗ ${sectionNumber}`
+                  : lang === 'ta'
+                    ? `பகுதி ${sectionNumber}`
+                    : `Section ${sectionNumber}`;
+              return (
+                <button
+                  key={section}
+                  onClick={() => setCurrentSection(section)}
+                  className={`px-4 py-2 rounded-md transition-all text-sm ${
+                    currentSection === section
+                      ? 'bg-green-600 text-white shadow-md'
+                      : 'bg-white text-gray-600 hover:text-green-600 border border-gray-200'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
 
           {currentSection === 'section1' && (
             <Card className="border-0 shadow-lg mb-4">
               <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
-                <CardTitle className="text-xl text-green-800">Section 1: School Experience</CardTitle>
+                <CardTitle className="text-xl text-green-800">
+                  {lang === 'kn'
+                    ? 'ಭಾಗ 1: ಶಾಲಾ ಅನುಭವ'
+                    : lang === 'ta'
+                      ? 'பகுதி 1: பள்ளி அனுபவம்'
+                      : 'Section 1: School Experience'}
+                </CardTitle>
               </CardHeader>
               <CardContent className="p-6 space-y-6">
                 <div>
@@ -751,11 +942,13 @@ export default function MySchoolLearningAssessment() {
                       <TooltipTrigger asChild>
                         <button type="button" className="text-green-700 hover:text-green-800">💬</button>
                       </TooltipTrigger>
-                      <TooltipContent>Say Yes or No, then explain why. Example: "Yes, because I like meeting my friends and learning new things."</TooltipContent>
+                      <TooltipContent>
+                        {getHelpText(1, 'Say Yes or No, then explain why. Example: "Yes, because I like meeting my friends and learning new things."')}
+                      </TooltipContent>
                     </Tooltip>
                   </label>
                   <Textarea
-                    placeholder="Example: Yes, because I enjoy learning and spending time with friends..."
+                    placeholder={getHelpText(1, 'Example: Yes, because I enjoy learning and spending time with friends...')}
                     value={responses.section1.question1}
                     onChange={(e) => handleResponseChange('section1', 'question1', e.target.value)}
                     rows={3}
@@ -771,11 +964,13 @@ export default function MySchoolLearningAssessment() {
                       <TooltipTrigger asChild>
                         <button type="button" className="text-green-700 hover:text-green-800">💬</button>
                       </TooltipTrigger>
-                      <TooltipContent>Write about the topics or subjects you enjoy. Example: "I like learning about science experiments and stories in English."</TooltipContent>
+                      <TooltipContent>
+                        {getHelpText(2, 'Write about the topics or subjects you enjoy. Example: "I like learning about science experiments and stories in English."')}
+                      </TooltipContent>
                     </Tooltip>
                   </label>
                   <Textarea
-                    placeholder="Example: I enjoy learning about science, mathematics, and stories..."
+                    placeholder={getHelpText(2, 'Example: I enjoy learning about science, mathematics, and stories...')}
                     value={responses.section1.question2}
                     onChange={(e) => handleResponseChange('section1', 'question2', e.target.value)}
                     rows={3}
@@ -791,11 +986,13 @@ export default function MySchoolLearningAssessment() {
                       <TooltipTrigger asChild>
                         <button type="button" className="text-green-700 hover:text-green-800">💬</button>
                       </TooltipTrigger>
-                      <TooltipContent>If you have any problems with learning, write them here. Example: "Sometimes the teacher goes too fast and I can't understand."</TooltipContent>
+                      <TooltipContent>
+                        {getHelpText(3, 'If you have any problems with learning, write them here. Example: "Sometimes the teacher goes too fast and I can\'t understand."')}
+                      </TooltipContent>
                     </Tooltip>
                   </label>
                   <Textarea
-                    placeholder="Example: Sometimes I find it hard to understand when the teacher explains too quickly..."
+                    placeholder={getHelpText(3, 'Example: Sometimes I find it hard to understand when the teacher explains too quickly...')}
                     value={responses.section1.question3}
                     onChange={(e) => handleResponseChange('section1', 'question3', e.target.value)}
                     rows={3}
@@ -811,11 +1008,13 @@ export default function MySchoolLearningAssessment() {
                       <TooltipTrigger asChild>
                         <button type="button" className="text-green-700 hover:text-green-800">💬</button>
                       </TooltipTrigger>
-                      <TooltipContent>Write your friend's name and what makes them special. Example: "Ravi is my best friend because he helps me with studies and we play together."</TooltipContent>
+                      <TooltipContent>
+                        {getHelpText(4, 'Write your friend\'s name and what makes them special. Example: "Ravi is my best friend because he helps me with studies and we play together."')}
+                      </TooltipContent>
                     </Tooltip>
                   </label>
                   <Textarea
-                    placeholder="Example: My best friend is Priya. She is kind, helps me with homework, and we enjoy playing together..."
+                    placeholder={getHelpText(4, 'Example: My best friend is Priya. She is kind, helps me with homework, and we enjoy playing together...')}
                     value={responses.section1.question4}
                     onChange={(e) => handleResponseChange('section1', 'question4', e.target.value)}
                     rows={3}
@@ -834,7 +1033,11 @@ export default function MySchoolLearningAssessment() {
                   ) : (
                     <>
                       <Save className="w-4 h-4 mr-2" />
-                      Save Section 1
+                      {lang === 'kn'
+                        ? 'ಭಾಗ 1 ಅನ್ನು ಉಳಿಸಿ'
+                        : lang === 'ta'
+                          ? 'பகுதி 1ஐ சேமிக்கவும்'
+                          : 'Save Section 1'}
                     </>
                   )}
                 </Button>
@@ -845,22 +1048,29 @@ export default function MySchoolLearningAssessment() {
           {currentSection === 'section2' && (
             <Card className="border-0 shadow-lg mb-4">
               <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
-                <CardTitle className="text-xl text-blue-800">Section 2: Subjects & Learning Preferences</CardTitle>
+                <CardTitle className="text-xl text-blue-800">
+                  {lang === 'kn'
+                    ? 'ಭಾಗ 2: ವಿಷಯಗಳು ಮತ್ತು ಕಲಿಕೆಯ ಮೆಚ್ಚುಗೆಗಳು'
+                    : lang === 'ta'
+                      ? 'பகுதி 2: பாடங்கள் மற்றும் கற்றல் விருப்பங்கள்'
+                      : 'Section 2: Subjects & Learning Preferences'}
+                </CardTitle>
               </CardHeader>
               <CardContent className="p-6 space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                     {qLabel(5, '5. Which topics/subjects do you enjoy learning? Write.')}
-                    {qLabel(5, '5. Which topics/subjects do you enjoy learning? Write.')}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button type="button" className="text-blue-700 hover:text-blue-800">💬</button>
                       </TooltipTrigger>
-                      <TooltipContent>List the subjects you like. Example: "I enjoy Mathematics, Science, and English."</TooltipContent>
+                      <TooltipContent>
+                        {getHelpText(5, 'List the subjects you like. Example: "I enjoy Mathematics, Science, and English."')}
+                      </TooltipContent>
                     </Tooltip>
                   </label>
                   <Textarea
-                    placeholder="Example: I enjoy Mathematics, Science, English, and Social Studies..."
+                    placeholder={getHelpText(5, 'Example: I enjoy Mathematics, Science, English, and Social Studies...')}
                     value={responses.section2.question5}
                     onChange={(e) => handleResponseChange('section2', 'question5', e.target.value)}
                     rows={3}
@@ -876,11 +1086,13 @@ export default function MySchoolLearningAssessment() {
                       <TooltipTrigger asChild>
                         <button type="button" className="text-blue-700 hover:text-blue-800">💬</button>
                       </TooltipTrigger>
-                      <TooltipContent>Explain why you like these subjects. Example: "I like Science because we do experiments and it's fun to see how things work."</TooltipContent>
+                      <TooltipContent>
+                        {getHelpText(6, 'Explain why you like these subjects. Example: "I like Science because we do experiments and it\'s fun to see how things work."')}
+                      </TooltipContent>
                     </Tooltip>
                   </label>
                   <Textarea
-                    placeholder="Example: I like Science because we do experiments and I find it interesting to learn how things work..."
+                    placeholder={getHelpText(6, 'Example: I like Science because we do experiments and I find it interesting to learn how things work...')}
                     value={responses.section2.question6}
                     onChange={(e) => handleResponseChange('section2', 'question6', e.target.value)}
                     rows={3}
@@ -896,11 +1108,13 @@ export default function MySchoolLearningAssessment() {
                       <TooltipTrigger asChild>
                         <button type="button" className="text-blue-700 hover:text-blue-800">💬</button>
                       </TooltipTrigger>
-                      <TooltipContent>Write the subjects you don't like. Example: "I don't like History because there are too many dates to remember."</TooltipContent>
+                      <TooltipContent>
+                        {getHelpText(7, 'Write the subjects you don\'t like. Example: "I don\'t like History because there are too many dates to remember."')}
+                      </TooltipContent>
                     </Tooltip>
                   </label>
                   <Textarea
-                    placeholder="Example: I find History difficult because there are many dates and events to remember..."
+                    placeholder={getHelpText(7, 'Example: I find History difficult because there are many dates and events to remember...')}
                     value={responses.section2.question7}
                     onChange={(e) => handleResponseChange('section2', 'question7', e.target.value)}
                     rows={3}
@@ -916,11 +1130,13 @@ export default function MySchoolLearningAssessment() {
                       <TooltipTrigger asChild>
                         <button type="button" className="text-blue-700 hover:text-blue-800">💬</button>
                       </TooltipTrigger>
-                      <TooltipContent>Explain what makes these subjects hard for you. Example: "History is difficult because I forget dates and names easily."</TooltipContent>
+                      <TooltipContent>
+                        {getHelpText(8, 'Explain what makes these subjects hard for you. Example: "History is difficult because I forget dates and names easily."')}
+                      </TooltipContent>
                     </Tooltip>
                   </label>
                   <Textarea
-                    placeholder="Example: I find it hard to remember dates and names in History. The teacher explains too fast sometimes..."
+                    placeholder={getHelpText(8, 'Example: I find it hard to remember dates and names in History. The teacher explains too fast sometimes...')}
                     value={responses.section2.question8}
                     onChange={(e) => handleResponseChange('section2', 'question8', e.target.value)}
                     rows={3}
@@ -939,7 +1155,11 @@ export default function MySchoolLearningAssessment() {
                   ) : (
                     <>
                       <Save className="w-4 h-4 mr-2" />
-                      Save Section 2
+                      {lang === 'kn'
+                        ? 'ಭಾಗ 2 ಅನ್ನು ಉಳಿಸಿ'
+                        : lang === 'ta'
+                          ? 'பகுதி 2ஐ சேமிக்கவும்'
+                          : 'Save Section 2'}
                     </>
                   )}
                 </Button>
@@ -950,7 +1170,13 @@ export default function MySchoolLearningAssessment() {
           {currentSection === 'section3' && (
             <Card className="border-0 shadow-lg mb-4">
               <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50">
-                <CardTitle className="text-xl text-purple-800">Section 3: Academic Performance & Learning Methods</CardTitle>
+                <CardTitle className="text-xl text-purple-800">
+                  {lang === 'kn'
+                    ? 'ಭಾಗ 3: ಶೈಕ್ಷಣಿಕ ಸಾಧನೆ ಮತ್ತು ಕಲಿಕೆಯ ವಿಧಾನಗಳು'
+                    : lang === 'ta'
+                      ? 'பகுதி 3: கல்வி முன்னேற்றம் மற்றும் கற்றல் முறைகள்'
+                      : 'Section 3: Academic Performance & Learning Methods'}
+                </CardTitle>
               </CardHeader>
               <CardContent className="p-6 space-y-6">
                 <div>
@@ -960,11 +1186,13 @@ export default function MySchoolLearningAssessment() {
                       <TooltipTrigger asChild>
                         <button type="button" className="text-purple-700 hover:text-purple-800">💬</button>
                       </TooltipTrigger>
-                      <TooltipContent>Write subjects where you get good marks. Example: "I score well in Mathematics and Science."</TooltipContent>
+                      <TooltipContent>
+                        {getHelpText(9, 'Write subjects where you get good marks. Example: "I score well in Mathematics and Science."')}
+                      </TooltipContent>
                     </Tooltip>
                   </label>
                   <Textarea
-                    placeholder="Example: I usually get good marks in Mathematics, Science, and English..."
+                    placeholder={getHelpText(9, 'Example: I usually get good marks in Mathematics, Science, and English...')}
                     value={responses.section3.question9}
                     onChange={(e) => handleResponseChange('section3', 'question9', e.target.value)}
                     rows={3}
@@ -980,11 +1208,13 @@ export default function MySchoolLearningAssessment() {
                       <TooltipTrigger asChild>
                         <button type="button" className="text-purple-700 hover:text-purple-800">💬</button>
                       </TooltipTrigger>
-                      <TooltipContent>Write subjects where you get low marks. Example: "I find it hard to score well in History and Hindi."</TooltipContent>
+                      <TooltipContent>
+                        {getHelpText(10, 'Write subjects where you get low marks. Example: "I find it hard to score well in History and Hindi."')}
+                      </TooltipContent>
                     </Tooltip>
                   </label>
                   <Textarea
-                    placeholder="Example: I find it difficult to get high marks in History and Hindi..."
+                    placeholder={getHelpText(10, 'Example: I find it difficult to get high marks in History and Hindi...')}
                     value={responses.section3.question10}
                     onChange={(e) => handleResponseChange('section3', 'question10', e.target.value)}
                     rows={3}
@@ -1000,21 +1230,23 @@ export default function MySchoolLearningAssessment() {
                       <TooltipTrigger asChild>
                         <button type="button" className="text-purple-700 hover:text-purple-800">💬</button>
                       </TooltipTrigger>
-                      <TooltipContent>Check all the ways you like to learn. You can choose more than one.</TooltipContent>
+                      <TooltipContent>
+                        {getHelpText(11, 'Check all the ways you like to learn. You can choose more than one.')}
+                      </TooltipContent>
                     </Tooltip>
                   </label>
                   <div className="space-y-3">
                     {[
-                      { key: 'visual', label: 'a. Watching videos or relating to pictures (visual)' },
-                      { key: 'reading', label: 'b. Reading' },
-                      { key: 'listening', label: 'c. Listening (audio)' },
-                      { key: 'experimenting', label: 'd. Experimenting' },
-                      { key: 'discuss', label: 'e. Discuss / Brainstorming' },
-                      { key: 'groupDiscussions', label: 'f. Group discussions' },
-                      { key: 'writing', label: 'g. Writing' },
-                      { key: 'readingByheart', label: 'h. Reading & byheart' },
-                      { key: 'teaching', label: 'i. I learn by teaching others, or I like someone to listen to me' }
-                    ].map(({ key, label }) => (
+                      'visual',
+                      'reading',
+                      'listening',
+                      'experimenting',
+                      'discuss',
+                      'groupDiscussions',
+                      'writing',
+                      'readingByheart',
+                      'teaching'
+                    ].map((key) => (
                       <div key={key} className="flex items-center space-x-2">
                         <Checkbox
                           id={key}
@@ -1022,7 +1254,9 @@ export default function MySchoolLearningAssessment() {
                           onCheckedChange={(checked) => handleLearningMethodChange(key, checked as boolean)}
                           disabled={isReadOnly}
                         />
-                        <label htmlFor={key} className="text-sm text-gray-700">{label}</label>
+                        <label htmlFor={key} className="text-sm text-gray-700">
+                          {getLearningMethodLabel(key)}
+                        </label>
                       </div>
                     ))}
                     <div className="flex items-center space-x-2">
@@ -1034,11 +1268,17 @@ export default function MySchoolLearningAssessment() {
                         }}
                         disabled={isReadOnly}
                       />
-                      <label htmlFor="other" className="text-sm text-gray-700">j. I learn better when - (any other method you apply)</label>
+                      <label htmlFor="other" className="text-sm text-gray-700">
+                        {lang === 'kn'
+                          ? 'ಇನ್ನೊಂದು ವಿಧಾನ ಇದ್ದರೆ – ಅದರಿಂದ ನಾನು ಹೆಚ್ಚು ಚೆನ್ನಾಗಿ ಕಲಿಯುತ್ತೇನೆ (ವಿವರಿಸಿ)'
+                          : lang === 'ta'
+                            ? 'வேறு ஏதேனும் முறையில் நான் நன்றாக கற்றுக்கொள்கிறேன் – (அந்த முறையை எழுதுங்கள்)'
+                            : 'I learn better when - (any other method you apply)'}
+                      </label>
                     </div>
                     {responses.section3.question11.other !== '' && (
                       <Textarea
-                        placeholder="Write your other learning method..."
+                        placeholder={getHelpText(11, 'Write your other learning method...')}
                         value={responses.section3.question11.other}
                         onChange={(e) => handleLearningMethodChange('other', e.target.value)}
                         rows={2}
@@ -1056,11 +1296,13 @@ export default function MySchoolLearningAssessment() {
                       <TooltipTrigger asChild>
                         <button type="button" className="text-purple-700 hover:text-purple-800">💬</button>
                       </TooltipTrigger>
-                      <TooltipContent>Say if you like studying alone or with friends, and explain why. Example: "I like studying in a group because we can help each other and discuss doubts."</TooltipContent>
+                      <TooltipContent>
+                        {getHelpText(12, 'Say if you like studying alone or with friends, and explain why. Example: "I like studying in a group because we can help each other and discuss doubts."')}
+                      </TooltipContent>
                     </Tooltip>
                   </label>
                   <Textarea
-                    placeholder="Example: I prefer studying in a group because we can discuss and help each other understand difficult topics..."
+                    placeholder={getHelpText(12, 'Example: I prefer studying in a group because we can discuss and help each other understand difficult topics...')}
                     value={responses.section3.question12}
                     onChange={(e) => handleResponseChange('section3', 'question12', e.target.value)}
                     rows={3}
@@ -1079,7 +1321,11 @@ export default function MySchoolLearningAssessment() {
                   ) : (
                     <>
                       <Save className="w-4 h-4 mr-2" />
-                      Save Section 3
+                      {lang === 'kn'
+                        ? 'ಭಾಗ 3 ಅನ್ನು ಉಳಿಸಿ'
+                        : lang === 'ta'
+                          ? 'பகுதி 3ஐ சேமிக்கவும்'
+                          : 'Save Section 3'}
                     </>
                   )}
                 </Button>
@@ -1090,7 +1336,13 @@ export default function MySchoolLearningAssessment() {
           {currentSection === 'section4' && (
             <Card className="border-0 shadow-lg mb-4">
               <CardHeader className="bg-gradient-to-r from-orange-50 to-red-50">
-                <CardTitle className="text-xl text-orange-800">Section 4: School Relationships & Experiences</CardTitle>
+                <CardTitle className="text-xl text-orange-800">
+                  {lang === 'kn'
+                    ? 'ಭಾಗ 4: ಶಾಲೆಯ ಸಂಬಂಧಗಳು ಮತ್ತು ಅನುಭವಗಳು'
+                    : lang === 'ta'
+                      ? 'பகுதி 4: பள்ளியில் உள்ள உறவுகள் மற்றும் அனுபவங்கள்'
+                      : 'Section 4: School Relationships & Experiences'}
+                </CardTitle>
               </CardHeader>
               <CardContent className="p-6 space-y-6">
                 <div>
@@ -1100,11 +1352,13 @@ export default function MySchoolLearningAssessment() {
                       <TooltipTrigger asChild>
                         <button type="button" className="text-orange-700 hover:text-orange-800">💬</button>
                       </TooltipTrigger>
-                      <TooltipContent>Write what you learned from friends. Example: "My friend taught me how to solve math problems and play cricket."</TooltipContent>
+                      <TooltipContent>
+                        {getHelpText(13, 'Write what you learned from friends. Example: "My friend taught me how to solve math problems and play cricket."')}
+                      </TooltipContent>
                     </Tooltip>
                   </label>
                   <Textarea
-                    placeholder="Example: Yes, my friend Ravi taught me how to solve difficult math problems. Another friend showed me how to play cricket..."
+                    placeholder={getHelpText(13, 'Example: Yes, my friend Ravi taught me how to solve difficult math problems. Another friend showed me how to play cricket...')}
                     value={responses.section4.question13}
                     onChange={(e) => handleResponseChange('section4', 'question13', e.target.value)}
                     rows={3}
@@ -1120,11 +1374,13 @@ export default function MySchoolLearningAssessment() {
                       <TooltipTrigger asChild>
                         <button type="button" className="text-orange-700 hover:text-orange-800">💬</button>
                       </TooltipTrigger>
-                      <TooltipContent>Write about non-study activities you like. Example: "I enjoy sports day, annual day celebrations, and playing with friends during break time."</TooltipContent>
+                      <TooltipContent>
+                        {getHelpText(14, 'Write about non-study activities you like. Example: "I enjoy sports day, annual day celebrations, and playing with friends during break time."')}
+                      </TooltipContent>
                     </Tooltip>
                   </label>
                   <Textarea
-                    placeholder="Example: I enjoy sports day, annual day celebrations, playing games during break time, and participating in cultural events..."
+                    placeholder={getHelpText(14, 'Example: I enjoy sports day, annual day celebrations, playing games during break time, and participating in cultural events...')}
                     value={responses.section4.question14}
                     onChange={(e) => handleResponseChange('section4', 'question14', e.target.value)}
                     rows={3}
@@ -1140,11 +1396,13 @@ export default function MySchoolLearningAssessment() {
                       <TooltipTrigger asChild>
                         <button type="button" className="text-orange-700 hover:text-orange-800">💬</button>
                       </TooltipTrigger>
-                      <TooltipContent>Write about a teacher you like and how they helped you. Example: "My Science teacher is my favorite because she explains clearly and encourages me to ask questions."</TooltipContent>
+                      <TooltipContent>
+                        {getHelpText(15, 'Write about a teacher you like and how they helped you. Example: "My Science teacher is my favorite because she explains clearly and encourages me to ask questions."')}
+                      </TooltipContent>
                     </Tooltip>
                   </label>
                   <Textarea
-                    placeholder="Example: My Mathematics teacher is my favorite because she explains clearly, is patient, and always encourages me to do better..."
+                    placeholder={getHelpText(15, 'Example: My Mathematics teacher is my favorite because she explains clearly, is patient, and always encourages me to do better...')}
                     value={responses.section4.question15}
                     onChange={(e) => handleResponseChange('section4', 'question15', e.target.value)}
                     rows={3}
@@ -1160,11 +1418,13 @@ export default function MySchoolLearningAssessment() {
                       <TooltipTrigger asChild>
                         <button type="button" className="text-orange-700 hover:text-orange-800">💬</button>
                       </TooltipTrigger>
-                      <TooltipContent>Write about a time you felt proud or successful. Example: "I felt proud when I won first prize in the science exhibition."</TooltipContent>
+                      <TooltipContent>
+                        {getHelpText(16, 'Write about a time you felt proud or successful. Example: "I felt proud when I won first prize in the science exhibition."')}
+                      </TooltipContent>
                     </Tooltip>
                   </label>
                   <Textarea
-                    placeholder="Example: I felt very proud when I won first prize in the science exhibition. The teacher praised my project..."
+                    placeholder={getHelpText(16, 'Example: I felt very proud when I won first prize in the science exhibition. The teacher praised my project...')}
                     value={responses.section4.question16}
                     onChange={(e) => handleResponseChange('section4', 'question16', e.target.value)}
                     rows={3}
@@ -1183,7 +1443,11 @@ export default function MySchoolLearningAssessment() {
                   ) : (
                     <>
                       <Save className="w-4 h-4 mr-2" />
-                      Save Section 4
+                      {lang === 'kn'
+                        ? 'ಭಾಗ 4 ಅನ್ನು ಉಳಿಸಿ'
+                        : lang === 'ta'
+                          ? 'பகுதி 4ஐ சேமிக்கவும்'
+                          : 'Save Section 4'}
                     </>
                   )}
                 </Button>
@@ -1194,7 +1458,13 @@ export default function MySchoolLearningAssessment() {
           {currentSection === 'section5' && (
             <Card className="border-0 shadow-lg mb-4">
               <CardHeader className="bg-gradient-to-r from-teal-50 to-cyan-50">
-                <CardTitle className="text-xl text-teal-800">Section 5: Future & Reflection</CardTitle>
+                <CardTitle className="text-xl text-teal-800">
+                  {lang === 'kn'
+                    ? 'ಭಾಗ 5: ಭವಿಷ್ಯ ಮತ್ತು ಚಿಂತನೆ'
+                    : lang === 'ta'
+                      ? 'பகுதி 5: எதிர்காலம் மற்றும் சிந்தனை'
+                      : 'Section 5: Future & Reflection'}
+                </CardTitle>
               </CardHeader>
               <CardContent className="p-6 space-y-6">
                 <div>
@@ -1204,11 +1474,13 @@ export default function MySchoolLearningAssessment() {
                       <TooltipTrigger asChild>
                         <button type="button" className="text-teal-700 hover:text-teal-800">💬</button>
                       </TooltipTrigger>
-                      <TooltipContent>Explain how school learning connects to your future goals. Example: "Learning Science will help me become a doctor, which is my dream."</TooltipContent>
+                      <TooltipContent>
+                        {getHelpText(17, 'Explain how school learning connects to your future goals. Example: "Learning Science will help me become a doctor, which is my dream."')}
+                      </TooltipContent>
                     </Tooltip>
                   </label>
                   <Textarea
-                    placeholder="Example: Learning Mathematics and Science will help me become an engineer. English will help me communicate better..."
+                    placeholder={getHelpText(17, 'Example: Learning Mathematics and Science will help me become an engineer. English will help me communicate better...')}
                     value={responses.section5.question17}
                     onChange={(e) => handleResponseChange('section5', 'question17', e.target.value)}
                     rows={3}
@@ -1224,11 +1496,13 @@ export default function MySchoolLearningAssessment() {
                       <TooltipTrigger asChild>
                         <button type="button" className="text-teal-700 hover:text-teal-800">💬</button>
                       </TooltipTrigger>
-                      <TooltipContent>Write what you wish could be better. Example: "I wish we had a bigger library with more books to read."</TooltipContent>
+                      <TooltipContent>
+                        {getHelpText(18, 'Write what you wish could be better. Example: "I wish we had a bigger library with more books to read."')}
+                      </TooltipContent>
                     </Tooltip>
                   </label>
                   <Textarea
-                    placeholder="Example: I would like to have a bigger playground and more sports equipment so we can play better..."
+                    placeholder={getHelpText(18, 'Example: I would like to have a bigger playground and more sports equipment so we can play better...')}
                     value={responses.section5.question18}
                     onChange={(e) => handleResponseChange('section5', 'question18', e.target.value)}
                     rows={3}
@@ -1244,11 +1518,13 @@ export default function MySchoolLearningAssessment() {
                       <TooltipTrigger asChild>
                         <button type="button" className="text-teal-700 hover:text-teal-800">💬</button>
                       </TooltipTrigger>
-                      <TooltipContent>Write about where you study at home and why it's important. Example: "I have a small table in my room where I study. It's quiet and helps me focus."</TooltipContent>
+                      <TooltipContent>
+                        {getHelpText(19, 'Write about where you study at home and why it\'s important. Example: "I have a small table in my room where I study. It\'s quiet and helps me focus."')}
+                      </TooltipContent>
                     </Tooltip>
                   </label>
                   <Textarea
-                    placeholder="Example: Yes, I have a small study table in my room. It's necessary because it's quiet and I can focus better there..."
+                    placeholder={getHelpText(19, 'Example: Yes, I have a small study table in my room. It\'s necessary because it\'s quiet and I can focus better there...')}
                     value={responses.section5.question19}
                     onChange={(e) => handleResponseChange('section5', 'question19', e.target.value)}
                     rows={3}
@@ -1264,11 +1540,13 @@ export default function MySchoolLearningAssessment() {
                       <TooltipTrigger asChild>
                         <button type="button" className="text-teal-700 hover:text-teal-800">💬</button>
                       </TooltipTrigger>
-                      <TooltipContent>Say if school is important for you and why. Example: "Yes, school is very important because I learn new things every day and teachers guide me."</TooltipContent>
+                      <TooltipContent>
+                        {getHelpText(20, 'Say if school is important for you and why. Example: "Yes, school is very important because I learn new things every day and teachers guide me."')}
+                      </TooltipContent>
                     </Tooltip>
                   </label>
                   <Textarea
-                    placeholder="Example: Yes, school is very important for me because I learn new things, meet friends, and teachers help me understand difficult topics..."
+                    placeholder={getHelpText(20, 'Example: Yes, school is very important for me because I learn new things, meet friends, and teachers help me understand difficult topics...')}
                     value={responses.section5.question20}
                     onChange={(e) => handleResponseChange('section5', 'question20', e.target.value)}
                     rows={3}
@@ -1284,11 +1562,13 @@ export default function MySchoolLearningAssessment() {
                       <TooltipTrigger asChild>
                         <button type="button" className="text-teal-700 hover:text-teal-800">💬</button>
                       </TooltipTrigger>
-                      <TooltipContent>Write if you talk to parents about school and what you discuss. Example: "Yes, I tell my parents about my test results, friends, and what I learned in class."</TooltipContent>
+                      <TooltipContent>
+                        {getHelpText(21, 'Write if you talk to parents about school and what you discuss. Example: "Yes, I tell my parents about my test results, friends, and what I learned in class."')}
+                      </TooltipContent>
                     </Tooltip>
                   </label>
                   <Textarea
-                    placeholder="Example: Yes, I like talking to my parents about school. I tell them about my test results, friends, and what I learned in class..."
+                    placeholder={getHelpText(21, 'Example: Yes, I like talking to my parents about school. I tell them about my test results, friends, and what I learned in class...')}
                     value={responses.section5.question21}
                     onChange={(e) => handleResponseChange('section5', 'question21', e.target.value)}
                     rows={3}
@@ -1307,7 +1587,11 @@ export default function MySchoolLearningAssessment() {
                   ) : (
                     <>
                       <Save className="w-4 h-4 mr-2" />
-                      Save Section 5
+                      {lang === 'kn'
+                        ? 'ಭಾಗ 5ವನ್ನು ಉಳಿಸಿ'
+                        : lang === 'ta'
+                          ? 'பகுதி 5ஐ சேமிக்கவும்'
+                          : 'Save Section 5'}
                     </>
                   )}
                 </Button>
@@ -1334,12 +1618,20 @@ export default function MySchoolLearningAssessment() {
                 {submitting ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Submitting...
+                    {lang === 'kn'
+                      ? 'ಸಲ್ಲಿಸುತ್ತಿದೆ...'
+                      : lang === 'ta'
+                        ? 'சமர்ப்பித்து கொண்டிருக்கிறது...'
+                        : 'Submitting...'}
                   </>
                 ) : (
                   <>
                     <School className="w-4 h-4 mr-2" />
-                    Submit Assessment
+                    {lang === 'kn'
+                      ? 'ಮೌಲ್ಯಮಾಪನವನ್ನು ಸಲ್ಲಿಸಿ'
+                      : lang === 'ta'
+                        ? 'மதிப்பீட்டை சமர்ப்பிக்கவும்'
+                        : 'Submit Assessment'}
                   </>
                 )}
               </Button>

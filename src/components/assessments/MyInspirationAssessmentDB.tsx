@@ -397,8 +397,18 @@ export default function MyInspirationAssessmentDB() {
 
             if (saveResult.success) {
               toast({
-                title: "Summary Generated! 📝",
-                description: "Your teacher will review your reflection summary.",
+                title:
+                  lang === 'kn'
+                    ? 'ಸಾರಾಂಶ ಸಿದ್ಧವಾಗಿದೆ! 📝'
+                    : lang === 'ta'
+                      ? 'சுருக்கம் உருவாக்கப்பட்டது! 📝'
+                      : 'Summary Generated! 📝',
+                description:
+                  lang === 'kn'
+                    ? 'ನೀವು ಬರೆದ ಚಿಂತನೆಗಳ ಸಾರಾಂಶವನ್ನು ನಿಮ್ಮ ಶಿಕ್ಷಕರು ಪರಿಶೀಲಿಸಲಿದ್ದಾರೆ.'
+                    : lang === 'ta'
+                      ? 'நீங்கள் எழுதிய சிந்தனைச் சுருக்கத்தை உங்கள் ஆசிரியா் விரைவில் பார்வையிடுவார்.'
+                      : 'Your teacher will review your reflection summary.',
               });
             } else {
               console.error('Failed to save summary:', saveResult.error);
@@ -462,11 +472,18 @@ export default function MyInspirationAssessmentDB() {
   }, [videoProgress, inspirationVideos.length]);
 
   if (loading || dataLoading) {
+    const loadingText =
+      lang === 'kn'
+        ? 'ಮೌಲ್ಯಮಾಪನವನ್ನು ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...'
+        : lang === 'ta'
+          ? 'மதிப்பீடு ஏற்றப்படுகிறது...'
+          : 'Loading assessment...';
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading assessment...</p>
+          <p className="text-gray-600">{loadingText}</p>
         </div>
       </div>
     );

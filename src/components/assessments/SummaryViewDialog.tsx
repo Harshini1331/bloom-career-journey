@@ -175,27 +175,98 @@ export default function SummaryViewDialog({
                 q3: defaultTitles.q3
               });
             } else if (assessmentType === 'school_learning') {
-              setQuestionTitles({
-                q1: defaultTitles.q1,
-                q2: defaultTitles.q2,
-                q3: defaultTitles.q3,
-                q4: defaultTitles.q4,
-                q5: defaultTitles.q5,
-                q6: defaultTitles.q6
-              });
+              if (lang === 'ta') {
+                setQuestionTitles({
+                  q1: 'எனக்கு பிடித்த பாடங்கள்',
+                  q2: 'எனக்கு பிடித்த பாடங்களில் இருந்து சாத்தியமான தொழில்கள்',
+                  q3: 'எனக்கு பிடிக்காத பாடங்கள்',
+                  q4: 'பிடிக்காத பாடங்களில் நான் மேம்பட்டால் சாத்தியமான தொழில்கள்',
+                  q5: 'பள்ளியில் படிப்பைத் தவிர நான் நன்றாகச் செய்யும் செயல்கள்',
+                  q6: 'இந்த திறன்களை மேம்படுத்துவது என் தொழிலுக்கு எப்படி உதவும்'
+                });
+              } else if (lang === 'kn') {
+                setQuestionTitles({
+                  q1: 'ನನಗೆ ಇಷ್ಟವಾದ ವಿಷಯಗಳು',
+                  q2: 'ನನಗೆ ಇಷ್ಟವಾದ ವಿಷಯಗಳಿಂದ ಸಾಧ್ಯವಾದ ವೃತ್ತಿಗಳು',
+                  q3: 'ನನಗೆ ಇಷ್ಟವಿಲ್ಲದ ವಿಷಯಗಳು',
+                  q4: 'ಇಷ್ಟವಿಲ್ಲದ ವಿಷಯಗಳಲ್ಲಿ ನಾನು ಸುಧಾರಿಸಿದರೆ ಸಾಧ್ಯವಾದ ವೃತ್ತಿಗಳು',
+                  q5: 'ಶಾಲೆಯಲ್ಲಿ ಅಧ್ಯಯನದ ಹೊರತಾಗಿ ನಾನು ಚೆನ್ನಾಗಿ ಮಾಡುವ ಕೆಲಸಗಳು',
+                  q6: 'ಈ ಕೌಶಲ್ಯಗಳನ್ನು ಬೆಳೆಸುವುದು ನನ್ನ ವೃತ್ತಿಗೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡುತ್ತದೆ'
+                });
+              } else {
+                setQuestionTitles(defaultTitles);
+              }
             } else if (assessmentType === 'hobbies') {
-              setQuestionTitles({
-                q1: lang === 'kn' ? 'ಹವ್ಯಾಸಗಳ ಪೋರ್ಟ್‌ಫೋಲಿಯೋ' : lang === 'ta' ? 'பொழுதுபோக்கு திட்டம்' : 'Hobbies Portfolio',
-                q2: questions[langKey].question2 || '',
-                q3: questions[langKey].question3 || '',
-                q4: questions[langKey].question4 || '',
-                q5: questions[langKey].question5 || '',
-                q6: lang === 'kn' ? 'ಪ್ರತಿಭೆಗಳ ಪೋರ್ಟ್‌ಫೋಲಿಯೋ' : lang === 'ta' ? 'திறமைகள் திட்டம்' : 'Talents Portfolio',
-                q7: questions[langKey].question7 || '',
-                q8: questions[langKey].question8 || '',
-                q9: questions[langKey].question9 || '',
-                q10: questions[langKey].question10 || ''
-              });
+              if (lang === 'ta') {
+                setQuestionTitles({
+                  q1: 'பொழுதுபோக்கு திட்டம்',
+                  q2: 'பொழுதுபோக்குகள்',
+                  q3: 'இந்தப் பொழுதுபோக்கை ஒரு தொழிலாக மாற்ற விரும்புகிறீர்களா?',
+                  q4: 'இந்தப் பொழுதுபோக்குக்கு பொருத்தமான தொழில்கள்',
+                  q5: 'இந்தப் பொழுதுபோக்கை தொழிலாக மாற்றியவர் யாரை நீங்கள் அறிவீர்கள்?',
+                  q6: 'திறமைகள் திட்டம்',
+                  q7: 'திறமைகள்',
+                  q8: 'இந்த திறமையை ஒரு தொழிலாக மாற்ற விரும்புகிறீர்களா?',
+                  q9: 'இந்த திறமைக்கு பொருத்தமான தொழில்கள்',
+                  q10: 'இந்த திறமையை தொழிலாக மாற்றியவர் யாரை நீங்கள் அறிவீர்கள்?'
+                });
+              } else if (lang === 'kn') {
+                setQuestionTitles({
+                  q1: 'ಹವ್ಯಾಸಗಳ ಪೋರ್ಟ್‌ಫೋಲಿಯೋ',
+                  q2: 'ಹವ್ಯಾಸಗಳು',
+                  q3: 'ಈ ಹವ್ಯಾಸವನ್ನು ವೃತ್ತಿಯಾಗಿಸಲು ನೀವು ಬಯಸುವಿರಾ?',
+                  q4: 'ಈ ಹವ್ಯಾಸಗಳಿಗೆ ಹೊಂದುವ ವೃತ್ತಿಗಳು',
+                  q5: 'ತಮ ಹವ್ಯಾಸವನ್ನು ವೃತ್ತಿಯಾಗಿಸಿಕೊಂಡಿರುವವರಲ್ಲಿ ನೀವು ಯಾರನ್ನು ತಿಳಿದಿದ್ದೀರಿ?',
+                  q6: 'ಪ್ರತಿಭೆಗಳ ಪೋರ್ಟ್‌ಫೋಲಿಯೋ',
+                  q7: 'ಪ್ರತಿಭೆಗಳು',
+                  q8: 'ಈ ಪ್ರತಿಭೆಯನ್ನು ವೃತ್ತಿಯಾಗಿಸಲು ನೀವು ಬಯಸುವಿರಾ?',
+                  q9: 'ನಿಮ್ಮ ಪ್ರತಿಭೆಗೆ ಹೊಂದುವ ವೃತ್ತಿಗಳು',
+                  q10: 'ತಮ್ಮ ಪ್ರತಿಭೆಯನ್ನು ವೃತ್ತಿಯಾಗಿಸಿಕೊಂಡವರಲ್ಲಿ ನೀವು ಯಾರನ್ನು ತಿಳಿದಿದ್ದೀರಿ?'
+                });
+              } else {
+                setQuestionTitles({
+                  q1: defaultTitles.q1 || 'Hobbies Portfolio',
+                  q2: 'Hobbies',
+                  q3: 'I would like to turn this hobby into a career',
+                  q4: 'Careers that are compatible with these hobbies',
+                  q5: 'People you know who have turned their hobbies into careers',
+                  q6: defaultTitles.q6 || 'Talents Portfolio',
+                  q7: 'Talents',
+                  q8: 'Do you want to turn your talent into a career?',
+                  q9: 'Careers that match your talents',
+                  q10: 'People you know who have turned their talents into careers'
+                });
+              }
+            } else if (assessmentType === 'role_models') {
+              if (lang === 'ta') {
+                setQuestionTitles({
+                  q1: 'தொழில் வழிகாட்டல் குறித்து உங்கள் முன்மாதிரி நபர்களிடம் கேட்க விரும்பும் 5 முதல் 10 கேள்விகளை எழுதுங்கள்.'
+                });
+              } else if (lang === 'kn') {
+                setQuestionTitles({
+                  q1: 'ನಿಮ್ಮ ಪಾತ್ರ ಮಾದರಿಗಳಿಂದ ವೃತ್ತಿ ಮಾರ್ಗದರ್ಶನದ ಕುರಿತಾಗಿ ನೀವು ಕೇಳಲು ಬಯಸುವ 5 ರಿಂದ 10 ಪ್ರಶ್ನೆಗಳನ್ನು ಬರೆಯಿರಿ.'
+                });
+              } else {
+                setQuestionTitles({
+                  q1: defaultTitles.q1
+                });
+              }
+            } else if (assessmentType === 'inspiration') {
+              if (lang === 'ta') {
+                setQuestionTitles({
+                  q1: 'என்னை ஊக்கப்படுத்தியவை',
+                  q2: 'தவிர்க்க வேண்டிய நடத்தைகள்',
+                  q3: 'ஊக்கமூட்டும் நபர்கள் / சம்பவங்களுக்கு இடையிலான ஒற்றுமைகள்'
+                });
+              } else if (lang === 'kn') {
+                setQuestionTitles({
+                  q1: 'ನನಗೆ ಪ್ರೇರಣೆ ನೀಡಿದವು',
+                  q2: 'ತಪ್ಪಿಸಿಕೊಳ್ಳಬೇಕಾದ ವರ್ತನೆಗಳು',
+                  q3: 'ಪ್ರೇರಣಾದಾಯಕ ವ್ಯಕ್ತಿಗಳು / ಘಟನೆಗಳ ನಡುವಿನ ಸಾಮ್ಯತೆಗಳು'
+                });
+              } else {
+                setQuestionTitles(defaultTitles);
+              }
             } else {
               setQuestionTitles(defaultTitles);
             }
@@ -367,29 +438,77 @@ export default function SummaryViewDialog({
               <DialogTitle className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-purple-600" />
                 {assessmentType === 'about_me' 
-                  ? (lang === 'kn' ? 'ನನ್ನ ಬಗ್ಗೆ ಸಾರಾಂಶ' : 'Summary: About Me')
+                  ? (lang === 'kn'
+                      ? 'ನನ್ನ ಬಗ್ಗೆ ಸಾರಾಂಶ'
+                      : lang === 'ta'
+                        ? 'சுருக்கம்: என்னைப் பற்றி'
+                        : 'Summary: About Me')
                   : assessmentType === 'dreams'
-                  ? (lang === 'kn' ? 'ನನ್ನ ಕನಸುಗಳು ಸಾರಾಂಶ' : 'Summary: My Dreams')
+                  ? (lang === 'kn'
+                      ? 'ನನ್ನ ಕನಸುಗಳು ಸಾರಾಂಶ'
+                      : lang === 'ta'
+                        ? 'சுருக்கம்: என் கனவுகள்'
+                        : 'Summary: My Dreams')
                   : assessmentType === 'school_learning'
-                  ? (lang === 'kn' ? 'ನನ್ನ ಶಾಲೆ, ನನ್ನ ಕಲಿಕೆ ಮತ್ತು ನಾನು ಸಾರಾಂಶ' : 'Summary: My School, My Learning and I')
+                  ? (lang === 'kn'
+                      ? 'ನನ್ನ ಶಾಲೆ, ನನ್ನ ಕಲಿಕೆ ಮತ್ತು ನಾನು ಸಾರಾಂಶ'
+                      : lang === 'ta'
+                        ? 'சுருக்கம்: என் பள்ளி, என் படிப்பு மற்றும் நான்'
+                        : 'Summary: My School, My Learning and I')
                   : assessmentType === 'hobbies'
-                  ? (lang === 'kn' ? 'ನನ್ನ ಪ್ರತಿಭೆಗಳು ಮತ್ತು ಹವ್ಯಾಸಗಳು ಸಾರಾಂಶ' : 'Summary: My Talents and Hobbies')
+                  ? (lang === 'kn'
+                      ? 'ನನ್ನ ಪ್ರತಿಭೆಗಳು ಮತ್ತು ಹವ್ಯಾಸಗಳು ಸಾರಾಂಶ'
+                      : lang === 'ta'
+                        ? 'சுருக்கம்: என் திறமைகள் மற்றும் பொழுதுபோக்குகள்'
+                        : 'Summary: My Talents and Hobbies')
                   : assessmentType === 'role_models'
-                  ? (lang === 'kn' ? 'ನನ್ನ ಆದರ್ಶ ವ್ಯಕ್ತಿಗಳು ಸಾರಾಂಶ' : 'Summary: My Role Models')
-                  : (lang === 'kn' ? 'ನನ್ನನ್ನು ಪ್ರೇರೇಪಿಸಿದ ವಿಷಯಗಳು' : 'Things I Was Inspired By')}
+                  ? (lang === 'kn'
+                      ? 'ನನ್ನ ಆದರ್ಶ ವ್ಯಕ್ತಿಗಳು ಸಾರಾಂಶ'
+                      : lang === 'ta'
+                        ? 'சுருக்கம்: என் முன்மாதிரிகள்'
+                        : 'Summary: My Role Models')
+                  : (lang === 'kn'
+                      ? 'ನನ್ನನ್ನು ಪ್ರೇರೇಪಿಸಿದ ವಿಷಯಗಳು'
+                      : lang === 'ta'
+                        ? 'என்னை ஊக்கப்படுத்திய விஷயங்கள்'
+                        : 'Things I Was Inspired By')}
               </DialogTitle>
               <DialogDescription>
                 {assessmentType === 'about_me'
-                  ? (lang === 'kn' ? 'ನಿಮ್ಮ ಆತ್ಮ-ಪ್ರತಿಬಿಂಬ ಮತ್ತು ಬೆಳವಣಿಗೆಯ ಪ್ರದೇಶಗಳ ಬಗ್ಗೆ ಸಾರಾಂಶ' : 'Summary of your self-reflection and areas for growth')
+                  ? (lang === 'kn'
+                      ? 'ನಿಮ್ಮ ಆತ್ಮ-ಪ್ರತಿಬಿಂಬ ಮತ್ತು ಬೆಳವಣಿಗೆಯ ಪ್ರದೇಶಗಳ ಬಗ್ಗೆ ಸಾರಾಂಶ'
+                      : lang === 'ta'
+                        ? 'உங்கள் சுய சிந்தனை மற்றும் வளர வேண்டிய பகுதிகளைச் சுருக்கமாகப் பார்க்கும் பகுதி.'
+                        : 'Summary of your self-reflection and areas for growth')
                   : assessmentType === 'dreams'
-                  ? (lang === 'kn' ? 'ನಿಮ್ಮ ಕನಸುಗಳು ಮತ್ತು ಉದ್ದೇಶಗಳ ಬಗ್ಗೆ ಸಾರಾಂಶ' : 'Summary of your dreams and aspirations')
+                  ? (lang === 'kn'
+                      ? 'ನಿಮ್ಮ ಕನಸುಗಳು ಮತ್ತು ಉದ್ದೇಶಗಳ ಬಗ್ಗೆ ಸಾರಾಂಶ'
+                      : lang === 'ta'
+                        ? 'உங்கள் கனவுகள் மற்றும் எதிர்கால இலக்குகளைச் சுருக்கமாகப் பதிவு செய்துள்ளது.'
+                        : 'Summary of your dreams and aspirations')
                   : assessmentType === 'school_learning'
-                  ? (lang === 'kn' ? 'ನಿಮ್ಮ ಶಾಲೆ ಮತ್ತು ಕಲಿಕೆಯ ಬಗ್ಗೆ ಸಾರಾಂಶ' : 'Summary of your school experience and learning')
+                  ? (lang === 'kn'
+                      ? 'ನಿಮ್ಮ ಶಾಲೆ ಮತ್ತು ಕಲಿಕೆಯ ಬಗ್ಗೆ ಸಾರಾಂಶ'
+                      : lang === 'ta'
+                        ? 'உங்கள் பள்ளி அனுபவங்கள் மற்றும் கற்றல்களைச் சுருக்கமாகக் காட்டுகிறது.'
+                        : 'Summary of your school experience and learning')
                   : assessmentType === 'hobbies'
-                  ? (lang === 'kn' ? 'ನಿಮ್ಮ ಪ್ರತಿಭೆಗಳು ಮತ್ತು ಹವ್ಯಾಸಗಳ ಬಗ್ಗೆ ಸಾರಾಂಶ' : 'Summary of your talents and hobbies')
+                  ? (lang === 'kn'
+                      ? 'ನಿಮ್ಮ ಪ್ರತಿಭೆಗಳು ಮತ್ತು ಹವ್ಯಾಸಗಳ ಬಗ್ಗೆ ಸಾರಾಂಶ'
+                      : lang === 'ta'
+                        ? 'உங்கள் திறமைகள் மற்றும் பொழுதுபோக்குகள் பற்றிய முக்கிய அம்சங்களின் சுருக்கம்.'
+                        : 'Summary of your talents and hobbies')
                   : assessmentType === 'role_models'
-                  ? (lang === 'kn' ? 'ನಿಮ್ಮ ಆದರ್ಶ ವ್ಯಕ್ತಿಗಳ ಬಗ್ಗೆ ಸಾರಾಂಶ' : 'Summary of your role models')
-                  : (lang === 'kn' ? 'ಪ್ರೇರಣಾದಾಯಕ ವೀಡಿಯೊಗಳು ಮತ್ತು ಅನುಭವಗಳ ಬಗ್ಗೆ ನಿಮ್ಮ ಪ್ರತಿಬಿಂಬ' : 'Your reflection on inspirational videos and experiences')}
+                  ? (lang === 'kn'
+                      ? 'ನಿಮ್ಮ ಆದರ್ಶ ವ್ಯಕ್ತಿಗಳ ಬಗ್ಗೆ ಸಾರಾಂಶ'
+                      : lang === 'ta'
+                        ? 'உங்கள் முன்மாதிரி நபர்கள் மற்றும் அவர்களிடம் கேட்க விரும்பும் கேள்விகளின் சுருக்கம்.'
+                        : 'Summary of your role models')
+                  : (lang === 'kn'
+                      ? 'ಪ್ರೇರಣಾದಾಯಕ ವೀಡಿಯೊಗಳು ಮತ್ತು ಅನುಭವಗಳ ಬಗ್ಗೆ ನಿಮ್ಮ ಪ್ರತಿಬಿಂಬ'
+                      : lang === 'ta'
+                        ? 'உங்களை ஊக்கப்படுத்திய வீடியோக்கள் மற்றும் அனுபவங்கள் குறித்து உங்கள் சிந்தனைகளின் சுருக்கம்.'
+                        : 'Your reflection on inspirational videos and experiences')}
               </DialogDescription>
             </div>
             <div className="flex items-center gap-2">

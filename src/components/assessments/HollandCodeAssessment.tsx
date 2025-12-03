@@ -338,11 +338,18 @@ export default function HollandCodeAssessment() {
   }, [answers, scores, topTwoTypes, reflection, loading, isCompleted, userProfile, questions]);
 
   if (loading) {
+    const loadingText =
+      lang === 'kn'
+        ? 'Holland Code ಮೌಲ್ಯಮಾಪನವನ್ನು ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...'
+        : lang === 'ta'
+          ? 'Holland Code மதிப்பீடு ஏற்றப்படுகிறது...'
+          : 'Loading Holland Code assessment...';
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-lg text-gray-600">Loading Holland Code assessment...</p>
+          <p className="mt-4 text-lg text-gray-600">{loadingText}</p>
         </div>
       </div>
     );
