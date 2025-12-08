@@ -10,7 +10,7 @@ const Index = () => {
   // Force English for landing page
   const lang = 'en' as 'en' | 'kn';
 
-  const strings: Record<'en'|'kn', Record<string,string>> = {
+  const strings: Record<'en' | 'kn', Record<string, string>> = {
     en: {
       titleBrandA: 'Career',
       titleBrandB: 'Compass',
@@ -49,9 +49,9 @@ const Index = () => {
 
   // Redirect authenticated users to their appropriate dashboard
   if (user && userProfile && !loading) {
-    const redirectPath = userProfile.role === 'admin' ? '/admin' 
-                        : userProfile.role === 'teacher' ? '/teacher'
-                        : `/student?lang=${userProfile.preferred_language || 'en'}`;
+    const redirectPath = userProfile.role === 'admin' ? '/admin'
+      : userProfile.role === 'teacher' ? '/teacher'
+        : `/student?lang=${userProfile.preferred_language || 'en'}`;
     console.log('Redirecting to:', redirectPath);
     return <Navigate to={redirectPath} replace />;
   }
@@ -70,13 +70,13 @@ const Index = () => {
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10">
       {/* Hero Section */}
       <section className="relative">
-        <div className="container mx-auto px-4 py-24">
+        <div className="container mx-auto px-4 py-12 md:py-24">
           <div className="text-center max-w-4xl mx-auto">
             <div className="mb-8">
               <div className="mx-auto w-20 h-20 bg-gradient-to-r from-primary to-accent rounded-full flex items-center justify-center mb-6">
                 <GraduationCap className="w-10 h-10 text-white" />
               </div>
-              <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-6">
+              <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-6">
                 {t('titleBrandA')}<span className="text-primary">{t('titleBrandB')}</span>
               </h1>
               <p className="text-xl text-muted-foreground mb-8 leading-relaxed">{t('heroDesc')}</p>
@@ -94,10 +94,10 @@ const Index = () => {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 bg-card/50">
+      <section className="py-12 md:py-20 bg-card/50">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">{t('sectionTitle')}</h2>
+            <h2 className="text-2xl md:text-4xl font-bold text-foreground mb-4">{t('sectionTitle')}</h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">{t('sectionDesc')}</p>
           </div>
 
@@ -148,10 +148,10 @@ const Index = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20">
+      <section className="py-12 md:py-20">
         <div className="container mx-auto px-4">
           <div className="text-center">
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+            <h2 className="text-2xl md:text-4xl font-bold text-foreground mb-4">
               Ready to Begin Your Journey?
             </h2>
             <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">

@@ -10,14 +10,14 @@ import NotificationBell from '@/components/NotificationBell';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { 
-  Users, 
+import {
+  Users,
   UserPlus,
   Search,
   Filter,
   Eye,
   Plus,
-  BookOpen, 
+  BookOpen,
   Target,
   Calendar,
   Clock,
@@ -31,7 +31,7 @@ import {
   MapPin,
   User,
   LogOut,
-  Settings, 
+  Settings,
   ChevronDown,
   Crown,
   Activity,
@@ -124,11 +124,11 @@ interface StudentStats {
 export default function TeacherDashboard() {
   const { user, userProfile, signOut } = useAuth();
   const location = useLocation();
-  const urlLang = useMemo(() => new URLSearchParams(location.search).get('lang') as ('en'|'kn'|'ta'|null), [location.search]);
-  const lang = (urlLang || userProfile?.preferred_language || (localStorage.getItem('lang') as 'en'|'kn'|'ta'|null) || 'en') as 'en'|'kn'|'ta';
-  useEffect(()=>{ try{ localStorage.setItem('lang', lang); }catch{} }, [lang]);
+  const urlLang = useMemo(() => new URLSearchParams(location.search).get('lang') as ('en' | 'kn' | 'ta' | null), [location.search]);
+  const lang = (urlLang || userProfile?.preferred_language || (localStorage.getItem('lang') as 'en' | 'kn' | 'ta' | null) || 'en') as 'en' | 'kn' | 'ta';
+  useEffect(() => { try { localStorage.setItem('lang', lang); } catch { } }, [lang]);
 
-  const strings: Record<'en'|'kn'|'ta', Record<string,string>> = {
+  const strings: Record<'en' | 'kn' | 'ta', Record<string, string>> = {
     en: {
       brand: 'Vidya Saathi',
       welcome: (name: string) => `Welcome, ${name}!`,
@@ -246,21 +246,21 @@ export default function TeacherDashboard() {
   const [isProgressOpen, setIsProgressOpen] = useState(false);
   // removed summary dialog per request
   const [isAnswersOpen, setIsAnswersOpen] = useState(false);
-  const [progressSummary, setProgressSummary] = useState<{[k:string]: {count:number; last?: string}}>({});
-  const [activityTimeline, setActivityTimeline] = useState<Array<{id:string; title:string; seq:number; status:string; completed_at?: string}>>([]);
-  const [activities, setActivities] = useState<Array<{id:string; title:string; sequence_number:number}>>([]);
+  const [progressSummary, setProgressSummary] = useState<{ [k: string]: { count: number; last?: string } }>({});
+  const [activityTimeline, setActivityTimeline] = useState<Array<{ id: string; title: string; seq: number; status: string; completed_at?: string }>>([]);
+  const [activities, setActivities] = useState<Array<{ id: string; title: string; sequence_number: number }>>([]);
   const [activityStudentId, setActivityStudentId] = useState<string>('');
-  const [activityProgressMap, setActivityProgressMap] = useState<Record<string, {status:string; completed_at?: string; results?: string}>>({});
+  const [activityProgressMap, setActivityProgressMap] = useState<Record<string, { status: string; completed_at?: string; results?: string }>>({});
   const [activityNotesMap, setActivityNotesMap] = useState<Record<string, string>>({});
   const [activitySaving, setActivitySaving] = useState<Record<string, boolean>>({});
   // Reviews tab state
   const [reviewStudentId, setReviewStudentId] = useState<string>('');
-  const [studentAssessments, setStudentAssessments] = useState<Array<{ id:string; assessment_type:string; assessment_title:string; completed_at:string|null; review_status?:string|null; reviewed_at?:string|null; reviewer_name?:string|null; needs_follow_up?: boolean; follow_up_status?: string|null; follow_up_due_at?: string|null }>>([]);
+  const [studentAssessments, setStudentAssessments] = useState<Array<{ id: string; assessment_type: string; assessment_title: string; completed_at: string | null; review_status?: string | null; reviewed_at?: string | null; reviewer_name?: string | null; needs_follow_up?: boolean; follow_up_status?: string | null; follow_up_due_at?: string | null }>>([]);
   const [reviewSaving, setReviewSaving] = useState<Record<string, boolean>>({});
   const [assessmentAnswers, setAssessmentAnswers] = useState<any[]>([]);
   const [unreadMap, setUnreadMap] = useState<Record<string, boolean>>({});
-  const [reviewOverview, setReviewOverview] = useState<{unreviewed_count:number;reviewed_count:number;needs_revision_count:number;flagged_count:number;followups_due_this_week:number}>({unreviewed_count:0,reviewed_count:0,needs_revision_count:0,flagged_count:0,followups_due_this_week:0});
-  const [studentReviewMap, setStudentReviewMap] = useState<Record<string, {reviewed:number; total:number}>>({});
+  const [reviewOverview, setReviewOverview] = useState<{ unreviewed_count: number; reviewed_count: number; needs_revision_count: number; flagged_count: number; followups_due_this_week: number }>({ unreviewed_count: 0, reviewed_count: 0, needs_revision_count: 0, flagged_count: 0, followups_due_this_week: 0 });
+  const [studentReviewMap, setStudentReviewMap] = useState<Record<string, { reviewed: number; total: number }>>({});
 
   // Help center dialogs
   const [contactOpen, setContactOpen] = useState(false);
@@ -270,7 +270,7 @@ export default function TeacherDashboard() {
 
   // Removed per-activity resources quick view
 
-  
+
 
 
 
@@ -287,7 +287,7 @@ export default function TeacherDashboard() {
 
     // Search filter
     if (searchTerm) {
-      filtered = filtered.filter(student => 
+      filtered = filtered.filter(student =>
         student.user?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         student.user?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         student.parent_guardian_name?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -310,7 +310,7 @@ export default function TeacherDashboard() {
   const loadStudents = async () => {
     try {
       setLoading(true);
-      
+
       // First get the teacher row
       const { data: teacherData, error: teacherError } = await supabase
         .from('teachers')
@@ -323,7 +323,7 @@ export default function TeacherDashboard() {
       // Get students from the teacher's state using the new state-based approach
       const { data, error } = await supabase
         .from('students')
-          .select(`
+        .select(`
             *,
           user:users(full_name, email, mobile),
           class:classes(name)
@@ -337,10 +337,10 @@ export default function TeacherDashboard() {
       setStudents(rows);
       // Load unread flags per student
       try {
-        const studentIds = rows.map((r:any)=> r.id);
+        const studentIds = rows.map((r: any) => r.id);
         // removed chat unread fetch per request
-      } catch {}
-      
+      } catch { }
+
       // Load stats after students are loaded
       await loadStudentStats(rows);
     } catch (error) {
@@ -359,12 +359,12 @@ export default function TeacherDashboard() {
     try {
       // Use provided data or fall back to students state
       const studentsToCount = studentsData || students;
-      
+
       const totalStudents = studentsToCount.length;
-      const activeStudents = studentsToCount.filter(s => 
+      const activeStudents = studentsToCount.filter(s =>
         (s.enrollment_status === 'active' || !s.enrollment_status)
       ).length;
-      
+
       // Recent additions: students added in the last 7 days
       // Use enrollment_date if available, otherwise use created_at
       const recentAdditions = studentsToCount.filter(s => {
@@ -412,7 +412,7 @@ export default function TeacherDashboard() {
           .eq('name', `Class ${newStudent.grade}`)
           .eq('state_id', teacherData.state_id)
           .single();
-        
+
         if (!classError && classData) {
           classId = classData.id;
         } else {
@@ -467,7 +467,7 @@ export default function TeacherDashboard() {
               role: 'student',
             })
             .eq('id', userData.id);
-        } catch {}
+        } catch { }
       }
 
       // Upsert student record with the found class_id
@@ -535,17 +535,17 @@ export default function TeacherDashboard() {
     try {
       console.log('TeacherDashboard: Loading states...');
       setLoadingStates(true);
-      
+
       // First check if states table exists
       const { data: tableCheck, error: tableError } = await supabase
         .from('states')
         .select('count')
         .limit(1);
-      
+
       if (tableError) {
         console.error('TeacherDashboard: States table error:', tableError);
         console.log('TeacherDashboard: States table does not exist - using fallback data');
-        
+
         // Fallback states data for testing until migration is applied
         const fallbackStates = [
           { state_id: 'temp-1', state_name: 'ILP-Tamil Nadu', state_code: 'ILP-TN', org_name: 'ILP' },
@@ -556,32 +556,32 @@ export default function TeacherDashboard() {
           { state_id: 'temp-6', state_name: 'ILP-Jharkhand', state_code: 'ILP-JH', org_name: 'ILP' },
           { state_id: 'temp-7', state_name: 'ILP-Odisha', state_code: 'ILP-OD', org_name: 'ILP' }
         ];
-        
+
         setStates(fallbackStates);
         return;
       }
-      
+
       console.log('TeacherDashboard: States table exists, fetching data...');
-      
+
       const { data, error } = await supabase
         .from('states')
         .select('id, state_name, state_code, orgs(name)')
         .order('state_name');
-      
+
       if (error) {
         console.error('TeacherDashboard: Error fetching states:', error);
         throw error;
       }
-      
+
       console.log('TeacherDashboard: States data received:', data);
-      
+
       const statesData = data?.map(state => ({
         state_id: state.id,
         state_name: state.state_name,
         state_code: state.state_code,
         org_name: state.orgs?.name || 'ILP'
       })) || [];
-      
+
       console.log('TeacherDashboard: Processed states data:', statesData);
       setStates(statesData);
     } catch (error) {
@@ -595,17 +595,17 @@ export default function TeacherDashboard() {
   const loadClasses = async (stateId: string) => {
     try {
       console.log('TeacherDashboard: Loading classes for state:', stateId);
-      
+
       // Check if classes table exists
       const { data: tableCheck, error: tableError } = await supabase
         .from('classes')
         .select('count')
         .limit(1);
-      
+
       if (tableError) {
         console.error('TeacherDashboard: Classes table error:', tableError);
         console.log('TeacherDashboard: Classes table does not exist - using fallback data');
-        
+
         // Fallback classes data for testing until migration is applied
         const fallbackClasses = [
           { class_id: 'temp-8', class_name: 'Class 8' },
@@ -614,17 +614,17 @@ export default function TeacherDashboard() {
           { class_id: 'temp-11', class_name: 'Class 11' },
           { class_id: 'temp-12', class_name: 'Class 12' }
         ];
-        
+
         setClasses(fallbackClasses);
         return;
       }
-      
+
       const { data, error } = await supabase
         .from('classes')
         .select('id, name')
         .eq('state_id', stateId)
         .order('name');
-      
+
       if (error) throw error;
       console.log('TeacherDashboard: Classes data received:', data);
       setClasses(data || []);
@@ -658,7 +658,7 @@ export default function TeacherDashboard() {
   const refreshReviewOverview = async () => {
     try {
       if (!userProfile?.id) return;
-      
+
       // Get teacher's student IDs
       // First get the teacher record
       const { data: teacherRecord } = await supabase
@@ -685,9 +685,9 @@ export default function TeacherDashboard() {
         .from('students')
         .select('id')
         .eq('teacher_id', teacherRecord.id);
-      
+
       console.log('👥 Found students:', students?.length || 0);
-      
+
       if (!students || students.length === 0) {
         setReviewOverview({
           unreviewed_count: 0,
@@ -721,7 +721,7 @@ export default function TeacherDashboard() {
 
       // Filter to keep only the latest unique assessment per student per type+title
       const uniqueAssessments = new Map<string, typeof assessments[0]>();
-      
+
       assessments.forEach(assessment => {
         const key = `${assessment.student_id}_${assessment.assessment_type}_${assessment.assessment_title}`;
         // Only keep the first one (latest due to ordering)
@@ -799,9 +799,9 @@ export default function TeacherDashboard() {
         .select('activity_id, status, completed_at, results')
         .eq('student_id', studentId);
       if (error) throw error;
-      const map: Record<string, {status:string; completed_at?: string; results?: string}> = {};
+      const map: Record<string, { status: string; completed_at?: string; results?: string }> = {};
       const notes: Record<string, string> = {};
-      (data||[]).forEach((p:any)=>{ map[p.activity_id] = { status: p.status, completed_at: p.completed_at || undefined, results: p.results || undefined }; if (p.results) notes[p.activity_id] = p.results; });
+      (data || []).forEach((p: any) => { map[p.activity_id] = { status: p.status, completed_at: p.completed_at || undefined, results: p.results || undefined }; if (p.results) notes[p.activity_id] = p.results; });
       setActivityProgressMap(map);
       setActivityNotesMap(notes);
     } catch (err) {
@@ -817,7 +817,7 @@ export default function TeacherDashboard() {
     }
   }, [activityStudentId]);
 
-  const upsertProgress = async (activityId: string, data: Partial<{status:string; completed_at:string|null; results:string|null}>) => {
+  const upsertProgress = async (activityId: string, data: Partial<{ status: string; completed_at: string | null; results: string | null }>) => {
     if (!activityStudentId) return;
     setActivitySaving(prev => ({ ...prev, [activityId]: true }));
     try {
@@ -847,7 +847,7 @@ export default function TeacherDashboard() {
     return 'hobbies';
   };
 
-  const openAnswersForActivity = async (a: { id:string; title:string; sequence_number:number }) => {
+  const openAnswersForActivity = async (a: { id: string; title: string; sequence_number: number }) => {
     try {
       const student = students.find(s => s.id === activityStudentId);
       if (student) setSelectedStudent(student);
@@ -860,7 +860,7 @@ export default function TeacherDashboard() {
         .order('completed_at', { ascending: false, nullsFirst: false })
         .order('updated_at', { ascending: false });
       if (error) throw error;
-      
+
       // Get only the latest submission for this assessment type
       if (allAnswers && allAnswers.length > 0) {
         // Already filtered by type, so just get the first (latest) one
@@ -931,7 +931,7 @@ export default function TeacherDashboard() {
             if (!value || (Array.isArray(value) && value.every(v => !v || v.trim() === '')) || (typeof value === 'string' && value.trim() === '')) {
               return null;
             }
-            
+
             return (
               <div key={fieldKey} className="border-b border-gray-200 pb-3 last:border-b-0">
                 <div className="font-medium text-sm text-gray-700 mb-1 capitalize">
@@ -963,7 +963,7 @@ export default function TeacherDashboard() {
       <pre className="text-xs whitespace-pre-wrap break-words bg-gray-50 p-3 rounded-md border">
         {JSON.stringify(responses, null, 2)}
       </pre>
-  );
+    );
   };
 
   return (
@@ -976,54 +976,54 @@ export default function TeacherDashboard() {
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-emerald-600 rounded-lg flex items-center justify-center">
                 <GraduationCap className="w-6 h-6 text-white" />
-          </div>
+              </div>
               <h1 className="text-xl font-bold text-gray-800">{t('brand')}</h1>
             </div>
 
             {/* Notifications + Profile */}
             <div className="flex items-center gap-2">
               {userProfile?.id && <NotificationBell userId={userProfile.id} />}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center space-x-2 hover:bg-gray-100">
-                  {userProfile?.profile_picture_url ? (
-                    <img 
-                      src={userProfile.profile_picture_url} 
-                      alt={userProfile?.full_name || 'Teacher'}
-                      className="w-12 h-12 rounded-full object-cover"
-                      onError={(e) => {
-                        console.log('❌ Image failed to load:', userProfile.profile_picture_url);
-                        e.currentTarget.style.display = 'none';
-                      }}
-                      onLoad={() => console.log('✅ Image loaded successfully:', userProfile.profile_picture_url)}
-                    />
-                  ) : (
-                    <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
-                      <span className="text-white font-semibold text-lg">
-                        {userProfile?.full_name?.charAt(0)?.toUpperCase() || 'T'}
-                      </span>
-                    </div>
-                  )}
-                  <span className="text-gray-700 font-medium">{userProfile?.full_name || 'Teacher'}</span>
-                  <ChevronDown className="w-4 h-4 text-gray-500" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end">
-                <DropdownMenuItem onClick={()=> setProfileOpen(true)}>
-                  <User className="w-4 h-4 mr-2" />
-                  {t('myProfile')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={()=> setContactOpen(true)}>
-                  <LifeBuoy className="w-4 h-4 mr-2" />
-                  {t('contactIlp')}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">
-                  <LogOut className="w-4 h-4 mr-2" />
-                  {t('logout')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="flex items-center space-x-2 hover:bg-gray-100">
+                    {userProfile?.profile_picture_url ? (
+                      <img
+                        src={userProfile.profile_picture_url}
+                        alt={userProfile?.full_name || 'Teacher'}
+                        className="w-12 h-12 rounded-full object-cover"
+                        onError={(e) => {
+                          console.log('❌ Image failed to load:', userProfile.profile_picture_url);
+                          e.currentTarget.style.display = 'none';
+                        }}
+                        onLoad={() => console.log('✅ Image loaded successfully:', userProfile.profile_picture_url)}
+                      />
+                    ) : (
+                      <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
+                        <span className="text-white font-semibold text-lg">
+                          {userProfile?.full_name?.charAt(0)?.toUpperCase() || 'T'}
+                        </span>
+                      </div>
+                    )}
+                    <span className="text-gray-700 font-medium">{userProfile?.full_name || 'Teacher'}</span>
+                    <ChevronDown className="w-4 h-4 text-gray-500" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end">
+                  <DropdownMenuItem onClick={() => setProfileOpen(true)}>
+                    <User className="w-4 h-4 mr-2" />
+                    {t('myProfile')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setContactOpen(true)}>
+                    <LifeBuoy className="w-4 h-4 mr-2" />
+                    {t('contactIlp')}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">
+                    <LogOut className="w-4 h-4 mr-2" />
+                    {t('logout')}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
@@ -1034,7 +1034,7 @@ export default function TeacherDashboard() {
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-800 mb-4">{(strings[lang].welcome as any)(userProfile?.full_name || '')}</h1>
           <p className="text-xl text-gray-600">{t('manageStudents')}</p>
-          </div>
+        </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -1112,20 +1112,20 @@ export default function TeacherDashboard() {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="students" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4 bg-white shadow-sm">
-            <TabsTrigger value="students" className="flex items-center space-x-2">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 bg-white shadow-sm h-auto p-1">
+            <TabsTrigger value="students" className="flex items-center space-x-2 py-2">
               <Users className="w-4 h-4" />
               <span>{t('studentsTab')}</span>
             </TabsTrigger>
-            <TabsTrigger value="reviews" className="flex items-center space-x-2">
+            <TabsTrigger value="reviews" className="flex items-center space-x-2 py-2">
               <Activity className="w-4 h-4" />
               <span>{t('reviewsTab')}</span>
             </TabsTrigger>
-            <TabsTrigger value="resources" className="flex items-center space-x-2">
+            <TabsTrigger value="resources" className="flex items-center space-x-2 py-2">
               <BookOpen className="w-4 h-4" />
               <span>{t('resourcesTab')}</span>
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center space-x-2">
+            <TabsTrigger value="analytics" className="flex items-center space-x-2 py-2">
               <BarChart3 className="w-4 h-4" />
               <span>{t('analyticsTab')}</span>
             </TabsTrigger>
@@ -1175,42 +1175,42 @@ export default function TeacherDashboard() {
                       </SelectContent>
                     </Select>
                   </div>
-                      
-                                <Button
+
+                  <Button
                     onClick={() => setIsAddStudentOpen(true)}
                     className="bg-green-600 hover:bg-green-700"
-                                >
+                  >
                     <Plus className="w-4 h-4 mr-2" />
                     {t('addStudent')}
-                                </Button>
-                                <Button onClick={() => setIsAddExistingOpen(true)} variant="outline">
-                                  <Search className="w-4 h-4 mr-2" />
-                                  {t('addExisting')}
-                                </Button>
-                                <Button onClick={()=> setImportOpen(true)} variant="outline">
-                                  <Upload className="w-4 h-4 mr-2" />
-                                  {t('importCsv')}
-                                </Button>
+                  </Button>
+                  <Button onClick={() => setIsAddExistingOpen(true)} variant="outline">
+                    <Search className="w-4 h-4 mr-2" />
+                    {t('addExisting')}
+                  </Button>
+                  <Button onClick={() => setImportOpen(true)} variant="outline">
+                    <Upload className="w-4 h-4 mr-2" />
+                    {t('importCsv')}
+                  </Button>
                 </div>
                 <div className="text-xs text-gray-500 mt-2">{t('temporaryPassword')} <span className="font-semibold">temporary123</span></div>
-                </CardContent>
-              </Card>
+              </CardContent>
+            </Card>
 
             {/* Students List */}
             <Card className="border-0 shadow-lg">
-                <CardHeader>
+              <CardHeader>
                 <CardTitle className="text-xl text-gray-800">{t('studentManagement')}</CardTitle>
                 <CardDescription>
                   Manage your enrolled students and track their progress
                 </CardDescription>
-                </CardHeader>
-                <CardContent>
+              </CardHeader>
+              <CardContent>
                 {filteredStudents.length === 0 ? (
                   <div className="text-center py-12">
                     <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">{t('studentListEmpty')}</h3>
                     <p className="text-gray-500 mb-4">
-                      {searchTerm || selectedGrade !== 'all' || selectedStatus !== 'all' 
+                      {searchTerm || selectedGrade !== 'all' || selectedStatus !== 'all'
                         ? t('tryAdjustFilters')
                         : t('getStartedAdding')
                       }
@@ -1219,12 +1219,12 @@ export default function TeacherDashboard() {
                       <Button onClick={() => setIsAddStudentOpen(true)} className="bg-green-600 hover:bg-green-700">
                         <Plus className="w-4 h-4 mr-2" />
                         {t('startFirstStudent')}
-                                </Button>
-                              )}
-                        </div>
+                      </Button>
+                    )}
+                  </div>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full">
+                    <table className="w-full whitespace-nowrap">
                       <thead>
                         <tr className="border-b border-gray-200">
                           <th className="text-left py-3 px-4 font-medium text-gray-700">Student</th>
@@ -1250,7 +1250,7 @@ export default function TeacherDashboard() {
                                 {student.parent_guardian_name && (
                                   <p className="text-xs text-gray-400">Parent: {student.parent_guardian_name}</p>
                                 )}
-                      </div>
+                              </div>
                             </td>
                             <td className="py-4 px-4">
                               <Badge variant="outline">{student.class?.name}</Badge>
@@ -1258,7 +1258,7 @@ export default function TeacherDashboard() {
                             <td className="py-4 px-4">
                               <Badge className={getStatusColor(student.enrollment_status)}>
                                 {student.enrollment_status}
-                        </Badge>
+                              </Badge>
                             </td>
                             <td className="py-4 px-4">
                               <span className={getPerformanceColor(student.academic_performance)}>
@@ -1272,8 +1272,8 @@ export default function TeacherDashboard() {
                             </td>
                             <td className="py-4 px-4">
                               <div className="flex space-x-2">
-                                <Button variant="ghost" size="sm" onClick={async ()=>{ 
-                                  setSelectedStudent(student); 
+                                <Button variant="ghost" size="sm" onClick={async () => {
+                                  setSelectedStudent(student);
                                   try {
                                     // Build assessment-based timeline according to unlock rules
                                     // Must match StudentDashboard.tsx unlock logic exactly
@@ -1290,10 +1290,10 @@ export default function TeacherDashboard() {
                                       .select('assessment_type, completed_at')
                                       .eq('student_id', student.id);
                                     const latest: Record<string, string | undefined> = {};
-                                    (ar||[]).forEach((r:any)=>{
+                                    (ar || []).forEach((r: any) => {
                                       // Only consider responses with completed_at for completion status
                                       if (r.completed_at) {
-                                      const prev = latest[r.assessment_type];
+                                        const prev = latest[r.assessment_type];
                                         if (!prev || new Date(r.completed_at) > new Date(prev)) {
                                           latest[r.assessment_type] = r.completed_at;
                                         }
@@ -1306,11 +1306,11 @@ export default function TeacherDashboard() {
                                     const school = !!latest['school_learning'];
                                     const hobbies = !!latest['hobbies'];
                                     const roles = !!latest['role_models'];
-                                    
+
                                     const timeline = order.map(item => {
                                       let status = 'locked';
                                       let isCompleted = false;
-                                      
+
                                       // Determine completion status first
                                       if (item.key === 'inspiration') isCompleted = insp;
                                       else if (item.key === 'about_me') isCompleted = aboutMe;
@@ -1318,7 +1318,7 @@ export default function TeacherDashboard() {
                                       else if (item.key === 'school_learning') isCompleted = school;
                                       else if (item.key === 'hobbies') isCompleted = hobbies;
                                       else if (item.key === 'role_models') isCompleted = roles;
-                                      
+
                                       // Determine unlock status based on prerequisites (matching StudentDashboard.tsx)
                                       if (item.key === 'inspiration') {
                                         // Always unlocked
@@ -1339,15 +1339,15 @@ export default function TeacherDashboard() {
                                         // Requires: inspiration AND about_me AND dreams AND school_learning AND hobbies completed
                                         status = (insp && aboutMe && dreams && school && hobbies) ? (isCompleted ? 'completed' : 'unlocked') : 'locked';
                                       }
-                                      
+
                                       return { id: item.key, title: item.title, seq: item.seq, status, completed_at: latest[item.key] } as any;
                                     });
                                     setActivityTimeline(timeline);
-                                  } catch(err){
+                                  } catch (err) {
                                     console.error('Timeline load error:', err);
                                     setActivityTimeline([]);
                                   }
-                                  setIsDetailsOpen(true); 
+                                  setIsDetailsOpen(true);
                                 }}>
                                   <Eye className="w-4 h-4" />
                                 </Button>
@@ -1359,11 +1359,11 @@ export default function TeacherDashboard() {
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent>
-                                    <DropdownMenuItem onClick={()=> navigate(`/student/${student.id}/summary`)}>
+                                    <DropdownMenuItem onClick={() => navigate(`/student/${student.id}/summary`)}>
                                       <FileText className="w-4 h-4 mr-2" />
                                       View Summary
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={async ()=>{
+                                    <DropdownMenuItem onClick={async () => {
                                       setSelectedStudent(student);
                                       try {
                                         const { data, error } = await supabase
@@ -1371,10 +1371,10 @@ export default function TeacherDashboard() {
                                           .select('assessment_type, completed_at')
                                           .eq('student_id', student.id);
                                         if (error) throw error;
-                                        const summary: {[k:string]: {count:number; last?: string}} = {};
-                                        (data||[]).forEach((r:any)=>{
+                                        const summary: { [k: string]: { count: number; last?: string } } = {};
+                                        (data || []).forEach((r: any) => {
                                           const t = r.assessment_type;
-                                          if(!summary[t]) summary[t] = {count:0, last: undefined};
+                                          if (!summary[t]) summary[t] = { count: 0, last: undefined };
                                           summary[t].count += 1;
                                           if (!summary[t].last || new Date(r.completed_at) > new Date(summary[t].last!)) {
                                             summary[t].last = r.completed_at;
@@ -1390,7 +1390,7 @@ export default function TeacherDashboard() {
                                       <Activity className="w-4 h-4 mr-2" />
                                       View Progress
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={async ()=>{
+                                    <DropdownMenuItem onClick={async () => {
                                       setSelectedStudent(student);
                                       try {
                                         // Fetch all assessment responses
@@ -1401,24 +1401,24 @@ export default function TeacherDashboard() {
                                           .order('completed_at', { ascending: false, nullsFirst: false })
                                           .order('updated_at', { ascending: false });
                                         if (aerr) throw aerr;
-                                        
+
                                         // Get only the LATEST submission for each assessment type
                                         const latestByType: Record<string, any> = {};
                                         (allAnswers || []).forEach((answer: any) => {
                                           const existing = latestByType[answer.assessment_type];
                                           const answerTimestamp = new Date(answer.completed_at || answer.updated_at || 0).getTime();
-                                          
+
                                           if (!existing) {
                                             latestByType[answer.assessment_type] = answer;
                                             return;
                                           }
-                                          
+
                                           const existingTimestamp = new Date(existing.completed_at || existing.updated_at || 0).getTime();
                                           if (answerTimestamp > existingTimestamp) {
                                             latestByType[answer.assessment_type] = answer;
                                           }
                                         });
-                                        
+
                                         // Convert to array and order by assessment sequence
                                         const assessmentOrder = ['inspiration', 'about_me', 'dreams', 'school_learning', 'hobbies', 'role_models'];
                                         const orderedAnswers = assessmentOrder
@@ -1428,7 +1428,7 @@ export default function TeacherDashboard() {
                                             // Remove duplicates by assessment_type
                                             return index === self.findIndex(a => a.assessment_type === answer.assessment_type);
                                           });
-                                        
+
                                         console.log('📋 Latest assessment answers:', {
                                           total: orderedAnswers.length,
                                           types: orderedAnswers.map(a => a.assessment_type),
@@ -1441,19 +1441,19 @@ export default function TeacherDashboard() {
                                             updatedAt: a.updated_at
                                           }))
                                         });
-                                        
+
                                         // Verify no duplicates
                                         const typeSet = new Set(orderedAnswers.map(a => a.assessment_type));
                                         if (typeSet.size !== orderedAnswers.length) {
                                           console.warn('⚠️ Duplicate assessment types detected!', {
                                             unique: typeSet.size,
                                             total: orderedAnswers.length,
-                                            duplicates: orderedAnswers.filter((a, i, arr) => 
+                                            duplicates: orderedAnswers.filter((a, i, arr) =>
                                               arr.findIndex(x => x.assessment_type === a.assessment_type) !== i
                                             ).map(a => a.assessment_type)
                                           });
                                         }
-                                        
+
                                         setAssessmentAnswers(orderedAnswers);
                                         setIsAnswersOpen(true);
                                       } catch (err) {
@@ -1465,7 +1465,7 @@ export default function TeacherDashboard() {
                                       View Assessment Answers
                                     </DropdownMenuItem>
                                     <DropdownMenuItem className="text-red-600"
-                                      onClick={async ()=>{
+                                      onClick={async () => {
                                         if (!confirm('Unenroll this student from your list?')) return;
                                         try {
                                           const { error } = await supabase
@@ -1485,13 +1485,13 @@ export default function TeacherDashboard() {
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>
                                 </DropdownMenu>
-                      </div>
+                              </div>
                             </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
-                </div>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -1501,7 +1501,7 @@ export default function TeacherDashboard() {
           <TabsContent value="reviews" className="space-y-6">
             <AssessmentResponsesView onReviewUpdate={refreshReviewOverview} />
           </TabsContent>
-          
+
           <TabsContent value="reviews_old" className="space-y-6">
             <Card className="border-0 shadow-lg">
               <CardHeader>
@@ -1512,7 +1512,7 @@ export default function TeacherDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div className="space-y-1">
                     <div className="text-sm text-gray-600">Select Student</div>
-                    <Select value={reviewStudentId} onValueChange={(v)=>{ setReviewStudentId(v); }}>
+                    <Select value={reviewStudentId} onValueChange={(v) => { setReviewStudentId(v); }}>
                       <SelectTrigger>
                         <SelectValue placeholder="Choose a student" />
                       </SelectTrigger>
@@ -1541,18 +1541,18 @@ export default function TeacherDashboard() {
                             <CardContent className="p-4">
                               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                                 <div>
-                                  <div className="text-sm text-gray-500 capitalize">{ar.assessment_type.replace('_',' ')}</div>
+                                  <div className="text-sm text-gray-500 capitalize">{ar.assessment_type.replace('_', ' ')}</div>
                                   <div className="font-medium">{ar.assessment_title}</div>
                                   <div className="text-xs text-gray-500">Submitted: {ar.completed_at ? new Date(ar.completed_at).toLocaleString() : '—'}</div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <span className={`px-2 py-1 rounded text-xs ${badgeClass}`}>{status.replace('_',' ')}</span>
+                                  <span className={`px-2 py-1 rounded text-xs ${badgeClass}`}>{status.replace('_', ' ')}</span>
                                   <Button
                                     size="sm"
                                     className="bg-green-600 hover:bg-green-700"
                                     disabled={isSaving || status === 'reviewed'}
-                                    onClick={async ()=>{
-                                      setReviewSaving(prev=>({ ...prev, [ar.id]: true }));
+                                    onClick={async () => {
+                                      setReviewSaving(prev => ({ ...prev, [ar.id]: true }));
                                       try {
                                         const { error } = await supabase.rpc('update_assessment_review', {
                                           teacher_user_id: userProfile?.id,
@@ -1560,18 +1560,18 @@ export default function TeacherDashboard() {
                                           review: { review_status: 'reviewed' }
                                         } as any);
                                         if (error) throw error;
-                                        setStudentAssessments(prev=> prev.map(x=> x.id===ar.id ? { ...x, review_status: 'reviewed', reviewed_at: new Date().toISOString(), reviewer_name: userProfile?.full_name || null } : x));
+                                        setStudentAssessments(prev => prev.map(x => x.id === ar.id ? { ...x, review_status: 'reviewed', reviewed_at: new Date().toISOString(), reviewer_name: userProfile?.full_name || null } : x));
                                         // refresh counters
                                         const { data: ov } = await supabase.rpc('get_review_overview', { teacher_user_id: userProfile?.id });
                                         if (ov && ov[0]) setReviewOverview(ov[0] as any);
                                         const { data: sp } = await supabase.rpc('get_student_review_progress', { teacher_user_id: userProfile?.id });
-                                        const map: Record<string, {reviewed:number; total:number}> = {};
-                                        (sp||[]).forEach((row:any) => { map[row.student_id] = { reviewed: Number(row.reviewed_count||0), total: Number(row.total_count||0) }; });
+                                        const map: Record<string, { reviewed: number; total: number }> = {};
+                                        (sp || []).forEach((row: any) => { map[row.student_id] = { reviewed: Number(row.reviewed_count || 0), total: Number(row.total_count || 0) }; });
                                         setStudentReviewMap(map);
                                       } catch (err) {
                                         console.error('Mark reviewed failed', err);
                                       } finally {
-                                        setReviewSaving(prev=>({ ...prev, [ar.id]: false }));
+                                        setReviewSaving(prev => ({ ...prev, [ar.id]: false }));
                                       }
                                     }}
                                   >Mark Reviewed</Button>
@@ -1579,8 +1579,8 @@ export default function TeacherDashboard() {
                                     size="sm"
                                     variant="outline"
                                     disabled={isSaving}
-                                    onClick={async ()=>{
-                                      setReviewSaving(prev=>({ ...prev, [ar.id]: true }));
+                                    onClick={async () => {
+                                      setReviewSaving(prev => ({ ...prev, [ar.id]: true }));
                                       try {
                                         const { error } = await supabase.rpc('update_assessment_review', {
                                           teacher_user_id: userProfile?.id,
@@ -1588,9 +1588,9 @@ export default function TeacherDashboard() {
                                           review: { review_status: 'needs_revision' }
                                         } as any);
                                         if (error) throw error;
-                                        setStudentAssessments(prev=> prev.map(x=> x.id===ar.id ? { ...x, review_status: 'needs_revision' } : x));
+                                        setStudentAssessments(prev => prev.map(x => x.id === ar.id ? { ...x, review_status: 'needs_revision' } : x));
                                       } finally {
-                                        setReviewSaving(prev=>({ ...prev, [ar.id]: false }));
+                                        setReviewSaving(prev => ({ ...prev, [ar.id]: false }));
                                       }
                                     }}
                                   >Needs Revision</Button>
@@ -1598,8 +1598,8 @@ export default function TeacherDashboard() {
                                     size="sm"
                                     variant="outline"
                                     disabled={isSaving}
-                                    onClick={async ()=>{
-                                      setReviewSaving(prev=>({ ...prev, [ar.id]: true }));
+                                    onClick={async () => {
+                                      setReviewSaving(prev => ({ ...prev, [ar.id]: true }));
                                       try {
                                         const { error } = await supabase.rpc('update_assessment_review', {
                                           teacher_user_id: userProfile?.id,
@@ -1607,9 +1607,9 @@ export default function TeacherDashboard() {
                                           review: { review_status: 'flagged' }
                                         } as any);
                                         if (error) throw error;
-                                        setStudentAssessments(prev=> prev.map(x=> x.id===ar.id ? { ...x, review_status: 'flagged' } : x));
+                                        setStudentAssessments(prev => prev.map(x => x.id === ar.id ? { ...x, review_status: 'flagged' } : x));
                                       } finally {
-                                        setReviewSaving(prev=>({ ...prev, [ar.id]: false }));
+                                        setReviewSaving(prev => ({ ...prev, [ar.id]: false }));
                                       }
                                     }}
                                   >Flag</Button>
@@ -1618,8 +1618,8 @@ export default function TeacherDashboard() {
                               <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
                                 <div className="text-xs text-gray-600">Follow-up</div>
                                 <div className="flex items-center gap-2">
-                                  <Select value={(ar.follow_up_status || 'pending') as any} onValueChange={async (v)=>{
-                                    setReviewSaving(prev=>({ ...prev, [ar.id]: true }));
+                                  <Select value={(ar.follow_up_status || 'pending') as any} onValueChange={async (v) => {
+                                    setReviewSaving(prev => ({ ...prev, [ar.id]: true }));
                                     try {
                                       const { error } = await supabase.rpc('update_assessment_review', {
                                         teacher_user_id: userProfile?.id,
@@ -1627,9 +1627,9 @@ export default function TeacherDashboard() {
                                         review: { needs_follow_up: true, follow_up_status: v }
                                       } as any);
                                       if (error) throw error;
-                                      setStudentAssessments(prev=> prev.map(x=> x.id===ar.id ? { ...x, needs_follow_up: true, follow_up_status: v } : x));
+                                      setStudentAssessments(prev => prev.map(x => x.id === ar.id ? { ...x, needs_follow_up: true, follow_up_status: v } : x));
                                     } finally {
-                                      setReviewSaving(prev=>({ ...prev, [ar.id]: false }));
+                                      setReviewSaving(prev => ({ ...prev, [ar.id]: false }));
                                     }
                                   }}>
                                     <SelectTrigger className="w-40">
@@ -1642,10 +1642,10 @@ export default function TeacherDashboard() {
                                     </SelectContent>
                                   </Select>
                                   <input type="date" className="border rounded px-2 py-1 text-sm"
-                                    value={ar.follow_up_due_at ? new Date(ar.follow_up_due_at).toISOString().slice(0,10) : ''}
-                                    onChange={async (e)=>{
+                                    value={ar.follow_up_due_at ? new Date(ar.follow_up_due_at).toISOString().slice(0, 10) : ''}
+                                    onChange={async (e) => {
                                       const date = e.target.value ? new Date(e.target.value).toISOString() : null;
-                                      setReviewSaving(prev=>({ ...prev, [ar.id]: true }));
+                                      setReviewSaving(prev => ({ ...prev, [ar.id]: true }));
                                       try {
                                         const { error } = await supabase.rpc('update_assessment_review', {
                                           teacher_user_id: userProfile?.id,
@@ -1653,9 +1653,9 @@ export default function TeacherDashboard() {
                                           review: { follow_up_due_at: date }
                                         } as any);
                                         if (error) throw error;
-                                        setStudentAssessments(prev=> prev.map(x=> x.id===ar.id ? { ...x, follow_up_due_at: date } : x));
+                                        setStudentAssessments(prev => prev.map(x => x.id === ar.id ? { ...x, follow_up_due_at: date } : x));
                                       } finally {
-                                        setReviewSaving(prev=>({ ...prev, [ar.id]: false }));
+                                        setReviewSaving(prev => ({ ...prev, [ar.id]: false }));
                                       }
                                     }} />
                                 </div>
@@ -1679,22 +1679,22 @@ export default function TeacherDashboard() {
           {/* Analytics Tab */}
           <TabsContent value="analytics" className="space-y-6">
             <Card className="border-0 shadow-lg">
-                <CardHeader>
+              <CardHeader>
                 <CardTitle className="text-xl text-gray-800">Student Analytics</CardTitle>
                 <CardDescription>
                   View detailed insights and progress reports
                 </CardDescription>
-                </CardHeader>
-                <CardContent>
+              </CardHeader>
+              <CardContent>
                 <div className="text-center py-12">
                   <BarChart3 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Analytics Coming Soon</h3>
                   <p className="text-gray-500">
                     Analytics and reporting system will be implemented in the next phase
                   </p>
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
@@ -1712,7 +1712,7 @@ export default function TeacherDashboard() {
         />
       )}
       {/* Keep ChatbotDialog unrelated to mentor chat */}
-      <ChatbotDialog open={false} onOpenChange={()=>{}} />
+      <ChatbotDialog open={false} onOpenChange={() => { }} />
       <ContactIlpDialog open={contactOpen} onOpenChange={setContactOpen} />
 
       {/* Chat Bubble */}
@@ -1727,12 +1727,12 @@ export default function TeacherDashboard() {
               Enroll a new student and create their account. They will receive login credentials.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-6 py-4">
             {/* Student Basic Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">Student Information</h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="fullName">Full Name *</Label>
@@ -1742,8 +1742,8 @@ export default function TeacherDashboard() {
                     onChange={(e) => setNewStudent(prev => ({ ...prev, fullName: e.target.value }))}
                     placeholder="Enter student's full name"
                   />
-                  </div>
-                
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="contact">Mobile Number / Email *</Label>
                   <Input
@@ -1774,14 +1774,14 @@ export default function TeacherDashboard() {
 
             {/* School & Class Selection removed per request - teacher's school is implied; class can be derived from grade later */}
 
-            
+
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t">
             <Button variant="outline" onClick={() => setIsAddStudentOpen(false)}>
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={handleAddStudent}
               className="bg-green-600 hover:bg-green-700"
               disabled={!newStudent.fullName || !newStudent.contact || !newStudent.grade}
@@ -1857,7 +1857,7 @@ export default function TeacherDashboard() {
             </div>
           </div>
           <div className="flex justify-end">
-            <Button onClick={()=>{ setIsDetailsOpen(false); }}>Close</Button>
+            <Button onClick={() => { setIsDetailsOpen(false); }}>Close</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -1871,22 +1871,22 @@ export default function TeacherDashboard() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {['inspiration','about_me','dreams','school_learning','hobbies','role_models'].map((t)=> (
+              {['inspiration', 'about_me', 'dreams', 'school_learning', 'hobbies', 'role_models'].map((t) => (
                 <Card key={t} className="border shadow-sm">
-                <CardHeader>
-                    <CardTitle className="text-base capitalize">{t.replace('_',' ')}</CardTitle>
-                </CardHeader>
-                <CardContent>
+                  <CardHeader>
+                    <CardTitle className="text-base capitalize">{t.replace('_', ' ')}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
                     <div className="text-sm text-gray-600">Submissions: <span className="font-medium">{progressSummary[t]?.count || 0}</span></div>
                     <div className="text-sm text-gray-600">Last completed: <span className="font-medium">{progressSummary[t]?.last ? new Date(progressSummary[t]!.last!).toLocaleString() : '—'}</span></div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={()=> window.print()}>Print</Button>
-            <Button onClick={()=> setIsProgressOpen(false)}>Close</Button>
+            <Button variant="outline" onClick={() => window.print()}>Print</Button>
+            <Button onClick={() => setIsProgressOpen(false)}>Close</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -1902,31 +1902,31 @@ export default function TeacherDashboard() {
             {assessmentAnswers.length === 0 ? (
               <div className="text-sm text-gray-500">No assessment submissions yet.</div>
             ) : (
-              assessmentAnswers.map((r:any) => (
+              assessmentAnswers.map((r: any) => (
                 <Card key={`${r.assessment_type}-${r.completed_at || r.updated_at}`} className="border shadow-sm" data-assessment-card>
-              <CardHeader>
+                  <CardHeader>
                     <CardTitle className="text-base">
-                      <span className="capitalize">{r.assessment_type.replace('_',' ')}</span> – {r.assessment_title}
+                      <span className="capitalize">{r.assessment_type.replace('_', ' ')}</span> – {r.assessment_title}
                       {r.completed_at && (
-                      <span className="ml-2 text-sm text-gray-500">{new Date(r.completed_at).toLocaleString()}</span>
+                        <span className="ml-2 text-sm text-gray-500">{new Date(r.completed_at).toLocaleString()}</span>
                       )}
                     </CardTitle>
-              </CardHeader>
+                  </CardHeader>
                   <CardContent>
                     {renderReadableAnswers(r.assessment_type, r.responses)}
-                    </CardContent>
-                  </Card>
+                  </CardContent>
+                </Card>
               ))
             )}
-                      </div>
+          </div>
           <div className="flex justify-end gap-2 print:hidden">
-            <Button variant="outline" onClick={()=> window.print()}>Print</Button>
-            <Button onClick={()=> setIsAnswersOpen(false)}>Close</Button>
+            <Button variant="outline" onClick={() => window.print()}>Print</Button>
+            <Button onClick={() => setIsAnswersOpen(false)}>Close</Button>
           </div>
         </DialogContent>
       </Dialog>
       {/* Add Existing Student Modal */}
-      <Dialog open={isAddExistingOpen} onOpenChange={(v)=>{ setIsAddExistingOpen(v); setExistingResults([]); setExistingQuery(''); setEnrollTarget(null); }}>
+      <Dialog open={isAddExistingOpen} onOpenChange={(v) => { setIsAddExistingOpen(v); setExistingResults([]); setExistingQuery(''); setEnrollTarget(null); }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl text-gray-800">Add Existing Student</DialogTitle>
@@ -1936,8 +1936,8 @@ export default function TeacherDashboard() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="flex gap-2">
-              <Input placeholder="Enter student mobile / email / name" value={existingQuery} onChange={(e)=>setExistingQuery(e.target.value)} />
-              <Button onClick={async ()=>{
+              <Input placeholder="Enter student mobile / email / name" value={existingQuery} onChange={(e) => setExistingQuery(e.target.value)} />
+              <Button onClick={async () => {
                 try {
                   const { data, error } = await supabase.rpc('search_students', { teacher_user_id: user?.id, query: existingQuery });
                   if (error) throw error;
@@ -1949,7 +1949,7 @@ export default function TeacherDashboard() {
               }}>
                 <Search className="w-4 h-4 mr-2" /> Search
               </Button>
-                </div>
+            </div>
 
             {existingResults.length === 0 ? (
               <div className="text-sm text-gray-500">No student found. You can create a new one instead.</div>
@@ -1965,21 +1965,21 @@ export default function TeacherDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {existingResults.map((row:any)=> (
+                    {existingResults.map((row: any) => (
                       <tr key={row.student_user_id} className="border-b border-gray-100">
                         <td className="py-2 px-3">{row.full_name}</td>
                         <td className="py-2 px-3">{row.mobile || row.email}</td>
                         <td className="py-2 px-3">{row.current_class || '—'}</td>
                         <td className="py-2 px-3">
-                          <Button size="sm" variant="outline" onClick={()=>{ setEnrollTarget({ userId: row.student_user_id, name: row.full_name }); setEnrollClassId(row.current_class_id || ''); }}>
+                          <Button size="sm" variant="outline" onClick={() => { setEnrollTarget({ userId: row.student_user_id, name: row.full_name }); setEnrollClassId(row.current_class_id || ''); }}>
                             Enroll
-                  </Button>
+                          </Button>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                </div>
+              </div>
             )}
 
             {enrollTarget && (
@@ -2000,7 +2000,7 @@ export default function TeacherDashboard() {
                     </Select>
                   </div>
                   <div className="flex gap-2 justify-end md:justify-start">
-                    <Button disabled={enrolling || !enrollClassId} onClick={async ()=>{
+                    <Button disabled={enrolling || !enrollClassId} onClick={async () => {
                       try {
                         setEnrolling(true);
                         const { error } = await supabase.rpc('enroll_student_by_user_id', {
@@ -2022,14 +2022,14 @@ export default function TeacherDashboard() {
                     }}>
                       Confirm Enroll
                     </Button>
-                    <Button variant="ghost" onClick={()=> setEnrollTarget(null)}>Cancel</Button>
+                    <Button variant="ghost" onClick={() => setEnrollTarget(null)}>Cancel</Button>
                   </div>
                 </div>
               </div>
             )}
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={()=> setIsAddExistingOpen(false)}>Close</Button>
+            <Button variant="outline" onClick={() => setIsAddExistingOpen(false)}>Close</Button>
           </div>
         </DialogContent>
       </Dialog>

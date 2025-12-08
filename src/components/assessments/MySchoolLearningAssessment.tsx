@@ -282,11 +282,11 @@ export default function MySchoolLearningAssessment() {
       if (!unlockResult.isUnlocked) {
         toast({
           title: lang === 'kn' ? 'ಮೌಲ್ಯಮಾಪನ ಲಾಕ್ ಮಾಡಲಾಗಿದೆ' : lang === 'ta' ? 'செயல் பூட்டப்பட்டுள்ளது' : 'Assessment Locked',
-          description: lang === 'kn' 
+          description: lang === 'kn'
             ? `ದಯವಿಟ್ಟು ಮೊದಲು "${unlockResult.missingPrerequisites.join(', ')}" ಪೂರ್ಣಗೊಳಿಸಿ.`
             : lang === 'ta'
-            ? `"${unlockResult.missingPrerequisites.join(', ')}" செயல்களை முதலில் முடித்தால் இந்த பகுதி திறக்கும்.`
-            : `Please complete "${unlockResult.missingPrerequisites.join(', ')}" first.`,
+              ? `"${unlockResult.missingPrerequisites.join(', ')}" செயல்களை முதலில் முடித்தால் இந்த பகுதி திறக்கும்.`
+              : `Please complete "${unlockResult.missingPrerequisites.join(', ')}" first.`,
           variant: 'destructive',
         });
         navigate('/student');
@@ -330,10 +330,10 @@ export default function MySchoolLearningAssessment() {
         .in('assessment_title', ['My School, My Learning and I', 'My School Learning'] as any)
         .order('updated_at', { ascending: false })
         .limit(1);
-      
+
       const data = records && records.length > 0 ? records[0] : null;
       console.log('📥 Loading existing response:', { data, error, recordsCount: records?.length });
-      
+
       if (data && !error && data.responses) {
         // Only set completed if completed_at exists
         if (data.completed_at) {
@@ -342,7 +342,7 @@ export default function MySchoolLearningAssessment() {
         // Merge saved responses with current structure
         const savedResponses = data.responses as any;
         console.log('📋 Saved responses:', savedResponses);
-        
+
         const mergedResponses: SchoolLearningAssessmentResponse = {
           section1: {
             question1: savedResponses.section1?.question1 || savedResponses.part1?.question1 || '',
@@ -387,7 +387,7 @@ export default function MySchoolLearningAssessment() {
             question21: savedResponses.section5?.question21 || ''
           }
         };
-        
+
         console.log('✅ Merged responses:', mergedResponses);
         setResponses(mergedResponses);
       } else {
@@ -440,7 +440,7 @@ export default function MySchoolLearningAssessment() {
     setSavingSection(section);
     try {
       console.log('💾 Saving section:', section, 'with responses:', responses);
-      
+
       // First, check if a record exists - get the most recent one
       const { data: existingRecords, error: fetchError } = await supabase
         .from('assessment_responses')
@@ -476,7 +476,7 @@ export default function MySchoolLearningAssessment() {
             updated_at: new Date().toISOString()
           })
           .eq('id', existing.id);
-        
+
         if (error) {
           console.error('❌ Error updating record:', error);
           throw error;
@@ -495,7 +495,7 @@ export default function MySchoolLearningAssessment() {
             updated_at: new Date().toISOString(),
             completed_at: null
           });
-        
+
         if (error) {
           console.error('❌ Error inserting new record:', error);
           throw error;
@@ -557,55 +557,55 @@ export default function MySchoolLearningAssessment() {
 
   const canSubmit = () => {
     if (isReadOnly) return false;
-    
+
     // Helper to safely check if a question is answered
     const isAnswered = (value: any): boolean => {
       if (value === null || value === undefined) return false;
       if (typeof value === 'string') return value.trim() !== '';
       return false;
     };
-    
+
     // Check section 1 (4 questions)
-    const section1Complete = 
+    const section1Complete =
       isAnswered(responses.section1.question1) &&
       isAnswered(responses.section1.question2) &&
       isAnswered(responses.section1.question3) &&
       isAnswered(responses.section1.question4);
-    
+
     // Check section 2 (4 questions)
-    const section2Complete = 
+    const section2Complete =
       isAnswered(responses.section2.question5) &&
       isAnswered(responses.section2.question6) &&
       isAnswered(responses.section2.question7) &&
       isAnswered(responses.section2.question8);
-    
+
     // Check section 3 (4 items: question9, question10, question11, question12)
-    const section3Q11Complete = Object.values(responses.section3.question11).some(val => 
+    const section3Q11Complete = Object.values(responses.section3.question11).some(val =>
       val === true || (typeof val === 'string' && val.trim() !== '')
     );
-    const section3Complete = 
+    const section3Complete =
       isAnswered(responses.section3.question9) &&
       isAnswered(responses.section3.question10) &&
       section3Q11Complete &&
       isAnswered(responses.section3.question12);
-    
+
     // Check section 4 (4 questions)
-    const section4Complete = 
+    const section4Complete =
       isAnswered(responses.section4.question13) &&
       isAnswered(responses.section4.question14) &&
       isAnswered(responses.section4.question15) &&
       isAnswered(responses.section4.question16);
-    
+
     // Check section 5 (5 questions)
-    const section5Complete = 
+    const section5Complete =
       isAnswered(responses.section5.question17) &&
       isAnswered(responses.section5.question18) &&
       isAnswered(responses.section5.question19) &&
       isAnswered(responses.section5.question20) &&
       isAnswered(responses.section5.question21);
-    
+
     const allSectionsComplete = section1Complete && section2Complete && section3Complete && section4Complete && section5Complete;
-    
+
     if (!allSectionsComplete) {
       console.log('📋 Submission check:', {
         section1: section1Complete,
@@ -648,7 +648,7 @@ export default function MySchoolLearningAssessment() {
     } else {
       console.log('✅ All sections complete! Submit button should be enabled.');
     }
-    
+
     return allSectionsComplete;
   };
 
@@ -709,7 +709,7 @@ export default function MySchoolLearningAssessment() {
       try {
         const { aiSummaryService } = await import('@/services/aiSummaryService');
         const summaryDatabaseService = (await import('@/services/summaryDatabaseService')).summaryDatabaseService;
-        
+
         if (aiSummaryService.isConfigured() && assessmentData?.id) {
           console.log('🤖 Generating AI summary for School Learning assessment:', assessmentData.id);
           const summaryResult = await aiSummaryService.generateSchoolLearningSummary(responses);
@@ -746,7 +746,7 @@ export default function MySchoolLearningAssessment() {
                     .select('teachers:teacher_id(user_id, users:user_id(full_name))')
                     .eq('id', studentId)
                     .maybeSingle();
-                  
+
                   const teacherUserId = (studentRow as any)?.teachers?.user_id;
                   if (teacherUserId) {
                     await notificationService.create({
@@ -870,7 +870,7 @@ export default function MySchoolLearningAssessment() {
                 <ArrowLeft className="w-4 h-4 mr-2" />{t('backToDashboard')}
               </Button>
             </div>
-            <h1 className="text-3xl font-bold text-green-800 mb-2">
+            <h1 className="text-2xl md:text-3xl font-bold text-green-800 mb-2">
               {lang === 'kn'
                 ? '🏫 ನನ್ನ ಶಾಲೆ, ನನ್ನ ಕಲಿಕೆ ಮತ್ತು ನಾನು'
                 : lang === 'ta'
@@ -898,7 +898,7 @@ export default function MySchoolLearningAssessment() {
             </CardContent>
           </Card>
 
-          <div className="flex justify-center mb-6 gap-2 flex-wrap">
+          <div className="flex justify-center mb-6 gap-2 flex-wrap flex-col sm:flex-row">
             {(['section1', 'section2', 'section3', 'section4', 'section5'] as const).map((section) => {
               const sectionNumber = Number(section.replace('section', ''));
               const label =
@@ -911,11 +911,10 @@ export default function MySchoolLearningAssessment() {
                 <button
                   key={section}
                   onClick={() => setCurrentSection(section)}
-                  className={`px-4 py-2 rounded-md transition-all text-sm ${
-                    currentSection === section
+                  className={`px-4 py-2 rounded-md transition-all text-sm w-full sm:w-auto ${currentSection === section
                       ? 'bg-green-600 text-white shadow-md'
                       : 'bg-white text-gray-600 hover:text-green-600 border border-gray-200'
-                  }`}
+                    }`}
                 >
                   {label}
                 </button>
@@ -1609,11 +1608,10 @@ export default function MySchoolLearningAssessment() {
               <Button
                 onClick={submitAssessment}
                 disabled={!canSubmit() || submitting || isReadOnly}
-                className={`${
-                  canSubmit() && !submitting && !isReadOnly
+                className={`${canSubmit() && !submitting && !isReadOnly
                     ? 'bg-green-600 hover:bg-green-700'
                     : 'bg-gray-400 cursor-not-allowed'
-                }`}
+                  }`}
               >
                 {submitting ? (
                   <>

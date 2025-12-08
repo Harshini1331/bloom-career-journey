@@ -216,7 +216,7 @@ SELECT
   s.org_id, 
   o.name as org_name
 FROM public.states s 
-LEFT JOIN public.orgs o ON s.org_id = o.id
+LEFT JOIN public.organizations o ON s.org_id = o.id
 ORDER BY s.state_name;
 
 SELECT 'APP QUERY TEST - Classes for Tamil Nadu' as info;

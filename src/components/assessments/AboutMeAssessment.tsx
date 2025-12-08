@@ -39,7 +39,7 @@ export default function AboutMeAssessment() {
   const { userProfile } = useAuth();
   const { t, lang } = useLang();
   const [searchParams] = useSearchParams();
-  const readOnlyView = ['1','true'].includes((searchParams.get('readonly')||searchParams.get('view')||'').toLowerCase());
+  const readOnlyView = ['1', 'true'].includes((searchParams.get('readonly') || searchParams.get('view') || '').toLowerCase());
   const { toast } = useToast();
   const navigate = useNavigate();
   const [responses, setResponses] = useState<AboutMeResponses>({});
@@ -51,7 +51,7 @@ export default function AboutMeAssessment() {
   const [currentSection, setCurrentSection] = useState<string>('');
   const [helpTranslations, setHelpTranslations] = useState<Record<string, string>>({});
   const toggleHelp = (k: string) => setHelpOpen(prev => ({ ...prev, [k]: !prev[k] }));
-  
+
   // Initialize responses based on database fields
   const initializeResponses = (fields: AboutMeField[]) => {
     const initialResponses: AboutMeResponses = {};
@@ -133,7 +133,7 @@ export default function AboutMeAssessment() {
     const checkUnlock = async () => {
       // Skip check if in read-only mode (teachers viewing completed assessments)
       if (readOnlyView) return;
-      
+
       // Skip if no user profile
       if (!userProfile) return;
 
@@ -141,15 +141,15 @@ export default function AboutMeAssessment() {
       if (!studentId) return;
 
       const unlockResult = await checkAssessmentUnlock(studentId, 'about_me');
-      
+
       if (!unlockResult.isUnlocked) {
         toast({
           title: lang === 'kn' ? 'ಮೌಲ್ಯಮಾಪನ ಲಾಕ್ ಮಾಡಲಾಗಿದೆ' : lang === 'ta' ? 'செயல் பூட்டப்பட்டுள்ளது' : 'Assessment Locked',
-          description: lang === 'kn' 
+          description: lang === 'kn'
             ? `ದಯವಿಟ್ಟು ಮೊದಲು "${unlockResult.missingPrerequisites.join(', ')}" ಪೂರ್ಣಗೊಳಿಸಿ.`
             : lang === 'ta'
-            ? `"${unlockResult.missingPrerequisites.join(', ')}" செயல்களை முதலில் முடித்தால் இந்த பகுதி திறக்கும்.`
-            : `Please complete "${unlockResult.missingPrerequisites.join(', ')}" first.`,
+              ? `"${unlockResult.missingPrerequisites.join(', ')}" செயல்களை முதலில் முடித்தால் இந்த பகுதி திறக்கும்.`
+              : `Please complete "${unlockResult.missingPrerequisites.join(', ')}" first.`,
           variant: 'destructive',
         });
         navigate('/student');
@@ -174,7 +174,7 @@ export default function AboutMeAssessment() {
             const maybe = (rows as any).data;
             if (Array.isArray(maybe)) rows = maybe;
           }
-        } catch {}
+        } catch { }
 
         if (!rows) {
           const { data, error } = await supabase.rpc('get_about_me_fields');
@@ -184,7 +184,7 @@ export default function AboutMeAssessment() {
           }
           rows = data as any[];
         }
-        
+
         if (validateApiResponse(rows, 'AboutMeAssessment - Fields')) {
           console.log('✅ Database fields loaded:', (rows as any[]).length, 'fields');
           const fields = rows as AboutMeField[];
@@ -200,7 +200,7 @@ export default function AboutMeAssessment() {
         console.log('🔄 Using hardcoded fallback fields');
       }
     };
-    
+
     loadFields();
   }, [lang]);
 
@@ -254,7 +254,7 @@ export default function AboutMeAssessment() {
         const now = `${window.location.pathname}${window.location.search}${window.location.hash}`;
         if (next !== now) window.history.replaceState(window.history.state, '', next);
       }
-    } catch {}
+    } catch { }
   }, [lang]);
 
   useEffect(() => {
@@ -360,22 +360,22 @@ export default function AboutMeAssessment() {
         .upsert({ ...payload, updated_at: new Date().toISOString() })
         .select()
         .single();
-      
+
       if (error) throw error;
-      
-      toast({ 
-        title: complete ? 'Submitted!' : 'Saved', 
-        description: complete ? 'About Me submitted successfully.' : 'Progress saved.' 
+
+      toast({
+        title: complete ? 'Submitted!' : 'Saved',
+        description: complete ? 'About Me submitted successfully.' : 'Progress saved.'
       });
-      
+
       if (complete) {
         setIsCompleted(true);
-        
+
         // Generate AI summary in the background
         try {
           const { aiSummaryService } = await import('@/services/aiSummaryService');
           const summaryDatabaseService = (await import('@/services/summaryDatabaseService')).summaryDatabaseService;
-          
+
           if (aiSummaryService.isConfigured() && assessmentData?.id) {
             console.log('🤖 Generating AI summary for About Me assessment:', assessmentData.id);
             const summaryResult = await aiSummaryService.generateAboutMeSummary(responses);
@@ -408,7 +408,7 @@ export default function AboutMeAssessment() {
                 // Notify teacher(s) assigned to this student
                 try {
                   const { notificationService } = await import('@/services/notificationService');
-                  
+
                   // Find teacher(s) for this student
                   const studentId = await getStudentId();
                   if (studentId) {
@@ -417,7 +417,7 @@ export default function AboutMeAssessment() {
                       .select('teachers:teacher_id(user_id, users:user_id(full_name))')
                       .eq('id', studentId)
                       .maybeSingle();
-                    
+
                     const teacherUserId = (studentRow as any)?.teachers?.user_id;
                     if (teacherUserId) {
                       await notificationService.create({
@@ -479,7 +479,7 @@ export default function AboutMeAssessment() {
             <CardContent className="p-6">
               <div className="text-center space-y-4">
                 <p className="text-gray-600">
-                  {lang === 'kn' 
+                  {lang === 'kn'
                     ? 'ನನ್ನ ಬಗ್ಗೆ ಮೌಲ್ಯಮಾಪನವನ್ನು ಪೂರ್ಣಗೊಳಿಸಿದ್ದಕ್ಕಾಗಿ ಧನ್ಯವಾದಗಳು! ನಿಮ್ಮ ಯೋಚನೆಗಳನ್ನು ಉಳಿಸಲಾಗಿದೆ ಮತ್ತು ನಿಮ್ಮ ಶಿಕ್ಷಕರು ಈಗ ನಿಮ್ಮ ವೃತ್ತಿ ಪ್ರಯಾಣದಲ್ಲಿ ಸಹಾಯ ಮಾಡಲು ಅವುಗಳನ್ನು ವಿಮರ್ಶೆ ಮಾಡಬಹುದು.'
                     : 'Thank you for completing the About Me assessment! Your reflections have been saved and your teacher can now review them to help guide your career journey.'}
                 </p>
@@ -498,7 +498,7 @@ export default function AboutMeAssessment() {
                   >
                     {lang === 'kn' ? 'ನನ್ನ ಉತ್ತರಗಳನ್ನು ವೀಕ್ಷಿಸಿ' : lang === 'ta' ? 'என் பதில்களை பார்' : 'View My Answers'}
                   </Button>
-                  <Button 
+                  <Button
                     onClick={() => navigate('/student')}
                     className="bg-blue-600 hover:bg-blue-700"
                   >
@@ -541,8 +541,8 @@ export default function AboutMeAssessment() {
               <ArrowLeft className="w-4 h-4 mr-2" />{t('backToDashboard')}
             </Button>
           </div>
-          <h1 className="text-3xl font-bold text-blue-800 mb-2">🧑 {t('aboutMeTitle')}</h1>
-          <p className="text-blue-600 text-lg">
+          <h1 className="text-2xl md:text-3xl font-bold text-blue-800 mb-2">🧑 {t('aboutMeTitle')}</h1>
+          <p className="text-blue-600 text-sm md:text-lg">
             {t('aboutMeIntro')}
           </p>
         </div>
@@ -573,8 +573,8 @@ export default function AboutMeAssessment() {
                       // Extract section letter (A, B, C, D)
                       const sectionLetter = sectionTitle.match(/^([A-D])\./)?.[1] || sectionTitle.charAt(0);
                       return (
-                        <TabsTrigger 
-                          key={sectionTitle} 
+                        <TabsTrigger
+                          key={sectionTitle}
                           value={sectionTitle}
                           className="text-xs sm:text-sm"
                         >
@@ -598,12 +598,12 @@ export default function AboutMeAssessment() {
                           const fieldValue = responses[field.field_key];
                           const helpKey = field.field_key;
                           const isOpen = !!helpOpen[helpKey];
-                          
+
                           // Determine label - use question_text from database
-                          const label = field.question_text?.startsWith(`${index + 1}. `) 
-                            ? field.question_text 
+                          const label = field.question_text?.startsWith(`${index + 1}. `)
+                            ? field.question_text
                             : `${index + 1}. ${field.question_text}`;
-                          
+
                           // Use localized help text when available; otherwise fall back
                           // to the database help_text (usually English). When Tamil
                           // translations are added to `about_me_help`, they will
@@ -613,10 +613,10 @@ export default function AboutMeAssessment() {
                             translatedHelp !== undefined
                               ? translatedHelp
                               : (field.help_text || '');
-                          
+
                           if (field.field_type === 'triple') {
-                            const tripleValue = (Array.isArray(fieldValue) && fieldValue.length === 3) 
-                              ? fieldValue as Triple 
+                            const tripleValue = (Array.isArray(fieldValue) && fieldValue.length === 3)
+                              ? fieldValue as Triple
                               : ['', '', ''] as Triple;
                             return (
                               <TripleInput
@@ -632,8 +632,8 @@ export default function AboutMeAssessment() {
                               />
                             );
                           } else if (field.field_type === 'double') {
-                            const doubleValue = (Array.isArray(fieldValue) && fieldValue.length === 2) 
-                              ? fieldValue as Double 
+                            const doubleValue = (Array.isArray(fieldValue) && fieldValue.length === 2)
+                              ? fieldValue as Double
                               : ['', ''] as Double;
                             return (
                               <DoubleInput
@@ -712,27 +712,27 @@ function Question({ label, help, value, onChange, area, helpKey, open, onToggle,
         <div className="mb-2 p-3 rounded border bg-blue-50 border-blue-200 text-sm text-blue-800">{help}</div>
       )}
       {area ? (
-        <Textarea 
-          value={value} 
+        <Textarea
+          value={value}
           readOnly={readOnly}
           onChange={(e) => {
             const v = e.target.value;
             onChange(v);
             if (open && v.trim().length > 0) onToggle();
-          }} 
-          rows={4} 
-          placeholder={help} 
+          }}
+          rows={4}
+          placeholder={help}
         />
       ) : (
-        <Input 
-          value={value} 
+        <Input
+          value={value}
           readOnly={readOnly}
           onChange={(e) => {
             const v = e.target.value;
             onChange(v);
             if (open && v.trim().length > 0) onToggle();
-          }} 
-          placeholder={help} 
+          }}
+          placeholder={help}
         />
       )}
     </div>

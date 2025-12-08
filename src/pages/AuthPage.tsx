@@ -14,7 +14,7 @@ import { useLocation } from 'react-router-dom';
 
 export default function AuthPage() {
   console.log('AuthPage: Component rendering');
-  
+
   const { user, userProfile, signIn, signUp } = useAuth();
   const location = useLocation();
   // Auth page always displays in English (registration and login must be in English)
@@ -41,10 +41,10 @@ export default function AuthPage() {
   };
   const t = (k: string) => strings[k] || k;
   const [signInForm, setSignInForm] = useState({ identifier: '', password: '' });
-  const [signUpForm, setSignUpForm] = useState({ 
-    identifier: '', 
-    password: '', 
-    fullName: '', 
+  const [signUpForm, setSignUpForm] = useState({
+    identifier: '',
+    password: '',
+    fullName: '',
     role: 'student' as 'teacher' | 'student',
     stateId: '',
     classId: '',
@@ -126,7 +126,7 @@ export default function AuthPage() {
   const loadClasses = async (stateId: string) => {
     try {
       console.log('Loading classes for state:', stateId);
-      
+
       // Check if it's a fallback state
       if (stateId.startsWith('fallback-')) {
         console.log('🔄 Using fallback classes for fallback state');
@@ -140,19 +140,19 @@ export default function AuthPage() {
         setClasses(fallbackClasses);
         return;
       }
-      
+
       const { data, error } = await supabase
         .from('classes')
         .select('id, name')
         .eq('state_id', stateId)
         .order('name');
-      
+
       if (error) {
         console.error('Error loading classes:', error);
         setClasses([]);
         return;
       }
-      
+
       console.log('Classes data received:', data);
       const rawClasses = (data || []).filter((r: any) => r && r.id && r.name);
       const uniqueClasses = Array.from(new Map(rawClasses.map((r: any) => [r.id, r])).values());
@@ -160,7 +160,7 @@ export default function AuthPage() {
         class_id: String(row.id),
         class_name: String(row.name),
       }));
-      
+
       console.log('Processed classes data:', classesData);
       setClasses(classesData);
     } catch (error) {
@@ -181,9 +181,9 @@ export default function AuthPage() {
   }, [user, userProfile]);
 
   if (user && userProfile) {
-    const redirectPath = userProfile.role === 'admin' ? '/admin' 
-                        : userProfile.role === 'teacher' ? '/teacher'
-                        : `/student?lang=${userProfile.preferred_language || 'en'}`;
+    const redirectPath = userProfile.role === 'admin' ? '/admin'
+      : userProfile.role === 'teacher' ? '/teacher'
+        : `/student?lang=${userProfile.preferred_language || 'en'}`;
     console.log('AuthPage: Redirecting to:', redirectPath);
     return <Navigate to={redirectPath} replace />;
   }
@@ -201,30 +201,30 @@ export default function AuthPage() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
+
     // Validate required fields based on role
     if (!signUpForm.stateId) {
       console.error('State selection is required');
       setLoading(false);
       return;
     }
-    
+
     if (signUpForm.role === 'student' && !signUpForm.classId) {
       console.error('Class selection is required for students');
       setLoading(false);
       return;
     }
-    
+
     // Determine if identifier is email or mobile
     const isEmail = signUpForm.identifier.includes('@');
     const email = isEmail ? signUpForm.identifier : null;
     const mobile = !isEmail ? signUpForm.identifier : null;
-    
+
     const { error } = await signUp(
-      mobile, 
-      email, 
-      signUpForm.password, 
-      signUpForm.fullName, 
+      mobile,
+      email,
+      signUpForm.password,
+      signUpForm.fullName,
       signUpForm.role,
       signUpForm.stateId,
       signUpForm.classId,
@@ -240,10 +240,10 @@ export default function AuthPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="mx-auto w-16 h-16 bg-gradient-to-r from-primary to-accent rounded-full flex items-center justify-center mb-4">
-            <GraduationCap className="w-8 h-8 text-white" />
+          <div className="mx-auto w-12 h-12 md:w-16 md:h-16 bg-gradient-to-r from-primary to-accent rounded-full flex items-center justify-center mb-4">
+            <GraduationCap className="w-6 h-6 md:w-8 md:h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-foreground">CareerCompass</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground">CareerCompass</h1>
           <p className="text-muted-foreground mt-2">Navigate your career journey</p>
         </div>
 
@@ -258,7 +258,7 @@ export default function AuthPage() {
                 <TabsTrigger value="signin">{t('signInTab')}</TabsTrigger>
                 <TabsTrigger value="signup">{t('signUpTab')}</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="signin">
                 <form onSubmit={handleSignIn} className="space-y-4">
                   <div className="space-y-2">
@@ -288,7 +288,7 @@ export default function AuthPage() {
                   </Button>
                 </form>
               </TabsContent>
-              
+
               <TabsContent value="signup">
                 <form onSubmit={handleSignUp} className="space-y-4">
                   <div className="space-y-2">
@@ -350,8 +350,8 @@ export default function AuthPage() {
                   {/* State Selection */}
                   <div className="space-y-2">
                     <Label htmlFor="state">{t('state')}</Label>
-                    <Select 
-                      value={signUpForm.stateId} 
+                    <Select
+                      value={signUpForm.stateId}
                       onValueChange={(value) => setSignUpForm({ ...signUpForm, stateId: value, classId: '' })}
                       disabled={loadingStates}
                     >
@@ -383,8 +383,8 @@ export default function AuthPage() {
                   {signUpForm.role === 'student' && (
                     <div className="space-y-2">
                       <Label htmlFor="class">{t('class')}</Label>
-                      <Select 
-                        value={signUpForm.classId} 
+                      <Select
+                        value={signUpForm.classId}
                         onValueChange={(value) => setSignUpForm({ ...signUpForm, classId: value })}
                         disabled={!signUpForm.stateId || classes.length === 0}
                       >
@@ -405,7 +405,7 @@ export default function AuthPage() {
                   {/* Preferred Language */}
                   <div className="space-y-2">
                     <Label htmlFor="preferred-language">{t('preferredLanguage')}</Label>
-                    <Select 
+                    <Select
                       value={signUpForm.preferredLanguage}
                       onValueChange={(value: 'en' | 'kn' | 'ta') => setSignUpForm({ ...signUpForm, preferredLanguage: value })}
                     >
