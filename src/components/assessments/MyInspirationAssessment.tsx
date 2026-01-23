@@ -755,34 +755,40 @@ export default function MyInspirationAssessment() {
   // Note: We removed the automatic sync between videoProgress and responses
   // to prevent conflicts. The responses state is now the single source of truth.
 
-  const handleResponseChange = (videoKey: keyof AssessmentResponse, questionKey: string, value: string) => {
+  const handleResponseChange = (videoKey: string, questionKey: string, value: string) => {
     if (readOnlyView) return;
-    // Update responses state
-    // Build updated responses dynamically based on number of videos
-    const updatedResponses: AssessmentResponse = {} as AssessmentResponse;
-    const videoCount = inspirationVideos.length || 4;
-    for (let v = 1; v <= videoCount; v++) {
-      const vKey = `video${v}` as keyof AssessmentResponse;
-      (updatedResponses as any)[vKey] = { ...(responses[vKey] || {}) };
+
+    setResponses(prev => {
+      const currentVideoResponses = prev[videoKey] || {};
+      return {
+        ...prev,
+        [videoKey]: {
+          ...currentVideoResponses,
+          [questionKey]: value
+        }
+      };
+    });
+  };
+
+  const handleStreamTranscript = (videoKey: string, questionKey: string, text: string) => {
+    setResponses(prev => {
+      const currentVideoResponses = prev[videoKey] || {};
+      return {
+        ...prev,
+        [videoKey]: {
+          ...currentVideoResponses,
+          [questionKey]: text
+        }
+      };
+    });
+
+    const contextKey = `${videoKey}_${questionKey}`;
+    if (!transcribedPrefill[contextKey]) {
+      setTranscribedPrefill(prev => ({
+        ...prev,
+        [contextKey]: true
+      }));
     }
-    (updatedResponses as any)[videoKey][questionKey] = value;
-    setResponses(updatedResponses);
-
-    // Update video progress to match responses state
-    const videoId = parseInt((videoKey as string).replace('video', ''));
-    const videoResponses = updatedResponses[videoKey];
-    const isComplete = Object.values(videoResponses).every(v => v.trim() !== '');
-
-    setVideoProgress(prev => prev.map(video => {
-      if (video.videoId === videoId) {
-        return {
-          ...video,
-          responses: videoResponses,
-          isComplete
-        };
-      }
-      return video;
-    }));
   };
 
   // Handle audio responses
@@ -1614,7 +1620,7 @@ export default function MyInspirationAssessment() {
                               handleAudioResponse(getCurrentVideoKey(), questionKey, audioBlob, transcription);
                             }}
                             maxDuration={120000} // 2 minutes
-                            language={lang === 'kn' ? 'kn-IN' : 'en-IN'}
+                            language={lang === 'kn' ? 'kn-IN' : lang === 'ta' ? 'ta-IN' : 'en-IN'}
                             studentId={resolvedStudentId ?? userProfile.studentProfile.id}
                             assessmentId={assessmentRecordId ?? 'inspiration-assessment'}
                             assessmentType="inspiration"
@@ -1624,6 +1630,8 @@ export default function MyInspirationAssessment() {
                             initialTranscription={audioResponsesMap[`${getCurrentVideoKey()}_${questionKey}`]?.transcript ?? null}
                             initialConfidence={audioResponsesMap[`${getCurrentVideoKey()}_${questionKey}`]?.confidence ?? null}
 
+                            initialConfidence={audioResponsesMap[`${getCurrentVideoKey()}_${questionKey}`]?.confidence ?? null}
+                            onStreamTranscript={(text) => handleStreamTranscript(getCurrentVideoKey(), questionKey, text)}
                             compact={true}
                             contextPhrases={[
                               // Context 1: The question itself (crucial for answers that repeat part of the question)
