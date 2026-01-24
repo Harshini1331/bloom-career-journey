@@ -318,47 +318,51 @@ export default function MyInspirationAssessment() {
 
         const targetLang = lang === 'kn' ? 'kn' : lang === 'ta' ? 'ta' : 'en';
         setDefaultVideos(kVideos[targetLang]);
-        url: "https://www.youtube.com/watch?v=Ooy721_K4Mc",
-          youtubeId: "Ooy721_K4Mc"
-      },
-      {
-        id: 3,
-          title: "Inspirational Video 3",
-            url: "https://www.youtube.com/watch?v=PP-kmxMY1ts",
-              youtubeId: "PP-kmxMY1ts"
-      },
-      {
-        id: 4,
-          title: "Inspirational Video 4",
-            url: "https://www.youtube.com/watch?v=z3PYJ9MfMH4",
-              youtubeId: "z3PYJ9MfMH4"
+
       }
-        ]);
-}
     };
 
-loadVideosFromDatabase();
+    loadVideosFromDatabase();
   }, []);
 
-// Extract YouTube ID from URL
-const extractYouTubeId = (url: string): string => {
-  const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
-  const match = url.match(regex);
-  return match ? match[1] : '';
-};
+  // Extract YouTube ID from URL
+  const extractYouTubeId = (url: string): string => {
+    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const match = url.match(regex);
+    return match ? match[1] : '';
+  };
 
-useEffect(() => {
-  if (defaultVideos.length > 0) {
-    console.log('🔄 Setting inspiration videos:', defaultVideos.length);
-    setInspirationVideos(defaultVideos);
-    setLoading(false);
+  useEffect(() => {
+    if (defaultVideos.length > 0) {
+      console.log('🔄 Setting inspiration videos:', defaultVideos.length);
+      setInspirationVideos(defaultVideos);
+      setLoading(false);
 
-    // Initialize responses structure if not already done
-    if (Object.keys(responses).length === 0) {
-      const initialResponses: AssessmentResponse = {};
-      defaultVideos.forEach((_, index) => {
-        const videoKey = `video${index + 1}` as keyof AssessmentResponse;
-        initialResponses[videoKey] = {
+      // Initialize responses structure if not already done
+      if (Object.keys(responses).length === 0) {
+        const initialResponses: AssessmentResponse = {};
+        defaultVideos.forEach((_, index) => {
+          const videoKey = `video${index + 1}` as keyof AssessmentResponse;
+          initialResponses[videoKey] = {
+            question1: '',
+            question2: '',
+            question3: '',
+            question4: '',
+            question5: '',
+            question6: '',
+            question7: '',
+            question8: '',
+            question9: '',
+            question10: ''
+          };
+        });
+        setResponses(initialResponses);
+      }
+
+      // Initialize video progress
+      const initialProgress = defaultVideos.map(video => ({
+        videoId: video.id,
+        responses: {
           question1: '',
           question2: '',
           question3: '',
@@ -369,39 +373,131 @@ useEffect(() => {
           question8: '',
           question9: '',
           question10: ''
-        };
-      });
-      setResponses(initialResponses);
+        },
+        isComplete: false,
+        savedAt: undefined
+      }));
+      setVideoProgress(initialProgress);
     }
+  }, [defaultVideos]);
 
-    // Initialize video progress
-    const initialProgress = defaultVideos.map(video => ({
-      videoId: video.id,
-      responses: {
-        question1: '',
-        question2: '',
-        question3: '',
-        question4: '',
-        question5: '',
-        question6: '',
-        question7: '',
-        question8: '',
-        question9: '',
-        question10: ''
-      },
-      isComplete: false,
-      savedAt: undefined
-    }));
-    setVideoProgress(initialProgress);
-  }
-}, [defaultVideos]);
+  // Ensure an assessment_responses row exists and capture its id for audio uploads
+  useEffect(() => {
+    let mounted = true;
 
-// Ensure an assessment_responses row exists and capture its id for audio uploads
-useEffect(() => {
-  let mounted = true;
+    const ensureAssessmentRecord = async () => {
+      if (!userProfile || loading) return;
 
-  const ensureAssessmentRecord = async () => {
-    if (!userProfile || loading) return;
+      // Resolve student_id from students table; do not fallback to users.id
+      let studentId = userProfile.studentProfile?.id as string | undefined;
+      if (!studentId) {
+        const { data: studentRow } = await supabase
+          .from('students')
+          .select('id')
+          .eq('user_id', userProfile.id)
+          .maybeSingle();
+        studentId = studentRow?.id;
+      }
+
+      if (!mounted) return;
+      if (!studentId) {
+        console.warn('⚠️ Could not resolve student ID for audio setup');
+        return;
+      }
+
+      setResolvedStudentId(studentId);
+
+      try {
+        // Try to find existing assessment record
+        const { data: existing, error: selectError } = await supabase
+          .from('assessment_responses')
+          .select('id')
+          .eq('student_id', studentId)
+          .eq('assessment_type', 'inspiration')
+          .eq('assessment_title', 'My Inspiration')
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!mounted) return;
+
+        if (existing && !selectError) {
+          console.log('✅ Found existing assessment record:', existing.id);
+          setAssessmentRecordId(existing.id);
+          return;
+        }
+
+        console.log('📝 Creating new assessment record for audio...');
+        // Create a new placeholder record to attach audio responses
+        const { data: inserted, error: insertError } = await supabase
+          .from('assessment_responses')
+          .insert({
+            student_id: studentId,
+            assessment_type: 'inspiration',
+            assessment_title: 'My Inspiration',
+            responses: responses || {}, // Use current responses or empty object
+            completed_at: null,
+            updated_at: new Date().toISOString(),
+          })
+          .select('id')
+          .single();
+
+        if (!mounted) return;
+        if (insertError) throw insertError;
+
+        console.log('✅ Created new assessment record:', inserted.id);
+        setAssessmentRecordId(inserted.id);
+      } catch (e) {
+        console.error('❌ Failed to ensure assessment record for audio responses:', e);
+        toast({
+          title: t('error'),
+          description: lang === 'kn' ? "ಆಡಿಯೊ ರೆಕಾರ್ಡಿಂಗ್‌ಗಾಗಿ ಸಿದ್ಧಪಡಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ." : "Could not initialize audio recording system.",
+          variant: "destructive"
+        });
+      }
+    };
+
+    ensureAssessmentRecord();
+
+    return () => { mounted = false; };
+    // crucial: remove 'responses' from dependency to avoid infinite loops or unnecessary writes
+  }, [userProfile, loading]);
+
+  // Auto-save draft on changes (debounced)
+  useEffect(() => {
+    if (loading || isCompleted) return;
+    const t = setTimeout(async () => {
+      try {
+        if (!userProfile?.id) return;
+        let studentId = userProfile.studentProfile?.id as string | undefined;
+        if (!studentId) {
+          const { data: studentRow } = await supabase
+            .from('students')
+            .select('id')
+            .eq('user_id', userProfile.id)
+            .maybeSingle();
+          studentId = studentRow?.id;
+        }
+        if (!studentId) return;
+        await supabase.from('assessment_responses').upsert({
+          student_id: studentId,
+          assessment_type: 'inspiration',
+          assessment_title: 'My Inspiration',
+          responses,
+          updated_at: new Date().toISOString(),
+          completed_at: null
+        });
+      } catch { }
+    }, 800);
+    return () => clearTimeout(t);
+  }, [responses, loading, isCompleted, userProfile]);
+
+
+  const checkExistingResponse = useCallback(async () => {
+    if (!userProfile) return;
+
+    console.log('Loading existing response data...');
+    setDataLoading(true);
 
     // Resolve student_id from students table; do not fallback to users.id
     let studentId = userProfile.studentProfile?.id as string | undefined;
@@ -414,19 +510,23 @@ useEffect(() => {
       studentId = studentRow?.id;
     }
 
-    if (!mounted) return;
     if (!studentId) {
-      console.warn('⚠️ Could not resolve student ID for audio setup');
+      console.log('No student ID found');
+      setDataLoading(false);
       return;
     }
 
-    setResolvedStudentId(studentId);
-
     try {
-      // Try to find existing assessment record
-      const { data: existing, error: selectError } = await supabase
+      console.log('Querying database with studentId:', studentId);
+      console.log('Query parameters:', {
+        student_id: studentId,
+        assessment_type: 'inspiration',
+        assessment_title: 'My Inspiration'
+      });
+
+      const { data, error } = await supabase
         .from('assessment_responses')
-        .select('id')
+        .select('*')
         .eq('student_id', studentId)
         .eq('assessment_type', 'inspiration')
         .eq('assessment_title', 'My Inspiration')
@@ -434,1403 +534,1288 @@ useEffect(() => {
         .limit(1)
         .maybeSingle();
 
-      if (!mounted) return;
+      console.log('Database query result:', { data, error });
 
-      if (existing && !selectError) {
-        console.log('✅ Found existing assessment record:', existing.id);
-        setAssessmentRecordId(existing.id);
-        return;
-      }
+      if (data && !error) {
+        console.log('Found existing data:', data);
+        // Only set as completed if completed_at is not null
+        setIsCompleted(!!data.completed_at);
+        // Load audio_responses map and answered flags
+        const audioRes = (data as any).audio_responses || {};
+        setAudioResponsesMap(audioRes);
+        const answered: Record<string, boolean> = {};
+        Object.keys(audioRes).forEach((k) => { answered[k] = true; });
+        setAudioAnswered(answered);
 
-      console.log('📝 Creating new assessment record for audio...');
-      // Create a new placeholder record to attach audio responses
-      const { data: inserted, error: insertError } = await supabase
-        .from('assessment_responses')
-        .insert({
-          student_id: studentId,
-          assessment_type: 'inspiration',
-          assessment_title: 'My Inspiration',
-          responses: responses || {}, // Use current responses or empty object
-          completed_at: null,
-          updated_at: new Date().toISOString(),
-        })
-        .select('id')
-        .single();
+        // Update video progress from saved data
+        if (data.responses) {
+          const savedResponses = data.responses as Partial<AssessmentResponse>;
+          const mergeVideo = (vr: any) => ({
+            question1: vr?.question1 ?? '',
+            question2: vr?.question2 ?? '',
+            question3: vr?.question3 ?? '',
+            question4: vr?.question4 ?? '',
+            question5: vr?.question5 ?? '',
+            question6: vr?.question6 ?? '',
+            question7: vr?.question7 ?? '',
+            question8: vr?.question8 ?? '',
+            question9: vr?.question9 ?? '',
+            question10: vr?.question10 ?? ''
+          });
+          // Build merged responses dynamically based on number of videos
+          const mergedResponses: AssessmentResponse = {} as AssessmentResponse;
+          const videoCount = defaultVideos.length || 4;
+          for (let v = 1; v <= videoCount; v++) {
+            const videoKey = `video${v}` as keyof AssessmentResponse;
+            (mergedResponses as any)[videoKey] = mergeVideo((savedResponses as any)[videoKey] || {});
+          }
+          console.log('Loading saved responses:', mergedResponses);
+          setResponses(mergedResponses);
 
-      if (!mounted) return;
-      if (insertError) throw insertError;
-
-      console.log('✅ Created new assessment record:', inserted.id);
-      setAssessmentRecordId(inserted.id);
-    } catch (e) {
-      console.error('❌ Failed to ensure assessment record for audio responses:', e);
-      toast({
-        title: t('error'),
-        description: lang === 'kn' ? "ಆಡಿಯೊ ರೆಕಾರ್ಡಿಂಗ್‌ಗಾಗಿ ಸಿದ್ಧಪಡಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ." : "Could not initialize audio recording system.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  ensureAssessmentRecord();
-
-  return () => { mounted = false; };
-  // crucial: remove 'responses' from dependency to avoid infinite loops or unnecessary writes
-}, [userProfile, loading]);
-
-// Auto-save draft on changes (debounced)
-useEffect(() => {
-  if (loading || isCompleted) return;
-  const t = setTimeout(async () => {
-    try {
-      if (!userProfile?.id) return;
-      let studentId = userProfile.studentProfile?.id as string | undefined;
-      if (!studentId) {
-        const { data: studentRow } = await supabase
-          .from('students')
-          .select('id')
-          .eq('user_id', userProfile.id)
-          .maybeSingle();
-        studentId = studentRow?.id;
-      }
-      if (!studentId) return;
-      await supabase.from('assessment_responses').upsert({
-        student_id: studentId,
-        assessment_type: 'inspiration',
-        assessment_title: 'My Inspiration',
-        responses,
-        updated_at: new Date().toISOString(),
-        completed_at: null
-      });
-    } catch { }
-  }, 800);
-  return () => clearTimeout(t);
-}, [responses, loading, isCompleted, userProfile]);
-
-
-const checkExistingResponse = useCallback(async () => {
-  if (!userProfile) return;
-
-  console.log('Loading existing response data...');
-  setDataLoading(true);
-
-  // Resolve student_id from students table; do not fallback to users.id
-  let studentId = userProfile.studentProfile?.id as string | undefined;
-  if (!studentId) {
-    const { data: studentRow } = await supabase
-      .from('students')
-      .select('id')
-      .eq('user_id', userProfile.id)
-      .maybeSingle();
-    studentId = studentRow?.id;
-  }
-
-  if (!studentId) {
-    console.log('No student ID found');
-    setDataLoading(false);
-    return;
-  }
-
-  try {
-    console.log('Querying database with studentId:', studentId);
-    console.log('Query parameters:', {
-      student_id: studentId,
-      assessment_type: 'inspiration',
-      assessment_title: 'My Inspiration'
-    });
-
-    const { data, error } = await supabase
-      .from('assessment_responses')
-      .select('*')
-      .eq('student_id', studentId)
-      .eq('assessment_type', 'inspiration')
-      .eq('assessment_title', 'My Inspiration')
-      .order('updated_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    console.log('Database query result:', { data, error });
-
-    if (data && !error) {
-      console.log('Found existing data:', data);
-      // Only set as completed if completed_at is not null
-      setIsCompleted(!!data.completed_at);
-      // Load audio_responses map and answered flags
-      const audioRes = (data as any).audio_responses || {};
-      setAudioResponsesMap(audioRes);
-      const answered: Record<string, boolean> = {};
-      Object.keys(audioRes).forEach((k) => { answered[k] = true; });
-      setAudioAnswered(answered);
-
-      // Update video progress from saved data
-      if (data.responses) {
-        const savedResponses = data.responses as Partial<AssessmentResponse>;
-        const mergeVideo = (vr: any) => ({
-          question1: vr?.question1 ?? '',
-          question2: vr?.question2 ?? '',
-          question3: vr?.question3 ?? '',
-          question4: vr?.question4 ?? '',
-          question5: vr?.question5 ?? '',
-          question6: vr?.question6 ?? '',
-          question7: vr?.question7 ?? '',
-          question8: vr?.question8 ?? '',
-          question9: vr?.question9 ?? '',
-          question10: vr?.question10 ?? ''
-        });
-        // Build merged responses dynamically based on number of videos
-        const mergedResponses: AssessmentResponse = {} as AssessmentResponse;
-        const videoCount = defaultVideos.length || 4;
-        for (let v = 1; v <= videoCount; v++) {
-          const videoKey = `video${v}` as keyof AssessmentResponse;
-          (mergedResponses as any)[videoKey] = mergeVideo((savedResponses as any)[videoKey] || {});
+          const updatedProgress = defaultVideos.map(video => {
+            const videoKey = `video${video.id}` as keyof AssessmentResponse;
+            const videoResponses = mergedResponses[videoKey];
+            const isComplete = Object.entries(videoResponses).every(([q, v]) => {
+              const qId = `${videoKey}_${q}`;
+              return (typeof v === 'string' && v.trim() !== '') || !!answered[qId];
+            });
+            // Only mark as saved if the video has actual content (not just empty strings)
+            const hasContent = Object.entries(videoResponses).some(([q, v]) => {
+              const qId = `${videoKey}_${q}`;
+              return (typeof v === 'string' && v.trim() !== '') || !!answered[qId];
+            });
+            console.log(`Video ${video.id}: hasContent=${hasContent}, isComplete=${isComplete}`);
+            return {
+              videoId: video.id,
+              responses: videoResponses,
+              isComplete,
+              savedAt: hasContent ? data.updated_at : undefined
+            };
+          });
+          setVideoProgress(updatedProgress);
+          console.log('Updated video progress:', updatedProgress);
         }
-        console.log('Loading saved responses:', mergedResponses);
-        setResponses(mergedResponses);
+      } else {
+        console.log('No existing data found. Error:', error);
 
-        const updatedProgress = defaultVideos.map(video => {
-          const videoKey = `video${video.id}` as keyof AssessmentResponse;
-          const videoResponses = mergedResponses[videoKey];
-          const isComplete = Object.entries(videoResponses).every(([q, v]) => {
-            const qId = `${videoKey}_${q}`;
-            return (typeof v === 'string' && v.trim() !== '') || !!answered[qId];
-          });
-          // Only mark as saved if the video has actual content (not just empty strings)
-          const hasContent = Object.entries(videoResponses).some(([q, v]) => {
-            const qId = `${videoKey}_${q}`;
-            return (typeof v === 'string' && v.trim() !== '') || !!answered[qId];
-          });
-          console.log(`Video ${video.id}: hasContent=${hasContent}, isComplete=${isComplete}`);
-          return {
-            videoId: video.id,
-            responses: videoResponses,
-            isComplete,
-            savedAt: hasContent ? data.updated_at : undefined
-          };
-        });
-        setVideoProgress(updatedProgress);
-        console.log('Updated video progress:', updatedProgress);
-      }
-    } else {
-      console.log('No existing data found. Error:', error);
+        // Let's also check if there are any records at all for this student
+        const { data: allData, error: allError } = await supabase
+          .from('assessment_responses')
+          .select('*')
+          .eq('student_id', studentId);
 
-      // Let's also check if there are any records at all for this student
-      const { data: allData, error: allError } = await supabase
-        .from('assessment_responses')
-        .select('*')
-        .eq('student_id', studentId);
+        console.log('All assessment responses for this student:', { allData, allError });
 
-      console.log('All assessment responses for this student:', { allData, allError });
+        // If there are multiple records, clean them up by keeping only the most recent one
+        if (allData && allData.length > 1) {
+          console.log(`Found ${allData.length} duplicate records, cleaning up...`);
+          const sortedData = allData.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+          const keepRecord = sortedData[0];
+          const deleteIds = sortedData.slice(1).map(record => record.id);
 
-      // If there are multiple records, clean them up by keeping only the most recent one
-      if (allData && allData.length > 1) {
-        console.log(`Found ${allData.length} duplicate records, cleaning up...`);
-        const sortedData = allData.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-        const keepRecord = sortedData[0];
-        const deleteIds = sortedData.slice(1).map(record => record.id);
+          console.log('Keeping record:', keepRecord.id);
+          console.log('Deleting records:', deleteIds);
 
-        console.log('Keeping record:', keepRecord.id);
-        console.log('Deleting records:', deleteIds);
+          if (deleteIds.length > 0) {
+            const { error: deleteError } = await supabase
+              .from('assessment_responses')
+              .delete()
+              .in('id', deleteIds);
 
-        if (deleteIds.length > 0) {
-          const { error: deleteError } = await supabase
-            .from('assessment_responses')
-            .delete()
-            .in('id', deleteIds);
+            if (deleteError) {
+              console.error('Error cleaning up duplicate records:', deleteError);
+            } else {
+              console.log('Successfully cleaned up duplicate records');
+              // Now load the kept record
+              setResponses(keepRecord.responses);
+              setIsCompleted(!!keepRecord.completed_at);
 
-          if (deleteError) {
-            console.error('Error cleaning up duplicate records:', deleteError);
-          } else {
-            console.log('Successfully cleaned up duplicate records');
-            // Now load the kept record
-            setResponses(keepRecord.responses);
-            setIsCompleted(!!keepRecord.completed_at);
-
-            const mergeVideo2 = (vr: any) => ({
-              question1: vr?.question1 ?? '',
-              question2: vr?.question2 ?? '',
-              question3: vr?.question3 ?? '',
-              question4: vr?.question4 ?? '',
-              question5: vr?.question5 ?? '',
-              question6: vr?.question6 ?? '',
-              question7: vr?.question7 ?? '',
-              question8: vr?.question8 ?? '',
-              question9: vr?.question9 ?? '',
-              question10: vr?.question10 ?? ''
-            });
-            const updatedProgress = defaultVideos.map(video => {
-              const videoKey = `video${video.id}` as keyof AssessmentResponse;
-              const videoResponses = mergeVideo2((keepRecord as any).responses[videoKey]);
-              const isComplete = Object.values(videoResponses).every((v: string) => v.trim() !== '');
-              const hasContent = Object.values(videoResponses).some((v: string) => v.trim() !== '');
-              return {
-                videoId: video.id,
-                responses: videoResponses,
-                isComplete,
-                savedAt: hasContent ? keepRecord.updated_at : undefined
-              };
-            });
-            setVideoProgress(updatedProgress);
+              const mergeVideo2 = (vr: any) => ({
+                question1: vr?.question1 ?? '',
+                question2: vr?.question2 ?? '',
+                question3: vr?.question3 ?? '',
+                question4: vr?.question4 ?? '',
+                question5: vr?.question5 ?? '',
+                question6: vr?.question6 ?? '',
+                question7: vr?.question7 ?? '',
+                question8: vr?.question8 ?? '',
+                question9: vr?.question9 ?? '',
+                question10: vr?.question10 ?? ''
+              });
+              const updatedProgress = defaultVideos.map(video => {
+                const videoKey = `video${video.id}` as keyof AssessmentResponse;
+                const videoResponses = mergeVideo2((keepRecord as any).responses[videoKey]);
+                const isComplete = Object.values(videoResponses).every((v: string) => v.trim() !== '');
+                const hasContent = Object.values(videoResponses).some((v: string) => v.trim() !== '');
+                return {
+                  videoId: video.id,
+                  responses: videoResponses,
+                  isComplete,
+                  savedAt: hasContent ? keepRecord.updated_at : undefined
+                };
+              });
+              setVideoProgress(updatedProgress);
+            }
           }
         }
       }
+    } catch (error) {
+      // No existing response found, which is fine
+      console.log('Error loading existing response:', error);
+    } finally {
+      setDataLoading(false);
     }
-  } catch (error) {
-    // No existing response found, which is fine
-    console.log('Error loading existing response:', error);
-  } finally {
-    setDataLoading(false);
-  }
-}, [userProfile, defaultVideos]);
+  }, [userProfile, defaultVideos]);
 
-// Call checkExistingResponse when component mounts and userProfile is available
-useEffect(() => {
-  if (userProfile && !loading) {
-    console.log('Component mounted, loading existing data...');
-    checkExistingResponse();
-  }
-}, [userProfile, loading, checkExistingResponse]);
+  // Call checkExistingResponse when component mounts and userProfile is available
+  useEffect(() => {
+    if (userProfile && !loading) {
+      console.log('Component mounted, loading existing data...');
+      checkExistingResponse();
+    }
+  }, [userProfile, loading, checkExistingResponse]);
 
-// Load audio summary for this assessment and mark audio-answered questions; prefill transcripts
-useEffect(() => {
-  const loadAudioSummary = async () => {
-    if (!resolvedStudentId || !assessmentRecordId) return;
-    try {
-      // Prefer direct table query to include file_url and created_at
-      const { data: files, error: filesError } = await supabase
-        .from('audio_files')
-        .select('question_id, file_url, created_at, transcription, confidence_score')
-        .eq('assessment_id', assessmentRecordId);
-
-      if (filesError) {
-        console.warn('audio_files fetch failed:', filesError);
-        return;
-      }
-      let list = files || [];
-
-      // Fallback: if nothing found (older saves may have missing/placeholder assessment_id),
-      // fetch latest per question for this student
-      if (list.length === 0) {
-        const { data: fallback } = await supabase
+  // Load audio summary for this assessment and mark audio-answered questions; prefill transcripts
+  useEffect(() => {
+    const loadAudioSummary = async () => {
+      if (!resolvedStudentId || !assessmentRecordId) return;
+      try {
+        // Prefer direct table query to include file_url and created_at
+        const { data: files, error: filesError } = await supabase
           .from('audio_files')
           .select('question_id, file_url, created_at, transcription, confidence_score')
-          .eq('student_id', resolvedStudentId)
-          .like('question_id', 'video%_question%')
-          .order('created_at', { ascending: false });
-        list = fallback || [];
-      }
+          .eq('assessment_id', assessmentRecordId);
 
-      const answeredMap: Record<string, boolean> = {};
-      const newAudioMap: Record<string, any> = {};
-      let didPrefill = false;
-      // Build next responses dynamically based on number of videos
-      const nextResponses: AssessmentResponse = {} as AssessmentResponse;
-      const videoCount = inspirationVideos.length || 4;
-      for (let v = 1; v <= videoCount; v++) {
-        const videoKey = `video${v}` as keyof AssessmentResponse;
-        (nextResponses as any)[videoKey] = { ...(responses[videoKey] || {}) };
-      }
-      const prefillFlags: Record<string, boolean> = {};
-
-      list.forEach((item: any) => {
-        const qId = item.question_id as string; // e.g., video1_question3
-        answeredMap[qId] = true;
-        newAudioMap[qId] = {
-          url: item.file_url,
-          savedAt: item.created_at,
-          confidence: item.confidence_score,
-          transcript: item.transcription,
-        };
-
-        // Prefill transcript into text area only if empty
-        const [videoKey, questionKey] = qId.split('_') as [keyof AssessmentResponse, string];
-        const current = (nextResponses as any)[videoKey]?.[questionKey];
-        if (typeof current === 'string' && current.trim() === '' && item.transcription) {
-          (nextResponses as any)[videoKey][questionKey] = item.transcription as string;
-          prefillFlags[qId] = true;
-          didPrefill = true;
+        if (filesError) {
+          console.warn('audio_files fetch failed:', filesError);
+          return;
         }
-      });
+        let list = files || [];
 
-      if (Object.keys(answeredMap).length > 0) {
-        setAudioAnswered(prev => ({ ...prev, ...answeredMap }));
-      }
-      if (Object.keys(newAudioMap).length > 0) {
-        setAudioResponsesMap(prev => ({ ...prev, ...newAudioMap }));
-      }
-      if (Object.keys(prefillFlags).length > 0) {
-        setTranscribedPrefill(prev => ({ ...prev, ...prefillFlags }));
-      }
+        // Fallback: if nothing found (older saves may have missing/placeholder assessment_id),
+        // fetch latest per question for this student
+        if (list.length === 0) {
+          const { data: fallback } = await supabase
+            .from('audio_files')
+            .select('question_id, file_url, created_at, transcription, confidence_score')
+            .eq('student_id', resolvedStudentId)
+            .like('question_id', 'video%_question%')
+            .order('created_at', { ascending: false });
+          list = fallback || [];
+        }
 
-      if (didPrefill) {
-        setResponses(nextResponses);
+        const answeredMap: Record<string, boolean> = {};
+        const newAudioMap: Record<string, any> = {};
+        let didPrefill = false;
+        // Build next responses dynamically based on number of videos
+        const nextResponses: AssessmentResponse = {} as AssessmentResponse;
+        const videoCount = inspirationVideos.length || 4;
+        for (let v = 1; v <= videoCount; v++) {
+          const videoKey = `video${v}` as keyof AssessmentResponse;
+          (nextResponses as any)[videoKey] = { ...(responses[videoKey] || {}) };
+        }
+        const prefillFlags: Record<string, boolean> = {};
+
+        list.forEach((item: any) => {
+          const qId = item.question_id as string; // e.g., video1_question3
+          answeredMap[qId] = true;
+          newAudioMap[qId] = {
+            url: item.file_url,
+            savedAt: item.created_at,
+            confidence: item.confidence_score,
+            transcript: item.transcription,
+          };
+
+          // Prefill transcript into text area only if empty
+          const [videoKey, questionKey] = qId.split('_') as [keyof AssessmentResponse, string];
+          const current = (nextResponses as any)[videoKey]?.[questionKey];
+          if (typeof current === 'string' && current.trim() === '' && item.transcription) {
+            (nextResponses as any)[videoKey][questionKey] = item.transcription as string;
+            prefillFlags[qId] = true;
+            didPrefill = true;
+          }
+        });
+
+        if (Object.keys(answeredMap).length > 0) {
+          setAudioAnswered(prev => ({ ...prev, ...answeredMap }));
+        }
+        if (Object.keys(newAudioMap).length > 0) {
+          setAudioResponsesMap(prev => ({ ...prev, ...newAudioMap }));
+        }
+        if (Object.keys(prefillFlags).length > 0) {
+          setTranscribedPrefill(prev => ({ ...prev, ...prefillFlags }));
+        }
+
+        if (didPrefill) {
+          setResponses(nextResponses);
+        }
+      } catch (e) {
+        console.warn('Failed to load assessment audio summary:', e);
       }
-    } catch (e) {
-      console.warn('Failed to load assessment audio summary:', e);
+    };
+
+    loadAudioSummary();
+  }, [resolvedStudentId, assessmentRecordId]);
+
+  // Note: We removed the automatic sync between videoProgress and responses
+  // to prevent conflicts. The responses state is now the single source of truth.
+
+  const handleResponseChange = (videoKey: string, questionKey: string, value: string) => {
+    if (readOnlyView) return;
+
+    setResponses(prev => {
+      const currentVideoResponses = prev[videoKey] || {};
+      return {
+        ...prev,
+        [videoKey]: {
+          ...currentVideoResponses,
+          [questionKey]: value
+        }
+      };
+    });
+  };
+
+  const handleStreamTranscript = (videoKey: string, questionKey: string, text: string) => {
+    setResponses(prev => {
+      const currentVideoResponses = prev[videoKey] || {};
+      return {
+        ...prev,
+        [videoKey]: {
+          ...currentVideoResponses,
+          [questionKey]: text
+        }
+      };
+    });
+
+    const contextKey = `${videoKey}_${questionKey}`;
+    if (!transcribedPrefill[contextKey]) {
+      setTranscribedPrefill(prev => ({
+        ...prev,
+        [contextKey]: true
+      }));
     }
   };
 
-  loadAudioSummary();
-}, [resolvedStudentId, assessmentRecordId]);
+  // Handle audio responses
+  const handleAudioResponse = (videoKey: keyof AssessmentResponse, questionKey: string, audioBlob: Blob, transcription?: string) => {
+    if (readOnlyView) return;
 
-// Note: We removed the automatic sync between videoProgress and responses
-// to prevent conflicts. The responses state is now the single source of truth.
+    console.log('🎤 handleAudioResponse called:', {
+      videoKey,
+      questionKey,
+      hasTranscription: !!transcription,
+      transcriptionLength: transcription?.length || 0,
+      transcriptionPreview: transcription?.substring(0, 50) || 'none'
+    });
 
-const handleResponseChange = (videoKey: string, questionKey: string, value: string) => {
-  if (readOnlyView) return;
-
-  setResponses(prev => {
-    const currentVideoResponses = prev[videoKey] || {};
-    return {
+    // Store the audio blob
+    const audioKey = `${videoKey}_${questionKey}`;
+    setAudioResponses(prev => ({
       ...prev,
-      [videoKey]: {
-        ...currentVideoResponses,
-        [questionKey]: value
-      }
-    };
-  });
-};
-
-const handleStreamTranscript = (videoKey: string, questionKey: string, text: string) => {
-  setResponses(prev => {
-    const currentVideoResponses = prev[videoKey] || {};
-    return {
-      ...prev,
-      [videoKey]: {
-        ...currentVideoResponses,
-        [questionKey]: text
-      }
-    };
-  });
-
-  const contextKey = `${videoKey}_${questionKey}`;
-  if (!transcribedPrefill[contextKey]) {
-    setTranscribedPrefill(prev => ({
-      ...prev,
-      [contextKey]: true
+      [audioKey]: audioBlob
     }));
-  }
-};
 
-// Handle audio responses
-const handleAudioResponse = (videoKey: keyof AssessmentResponse, questionKey: string, audioBlob: Blob, transcription?: string) => {
-  if (readOnlyView) return;
+    // Ensure the text box reflects what was recorded for validation/progress
+    // Prefer transcription; if unavailable, add a clear placeholder line
+    const fallbackText =
+      lang === 'kn'
+        ? 'ಆಡಿಯೊ ರೆಕಾರ್ಡ್ ಮಾಡಲಾಗಿದೆ — ಬರಹ ಲಭ್ಯವಿಲ್ಲ.'
+        : lang === 'ta'
+          ? 'ஆடியோ பதிவு செய்யப்பட்டது — எழுத்து வடிவம் இல்லை.'
+          : 'Audio recorded — transcription unavailable.';
+    const textToSet = (transcription && transcription.trim()) ? transcription : fallbackText;
 
-  console.log('🎤 handleAudioResponse called:', {
-    videoKey,
-    questionKey,
-    hasTranscription: !!transcription,
-    transcriptionLength: transcription?.length || 0,
-    transcriptionPreview: transcription?.substring(0, 50) || 'none'
-  });
+    console.log('📝 Setting text in textarea:', {
+      questionKey,
+      textLength: textToSet.length,
+      textPreview: textToSet.substring(0, 50)
+    });
 
-  // Store the audio blob
-  const audioKey = `${videoKey}_${questionKey}`;
-  setAudioResponses(prev => ({
-    ...prev,
-    [audioKey]: audioBlob
-  }));
+    handleResponseChange(videoKey, questionKey, textToSet);
 
-  // Ensure the text box reflects what was recorded for validation/progress
-  // Prefer transcription; if unavailable, add a clear placeholder line
-  const fallbackText =
-    lang === 'kn'
-      ? 'ಆಡಿಯೊ ರೆಕಾರ್ಡ್ ಮಾಡಲಾಗಿದೆ — ಬರಹ ಲಭ್ಯವಿಲ್ಲ.'
-      : lang === 'ta'
-        ? 'ஆடியோ பதிவு செய்யப்பட்டது — எழுத்து வடிவம் இல்லை.'
-        : 'Audio recorded — transcription unavailable.';
-  const textToSet = (transcription && transcription.trim()) ? transcription : fallbackText;
-
-  console.log('📝 Setting text in textarea:', {
-    questionKey,
-    textLength: textToSet.length,
-    textPreview: textToSet.substring(0, 50)
-  });
-
-  handleResponseChange(videoKey, questionKey, textToSet);
-
-  // Mark transcription as prefilled if we have a valid transcription
-  if (transcription && transcription.trim() && transcription !== fallbackText) {
-    setTranscribedPrefill(prev => ({
-      ...prev,
-      [`${videoKey}_${questionKey}`]: true
-    }));
-  }
-
-  // Mark this question as answered via audio for completion rules
-  const qId = `${videoKey}_${questionKey}`;
-  setAudioAnswered(prev => ({ ...prev, [qId]: true }));
-};
-
-const getProgressPercentage = () => {
-  const videosCount = inspirationVideos.length || 4;
-  const questionsPerVideo = questionCount || 0;
-  const totalQuestions = videosCount * questionsPerVideo;
-  if (totalQuestions === 0) return 0;
-
-  const answeredQuestions = Object.entries(responses).reduce((total, [videoKey, video]) => {
-    if (!video || typeof video !== 'object') {
-      return total;
+    // Mark transcription as prefilled if we have a valid transcription
+    if (transcription && transcription.trim() && transcription !== fallbackText) {
+      setTranscribedPrefill(prev => ({
+        ...prev,
+        [`${videoKey}_${questionKey}`]: true
+      }));
     }
 
-    const answered = Object.entries(video as Record<string, string>).filter(([q, v]) => {
-      const qId = `${videoKey}_${q}`;
-      return (v?.trim?.() ?? '') !== '' || !!audioAnswered[qId];
-    }).length;
-    return total + answered;
-  }, 0);
-  return totalQuestions > 0 ? (answeredQuestions / totalQuestions) * 100 : 0;
-};
+    // Mark this question as answered via audio for completion rules
+    const qId = `${videoKey}_${questionKey}`;
+    setAudioAnswered(prev => ({ ...prev, [qId]: true }));
+  };
 
-const canSubmit = () => {
-  const videoKeys = Object.keys(responses).filter(k => k.startsWith('video'));
-  if (videoKeys.length === 0 || questionCount === 0) return false;
+  const getProgressPercentage = () => {
+    const videosCount = inspirationVideos.length || 4;
+    const questionsPerVideo = questionCount || 0;
+    const totalQuestions = videosCount * questionsPerVideo;
+    if (totalQuestions === 0) return 0;
 
-  return videoKeys.every((vk) => {
-    const questions = responses[vk];
+    const answeredQuestions = Object.entries(responses).reduce((total, [videoKey, video]) => {
+      if (!video || typeof video !== 'object') {
+        return total;
+      }
 
+      const answered = Object.entries(video as Record<string, string>).filter(([q, v]) => {
+        const qId = `${videoKey}_${q}`;
+        return (v?.trim?.() ?? '') !== '' || !!audioAnswered[qId];
+      }).length;
+      return total + answered;
+    }, 0);
+    return totalQuestions > 0 ? (answeredQuestions / totalQuestions) * 100 : 0;
+  };
+
+  const canSubmit = () => {
+    const videoKeys = Object.keys(responses).filter(k => k.startsWith('video'));
+    if (videoKeys.length === 0 || questionCount === 0) return false;
+
+    return videoKeys.every((vk) => {
+      const questions = responses[vk];
+
+      if (!questions || typeof questions !== 'object') {
+        return false;
+      }
+
+      // Check if all expected questions are answered
+      const expectedQuestions = Array.from({ length: questionCount }, (_, i) => `question${i + 1}`);
+      return expectedQuestions.every(q => {
+        const qId = `${vk}_${q}`;
+        const answer = questions[q] || '';
+        return answer.trim() !== '' || !!audioAnswered[qId];
+      });
+    });
+  };
+
+  const isVideoComplete = (videoIndex: number) => {
+    const videoKey = `video${videoIndex + 1}`;
+    const questions = responses[videoKey];
+
+    // Check if questions exist and is an object
     if (!questions || typeof questions !== 'object') {
       return false;
     }
 
-    // Check if all expected questions are answered
+    // Check all expected questions are answered
+    if (questionCount === 0) return false;
     const expectedQuestions = Array.from({ length: questionCount }, (_, i) => `question${i + 1}`);
     return expectedQuestions.every(q => {
-      const qId = `${vk}_${q}`;
+      const qId = `${videoKey}_${q}`;
       const answer = questions[q] || '';
       return answer.trim() !== '' || !!audioAnswered[qId];
     });
-  });
-};
+  };
 
-const isVideoComplete = (videoIndex: number) => {
-  const videoKey = `video${videoIndex + 1}`;
-  const questions = responses[videoKey];
+  const isVideoSaved = (videoIndex: number) => {
+    const video = videoProgress.find(v => v.videoId === videoIndex + 1);
+    // A video is considered saved if it has a savedAt timestamp AND has actual content
+    return !!(video?.savedAt && video.isComplete);
+  };
 
-  // Check if questions exist and is an object
-  if (!questions || typeof questions !== 'object') {
-    return false;
-  }
+  const getCurrentVideoCompletionStatus = () => {
+    const videoKey = getCurrentVideoKey();
+    const totalQuestions = questionCount || 0;
+    const videoResponses = responses[videoKey];
 
-  // Check all expected questions are answered
-  if (questionCount === 0) return false;
-  const expectedQuestions = Array.from({ length: questionCount }, (_, i) => `question${i + 1}`);
-  return expectedQuestions.every(q => {
-    const qId = `${videoKey}_${q}`;
-    const answer = questions[q] || '';
-    return answer.trim() !== '' || !!audioAnswered[qId];
-  });
-};
-
-const isVideoSaved = (videoIndex: number) => {
-  const video = videoProgress.find(v => v.videoId === videoIndex + 1);
-  // A video is considered saved if it has a savedAt timestamp AND has actual content
-  return !!(video?.savedAt && video.isComplete);
-};
-
-const getCurrentVideoCompletionStatus = () => {
-  const videoKey = getCurrentVideoKey();
-  const totalQuestions = questionCount || 0;
-  const videoResponses = responses[videoKey];
-
-  if (!videoResponses || typeof videoResponses !== 'object' || totalQuestions === 0) {
-    return { answered: 0, total: totalQuestions, isComplete: false };
-  }
-
-  // Count only expected questions
-  const expectedQuestions = Array.from({ length: totalQuestions }, (_, i) => `question${i + 1}`);
-  const answeredQuestions = expectedQuestions.filter(q => {
-    const qId = `${videoKey}_${q}`;
-    const answer = videoResponses[q] || '';
-    return answer.trim() !== '' || !!audioAnswered[qId];
-  }).length;
-  return { answered: answeredQuestions, total: totalQuestions, isComplete: answeredQuestions === totalQuestions };
-};
-
-const saveVideoProgress = async (videoIndex: number) => {
-  if (readOnlyView) return;
-  if (!userProfile) {
-    toast({
-      title: "Error",
-      description: "User profile not found. Please try logging in again.",
-      variant: "destructive",
-    });
-    return;
-  }
-
-  const video = videoProgress.find(v => v.videoId === videoIndex + 1);
-  if (!video || !video.isComplete) {
-    toast({
-      title: lang === 'kn' ? "ಇನ್ನೂ ಉಳಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ" : lang === 'ta' ? 'இப்போ சேமிக்க முடியாது' : "Cannot Save Yet",
-      description:
-        lang === 'kn'
-          ? `ಉಳಿಸುವ ಮೊದಲು ಈ ವೀಡಿಯೊಗೆ ಎಲ್ಲಾ ${questionCount} ಪ್ರಶ್ನೆಗಳನ್ನು ಪೂರ್ಣಗೊಳಿಸಿ.`
-          : lang === 'ta'
-            ? `இந்த வீடியோவை சேமிக்க முன் இந்த வீடியோவுக்கான எல்லா ${questionCount} கேள்விகளுக்கும் பதில் எழுதுங்கள்.`
-            : `Please complete all ${questionCount} questions for this video before saving.`,
-      variant: "destructive",
-    });
-    return;
-  }
-
-  // Resolve student_id from students table; do not fallback to users.id
-  let studentId = userProfile.studentProfile?.id as string | undefined;
-  if (!studentId) {
-    const { data: studentRow } = await supabase
-      .from('students')
-      .select('id')
-      .eq('user_id', userProfile.id)
-      .maybeSingle();
-    studentId = studentRow?.id;
-  }
-
-  if (!studentId) {
-    toast({
-      title: t('errorSavingVideoProgress'),
-      description: lang === 'kn' ? "ವಿದ್ಯಾರ್ಥಿ ಪ್ರೊಫೈಲ್ ಕಂಡುಬಂದಿಲ್ಲ. ದಯವಿಟ್ಟು ನಿಮ್ಮ ಶಿಕ್ಷಕ ಅಥವಾ ಬೆಂಬಲವನ್ನು ಸಂಪರ್ಕಿಸಿ." : "Student profile not found. Please contact your teacher or support.",
-      variant: "destructive",
-    });
-    return;
-  }
-
-  setSaving(true);
-  try {
-    console.log('Getting existing responses from database...');
-    console.log('Query parameters for existing data:', {
-      student_id: studentId,
-      assessment_type: 'inspiration',
-      assessment_title: 'My Inspiration'
-    });
-
-    // Get existing responses from database
-    const { data: existingData, error: existingError } = await supabase
-      .from('assessment_responses')
-      .select('responses')
-      .eq('student_id', studentId)
-      .eq('assessment_type', 'inspiration')
-      .eq('assessment_title', 'My Inspiration')
-      .order('updated_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    console.log('Existing data query result:', { existingData, existingError });
-
-    // Merge only the specific video's responses with existing data
-    const videoKey = `video${videoIndex + 1}` as keyof AssessmentResponse;
-    const existingResponses = (existingData?.responses as Partial<AssessmentResponse>) || {};
-    const ensureShape = (vr: any) => ({
-      question1: vr?.question1 ?? '',
-      question2: vr?.question2 ?? '',
-      question3: vr?.question3 ?? '',
-      question4: vr?.question4 ?? '',
-      question5: vr?.question5 ?? '',
-      question6: vr?.question6 ?? '',
-      question7: vr?.question7 ?? '',
-      question8: vr?.question8 ?? '',
-      question9: vr?.question9 ?? '',
-      question10: vr?.question10 ?? ''
-    });
-    // Ensure shape for all videos dynamically
-    const videoCount = inspirationVideos.length || 4;
-    for (let v = 1; v <= videoCount; v++) {
-      const vKey = `video${v}`;
-      (existingResponses as any)[vKey] = ensureShape((existingResponses as any)[vKey] || {});
+    if (!videoResponses || typeof videoResponses !== 'object' || totalQuestions === 0) {
+      return { answered: 0, total: totalQuestions, isComplete: false };
     }
 
-    console.log('Existing responses from database:', existingResponses);
+    // Count only expected questions
+    const expectedQuestions = Array.from({ length: totalQuestions }, (_, i) => `question${i + 1}`);
+    const answeredQuestions = expectedQuestions.filter(q => {
+      const qId = `${videoKey}_${q}`;
+      const answer = videoResponses[q] || '';
+      return answer.trim() !== '' || !!audioAnswered[qId];
+    }).length;
+    return { answered: answeredQuestions, total: totalQuestions, isComplete: answeredQuestions === totalQuestions };
+  };
 
-    // Build a fully-typed AssessmentResponse object dynamically
-    const updatedResponses: AssessmentResponse = {} as AssessmentResponse;
-    for (let v = 1; v <= videoCount; v++) {
-      const vKey = `video${v}` as keyof AssessmentResponse;
-      (updatedResponses as any)[vKey] = (videoKey === vKey)
-        ? (video.responses as any)
-        : (existingResponses as any)[vKey];
+  const saveVideoProgress = async (videoIndex: number) => {
+    if (readOnlyView) return;
+    if (!userProfile) {
+      toast({
+        title: "Error",
+        description: "User profile not found. Please try logging in again.",
+        variant: "destructive",
+      });
+      return;
     }
 
-    console.log('Saving video progress for video', videoIndex + 1);
-    console.log('Video responses to save:', video.responses);
-    console.log('Updated responses to save:', updatedResponses);
+    const video = videoProgress.find(v => v.videoId === videoIndex + 1);
+    if (!video || !video.isComplete) {
+      toast({
+        title: lang === 'kn' ? "ಇನ್ನೂ ಉಳಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ" : lang === 'ta' ? 'இப்போ சேமிக்க முடியாது' : "Cannot Save Yet",
+        description:
+          lang === 'kn'
+            ? `ಉಳಿಸುವ ಮೊದಲು ಈ ವೀಡಿಯೊಗೆ ಎಲ್ಲಾ ${questionCount} ಪ್ರಶ್ನೆಗಳನ್ನು ಪೂರ್ಣಗೊಳಿಸಿ.`
+            : lang === 'ta'
+              ? `இந்த வீடியோவை சேமிக்க முன் இந்த வீடியோவுக்கான எல்லா ${questionCount} கேள்விகளுக்கும் பதில் எழுதுங்கள்.`
+              : `Please complete all ${questionCount} questions for this video before saving.`,
+        variant: "destructive",
+      });
+      return;
+    }
 
-    // First try to update existing record
-    const { data: updateData, error: updateError } = await supabase
-      .from('assessment_responses')
-      .update({
-        responses: updatedResponses,
-        updated_at: new Date().toISOString()
-      })
-      .eq('student_id', studentId)
-      .eq('assessment_type', 'inspiration')
-      .eq('assessment_title', 'My Inspiration')
-      .select();
+    // Resolve student_id from students table; do not fallback to users.id
+    let studentId = userProfile.studentProfile?.id as string | undefined;
+    if (!studentId) {
+      const { data: studentRow } = await supabase
+        .from('students')
+        .select('id')
+        .eq('user_id', userProfile.id)
+        .maybeSingle();
+      studentId = studentRow?.id;
+    }
 
-    console.log('Update result:', { updateData, updateError });
+    if (!studentId) {
+      toast({
+        title: t('errorSavingVideoProgress'),
+        description: lang === 'kn' ? "ವಿದ್ಯಾರ್ಥಿ ಪ್ರೊಫೈಲ್ ಕಂಡುಬಂದಿಲ್ಲ. ದಯವಿಟ್ಟು ನಿಮ್ಮ ಶಿಕ್ಷಕ ಅಥವಾ ಬೆಂಬಲವನ್ನು ಸಂಪರ್ಕಿಸಿ." : "Student profile not found. Please contact your teacher or support.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    let error = updateError;
+    setSaving(true);
+    try {
+      console.log('Getting existing responses from database...');
+      console.log('Query parameters for existing data:', {
+        student_id: studentId,
+        assessment_type: 'inspiration',
+        assessment_title: 'My Inspiration'
+      });
 
-    // If no rows were updated (no existing record), insert a new one
-    if (!updateError && (!updateData || updateData.length === 0)) {
-      console.log('No existing record found, inserting new one...');
-      const { error: insertError } = await supabase
+      // Get existing responses from database
+      const { data: existingData, error: existingError } = await supabase
         .from('assessment_responses')
-        .insert({
+        .select('responses')
+        .eq('student_id', studentId)
+        .eq('assessment_type', 'inspiration')
+        .eq('assessment_title', 'My Inspiration')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      console.log('Existing data query result:', { existingData, existingError });
+
+      // Merge only the specific video's responses with existing data
+      const videoKey = `video${videoIndex + 1}` as keyof AssessmentResponse;
+      const existingResponses = (existingData?.responses as Partial<AssessmentResponse>) || {};
+      const ensureShape = (vr: any) => ({
+        question1: vr?.question1 ?? '',
+        question2: vr?.question2 ?? '',
+        question3: vr?.question3 ?? '',
+        question4: vr?.question4 ?? '',
+        question5: vr?.question5 ?? '',
+        question6: vr?.question6 ?? '',
+        question7: vr?.question7 ?? '',
+        question8: vr?.question8 ?? '',
+        question9: vr?.question9 ?? '',
+        question10: vr?.question10 ?? ''
+      });
+      // Ensure shape for all videos dynamically
+      const videoCount = inspirationVideos.length || 4;
+      for (let v = 1; v <= videoCount; v++) {
+        const vKey = `video${v}`;
+        (existingResponses as any)[vKey] = ensureShape((existingResponses as any)[vKey] || {});
+      }
+
+      console.log('Existing responses from database:', existingResponses);
+
+      // Build a fully-typed AssessmentResponse object dynamically
+      const updatedResponses: AssessmentResponse = {} as AssessmentResponse;
+      for (let v = 1; v <= videoCount; v++) {
+        const vKey = `video${v}` as keyof AssessmentResponse;
+        (updatedResponses as any)[vKey] = (videoKey === vKey)
+          ? (video.responses as any)
+          : (existingResponses as any)[vKey];
+      }
+
+      console.log('Saving video progress for video', videoIndex + 1);
+      console.log('Video responses to save:', video.responses);
+      console.log('Updated responses to save:', updatedResponses);
+
+      // First try to update existing record
+      const { data: updateData, error: updateError } = await supabase
+        .from('assessment_responses')
+        .update({
+          responses: updatedResponses,
+          updated_at: new Date().toISOString()
+        })
+        .eq('student_id', studentId)
+        .eq('assessment_type', 'inspiration')
+        .eq('assessment_title', 'My Inspiration')
+        .select();
+
+      console.log('Update result:', { updateData, updateError });
+
+      let error = updateError;
+
+      // If no rows were updated (no existing record), insert a new one
+      if (!updateError && (!updateData || updateData.length === 0)) {
+        console.log('No existing record found, inserting new one...');
+        const { error: insertError } = await supabase
+          .from('assessment_responses')
+          .insert({
+            student_id: studentId,
+            assessment_type: 'inspiration',
+            assessment_title: 'My Inspiration',
+            responses: updatedResponses,
+            completed_at: null
+          });
+        error = insertError;
+        console.log('Insert result:', { insertError });
+      }
+
+      if (error) {
+        console.error('Error saving to database:', error);
+        throw error;
+      }
+
+      console.log('Successfully saved to database');
+
+      // Update responses state with the merged data
+      setResponses(updatedResponses);
+
+      // Update video progress with saved timestamp and ensure responses are in sync
+      setVideoProgress(prev => prev.map(v =>
+        v.videoId === videoIndex + 1
+          ? {
+            ...v,
+            responses: video.responses,
+            savedAt: new Date().toISOString()
+          }
+          : v
+      ));
+
+      const currentVideo = inspirationVideos[videoIndex];
+      const videoLabel = currentVideo?.title || `Video ${videoIndex + 1}`;
+
+      toast({
+        title: t('videoProgressSaved'),
+        description: `Your responses for ${videoLabel} have been saved.`,
+      });
+    } catch (error) {
+      console.error('Error saving video progress:', error);
+      toast({
+        title: t('errorSavingVideoProgress'),
+        description: t('errorSavingVideoProgressDesc'),
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const submitAssessment = async () => {
+    if (readOnlyView) return;
+    if (!userProfile) {
+      toast({
+        title: t('errorSavingVideoProgress'),
+        description: lang === 'kn' ? "ಬಳಕೆದಾರ ಪ್ರೊಫೈಲ್ ಕಂಡುಬಂದಿಲ್ಲ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಲಾಗಿನ್ ಮಾಡಿ." : "User profile not found. Please try logging in again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!canSubmit()) {
+      const requiredVideos = inspirationVideos.length || defaultVideos.length || 4;
+      toast({
+        title: lang === 'kn' ? "ಇನ್ನೂ ಸಲ್ಲಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ" : "Cannot Submit Yet",
+        description: lang === 'kn'
+          ? `ಮೌಲ್ಯಮಾಪನವನ್ನು ಸಲ್ಲಿಸುವ ಮೊದಲು ಎಲ್ಲಾ ${requiredVideos} ವೀಡಿಯೊಗಳನ್ನು ಪೂರ್ಣಗೊಳಿಸಿ.`
+          : `Please complete all ${requiredVideos} videos before submitting the assessment.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Resolve student_id from students table; do not fallback to users.id
+    let studentId = userProfile.studentProfile?.id as string | undefined;
+    if (!studentId) {
+      const { data: studentRow } = await supabase
+        .from('students')
+        .select('id')
+        .eq('user_id', userProfile.id)
+        .maybeSingle();
+      studentId = studentRow?.id;
+    }
+
+    if (!studentId) {
+      toast({
+        title: t('errorSavingVideoProgress'),
+        description: lang === 'kn' ? "ವಿದ್ಯಾರ್ಥಿ ಪ್ರೊಫೈಲ್ ಕಂಡುಬಂದಿಲ್ಲ. ದಯವಿಟ್ಟು ನಿಮ್ಮ ಶಿಕ್ಷಕ ಅಥವಾ ಬೆಂಬಲವನ್ನು ಸಂಪರ್ಕಿಸಿ." : "Student profile not found. Please contact your teacher or support.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      // Save assessment responses and get the response ID
+      const { data: assessmentData, error: assessmentError } = await supabase
+        .from('assessment_responses')
+        .upsert({
           student_id: studentId,
           assessment_type: 'inspiration',
           assessment_title: 'My Inspiration',
-          responses: updatedResponses,
-          completed_at: null
-        });
-      error = insertError;
-      console.log('Insert result:', { insertError });
-    }
+          responses: responses,
+          completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
 
-    if (error) {
-      console.error('Error saving to database:', error);
-      throw error;
-    }
+      if (assessmentError) throw assessmentError;
 
-    console.log('Successfully saved to database');
-
-    // Update responses state with the merged data
-    setResponses(updatedResponses);
-
-    // Update video progress with saved timestamp and ensure responses are in sync
-    setVideoProgress(prev => prev.map(v =>
-      v.videoId === videoIndex + 1
-        ? {
-          ...v,
-          responses: video.responses,
-          savedAt: new Date().toISOString()
-        }
-        : v
-    ));
-
-    const currentVideo = inspirationVideos[videoIndex];
-    const videoLabel = currentVideo?.title || `Video ${videoIndex + 1}`;
-
-    toast({
-      title: t('videoProgressSaved'),
-      description: `Your responses for ${videoLabel} have been saved.`,
-    });
-  } catch (error) {
-    console.error('Error saving video progress:', error);
-    toast({
-      title: t('errorSavingVideoProgress'),
-      description: t('errorSavingVideoProgressDesc'),
-      variant: "destructive",
-    });
-  } finally {
-    setSaving(false);
-  }
-};
-
-const submitAssessment = async () => {
-  if (readOnlyView) return;
-  if (!userProfile) {
-    toast({
-      title: t('errorSavingVideoProgress'),
-      description: lang === 'kn' ? "ಬಳಕೆದಾರ ಪ್ರೊಫೈಲ್ ಕಂಡುಬಂದಿಲ್ಲ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಲಾಗಿನ್ ಮಾಡಿ." : "User profile not found. Please try logging in again.",
-      variant: "destructive",
-    });
-    return;
-  }
-
-  if (!canSubmit()) {
-    const requiredVideos = inspirationVideos.length || defaultVideos.length || 4;
-    toast({
-      title: lang === 'kn' ? "ಇನ್ನೂ ಸಲ್ಲಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ" : "Cannot Submit Yet",
-      description: lang === 'kn'
-        ? `ಮೌಲ್ಯಮಾಪನವನ್ನು ಸಲ್ಲಿಸುವ ಮೊದಲು ಎಲ್ಲಾ ${requiredVideos} ವೀಡಿಯೊಗಳನ್ನು ಪೂರ್ಣಗೊಳಿಸಿ.`
-        : `Please complete all ${requiredVideos} videos before submitting the assessment.`,
-      variant: "destructive",
-    });
-    return;
-  }
-
-  // Resolve student_id from students table; do not fallback to users.id
-  let studentId = userProfile.studentProfile?.id as string | undefined;
-  if (!studentId) {
-    const { data: studentRow } = await supabase
-      .from('students')
-      .select('id')
-      .eq('user_id', userProfile.id)
-      .maybeSingle();
-    studentId = studentRow?.id;
-  }
-
-  if (!studentId) {
-    toast({
-      title: t('errorSavingVideoProgress'),
-      description: lang === 'kn' ? "ವಿದ್ಯಾರ್ಥಿ ಪ್ರೊಫೈಲ್ ಕಂಡುಬಂದಿಲ್ಲ. ದಯವಿಟ್ಟು ನಿಮ್ಮ ಶಿಕ್ಷಕ ಅಥವಾ ಬೆಂಬಲವನ್ನು ಸಂಪರ್ಕಿಸಿ." : "Student profile not found. Please contact your teacher or support.",
-      variant: "destructive",
-    });
-    return;
-  }
-
-  setSubmitting(true);
-  try {
-    // Save assessment responses and get the response ID
-    const { data: assessmentData, error: assessmentError } = await supabase
-      .from('assessment_responses')
-      .upsert({
-        student_id: studentId,
-        assessment_type: 'inspiration',
-        assessment_title: 'My Inspiration',
-        responses: responses,
-        completed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-
-    if (assessmentError) throw assessmentError;
-
-    // Show success message for assessment submission
-    toast({
-      title: "Assessment Completed! ✨",
-      description: "Generating your reflection summary...",
-    });
-
-    // Notify student (self) and teacher of submission (best-effort)
-    try {
-      const studentNotifResult = await notificationService.create({
-        userId: userProfile.id,
-        type: 'system',
-        title: 'Inspiration submitted',
-        message: 'Your Inspiration assessment has been submitted.',
-        link: '/student'
+      // Show success message for assessment submission
+      toast({
+        title: "Assessment Completed! ✨",
+        description: "Generating your reflection summary...",
       });
-      if (!studentNotifResult.success) {
-        console.error('Failed to notify student:', studentNotifResult.error);
-      }
 
-      // find teacher for this student
-      const teacherUserId = await resolveTeacherUserId();
-      if (teacherUserId) {
-        const teacherNotifResult = await notificationService.create({
-          userId: teacherUserId,
-          type: 'assessment_submitted',
-          title: `${userProfile.full_name || 'Student'} submitted Inspiration`,
-          message: 'A new Inspiration assessment is ready to review.',
-          link: '/teacher#reviews'
+      // Notify student (self) and teacher of submission (best-effort)
+      try {
+        const studentNotifResult = await notificationService.create({
+          userId: userProfile.id,
+          type: 'system',
+          title: 'Inspiration submitted',
+          message: 'Your Inspiration assessment has been submitted.',
+          link: '/student'
         });
-        if (!teacherNotifResult.success) {
-          console.error('Failed to notify teacher:', teacherNotifResult.error);
-        } else {
-          console.log('✅ Notification sent to teacher:', teacherUserId);
+        if (!studentNotifResult.success) {
+          console.error('Failed to notify student:', studentNotifResult.error);
         }
+
+        // find teacher for this student
+        const teacherUserId = await resolveTeacherUserId();
+        if (teacherUserId) {
+          const teacherNotifResult = await notificationService.create({
+            userId: teacherUserId,
+            type: 'assessment_submitted',
+            title: `${userProfile.full_name || 'Student'} submitted Inspiration`,
+            message: 'A new Inspiration assessment is ready to review.',
+            link: '/teacher#reviews'
+          });
+          if (!teacherNotifResult.success) {
+            console.error('Failed to notify teacher:', teacherNotifResult.error);
+          } else {
+            console.log('✅ Notification sent to teacher:', teacherUserId);
+          }
+        }
+      } catch (error) {
+        console.error('Error sending notifications:', error);
       }
-    } catch (error) {
-      console.error('Error sending notifications:', error);
-    }
 
-    // Generate AI summary in the background
-    try {
-      if (aiSummaryService.isConfigured()) {
-        console.log('🤖 Generating AI summary for assessment:', assessmentData.id);
-        const summaryResult = await aiSummaryService.generateInspirationSummary(responses);
+      // Generate AI summary in the background
+      try {
+        if (aiSummaryService.isConfigured()) {
+          console.log('🤖 Generating AI summary for assessment:', assessmentData.id);
+          const summaryResult = await aiSummaryService.generateInspirationSummary(responses);
 
-        if (summaryResult.success && summaryResult.summary) {
-          // Save summary to database
-          const saveResult = await summaryDatabaseService.createAISummary(
-            assessmentData.id,
-            summaryResult.summary,
-            userProfile.id
-          );
+          if (summaryResult.success && summaryResult.summary) {
+            // Save summary to database
+            const saveResult = await summaryDatabaseService.createAISummary(
+              assessmentData.id,
+              summaryResult.summary,
+              userProfile.id
+            );
 
-          if (saveResult.success) {
-            console.log('✅ AI summary saved successfully:', saveResult.summaryId);
-            toast({
-              title:
-                lang === 'kn'
-                  ? 'ಸಾರಾಂಶ ಸಿದ್ಧವಾಗಿದೆ! 📝'
-                  : lang === 'ta'
-                    ? 'சுருக்கம் உருவாக்கப்பட்டது! 📝'
-                    : 'Summary Generated! 📝',
-              description:
-                lang === 'kn'
-                  ? 'ನೀವು ಬರೆದ ಚಿಂತನೆಗಳ ಸಾರಾಂಶವನ್ನು ನಿಮ್ಮ ಶಿಕ್ಷಕರು ಪರಿಶೀಲಿಸಲಿದ್ದಾರೆ.'
-                  : lang === 'ta'
-                    ? 'நீங்கள் எழுதிய சிந்தனைச் சுருக்கத்தை உங்கள் ஆசிரியா் விரைவில் பார்வையிடுவார்.'
-                    : 'Your teacher will review your reflection summary.',
-            });
+            if (saveResult.success) {
+              console.log('✅ AI summary saved successfully:', saveResult.summaryId);
+              toast({
+                title:
+                  lang === 'kn'
+                    ? 'ಸಾರಾಂಶ ಸಿದ್ಧವಾಗಿದೆ! 📝'
+                    : lang === 'ta'
+                      ? 'சுருக்கம் உருவாக்கப்பட்டது! 📝'
+                      : 'Summary Generated! 📝',
+                description:
+                  lang === 'kn'
+                    ? 'ನೀವು ಬರೆದ ಚಿಂತನೆಗಳ ಸಾರಾಂಶವನ್ನು ನಿಮ್ಮ ಶಿಕ್ಷಕರು ಪರಿಶೀಲಿಸಲಿದ್ದಾರೆ.'
+                    : lang === 'ta'
+                      ? 'நீங்கள் எழுதிய சிந்தனைச் சுருக்கத்தை உங்கள் ஆசிரியா் விரைவில் பார்வையிடுவார்.'
+                      : 'Your teacher will review your reflection summary.',
+              });
 
-            // Notify teacher that summary is ready for review
-            try {
-              const { notificationService } = await import('@/services/notificationService');
+              // Notify teacher that summary is ready for review
+              try {
+                const { notificationService } = await import('@/services/notificationService');
 
-              // Find teacher for this student
-              const teacherUserId = await resolveTeacherUserId();
-              if (teacherUserId) {
-                const notifResult = await notificationService.create({
-                  userId: teacherUserId,
-                  type: 'assessment_submitted',
-                  title: `${userProfile.full_name || 'Student'} completed My Inspiration assessment`,
-                  message: 'A new My Inspiration assessment summary is ready for review.',
-                  link: '/teacher/ai-summary-review'
-                });
-                if (!notifResult.success) {
-                  console.error('Failed to notify teacher:', notifResult.error);
-                } else {
-                  console.log('✅ Notification sent to teacher for summary review:', teacherUserId);
+                // Find teacher for this student
+                const teacherUserId = await resolveTeacherUserId();
+                if (teacherUserId) {
+                  const notifResult = await notificationService.create({
+                    userId: teacherUserId,
+                    type: 'assessment_submitted',
+                    title: `${userProfile.full_name || 'Student'} completed My Inspiration assessment`,
+                    message: 'A new My Inspiration assessment summary is ready for review.',
+                    link: '/teacher/ai-summary-review'
+                  });
+                  if (!notifResult.success) {
+                    console.error('Failed to notify teacher:', notifResult.error);
+                  } else {
+                    console.log('✅ Notification sent to teacher for summary review:', teacherUserId);
+                  }
                 }
+              } catch (notifError) {
+                console.error('Error notifying teacher:', notifError);
+                // Don't fail the whole submission if notification fails
               }
-            } catch (notifError) {
-              console.error('Error notifying teacher:', notifError);
-              // Don't fail the whole submission if notification fails
+            } else {
+              console.error('Failed to save summary:', saveResult.error);
+              toast({
+                title: "Summary Generation Issue",
+                description: "Your assessment is saved, but summary generation needs attention.",
+                variant: "destructive",
+              });
             }
           } else {
-            console.error('Failed to save summary:', saveResult.error);
+            console.error('Failed to generate summary:', summaryResult.error);
             toast({
               title: "Summary Generation Issue",
-              description: "Your assessment is saved, but summary generation needs attention.",
+              description: "Your assessment is saved. Summary will be generated later.",
               variant: "destructive",
             });
           }
         } else {
-          console.error('Failed to generate summary:', summaryResult.error);
+          console.warn('⚠️ Gemini API not configured, skipping summary generation');
           toast({
-            title: "Summary Generation Issue",
-            description: "Your assessment is saved. Summary will be generated later.",
-            variant: "destructive",
+            title: "Assessment Saved! ✨",
+            description: "Your reflections have been captured successfully!",
           });
         }
-      } else {
-        console.warn('⚠️ Gemini API not configured, skipping summary generation');
+      } catch (summaryError) {
+        console.error('Error in summary generation:', summaryError);
+        // Don't fail the entire submission if summary generation fails
         toast({
           title: "Assessment Saved! ✨",
           description: "Your reflections have been captured successfully!",
         });
       }
-    } catch (summaryError) {
-      console.error('Error in summary generation:', summaryError);
-      // Don't fail the entire submission if summary generation fails
+
+      setIsCompleted(true);
+    } catch (error) {
+      console.error('Error submitting assessment:', error);
       toast({
-        title: "Assessment Saved! ✨",
-        description: "Your reflections have been captured successfully!",
+        title: t('errorSavingVideoProgress'),
+        description: lang === 'kn' ? "ಮೌಲ್ಯಮಾಪನವನ್ನು ಸಲ್ಲಿಸಲು ವಿಫಲವಾಗಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ." : "Failed to submit assessment. Please try again.",
+        variant: "destructive",
       });
+    } finally {
+      setSubmitting(false);
     }
+  };
 
-    setIsCompleted(true);
-  } catch (error) {
-    console.error('Error submitting assessment:', error);
-    toast({
-      title: t('errorSavingVideoProgress'),
-      description: lang === 'kn' ? "ಮೌಲ್ಯಮಾಪನವನ್ನು ಸಲ್ಲಿಸಲು ವಿಫಲವಾಗಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ." : "Failed to submit assessment. Please try again.",
-      variant: "destructive",
-    });
-  } finally {
-    setSubmitting(false);
-  }
-};
+  const nextVideo = () => {
+    if (currentVideoIndex < inspirationVideos.length - 1) {
+      setCurrentVideoIndex(currentVideoIndex + 1);
+    }
+  };
 
-const nextVideo = () => {
-  if (currentVideoIndex < inspirationVideos.length - 1) {
-    setCurrentVideoIndex(currentVideoIndex + 1);
-  }
-};
+  const previousVideo = () => {
+    if (currentVideoIndex > 0) {
+      setCurrentVideoIndex(currentVideoIndex - 1);
+    }
+  };
 
-const previousVideo = () => {
-  if (currentVideoIndex > 0) {
-    setCurrentVideoIndex(currentVideoIndex - 1);
-  }
-};
+  const getCurrentVideoKey = () => {
+    return `video${currentVideoIndex + 1}` as keyof AssessmentResponse;
+  };
 
-const getCurrentVideoKey = () => {
-  return `video${currentVideoIndex + 1}` as keyof AssessmentResponse;
-};
+  const getCurrentVideoResponses = () => {
+    return responses[getCurrentVideoKey()];
+  };
 
-const getCurrentVideoResponses = () => {
-  return responses[getCurrentVideoKey()];
-};
+  if (loading || dataLoading) {
+    const loadingAssessmentText =
+      lang === 'kn'
+        ? 'ನಿಮ್ಮ ಪ್ರೇರಣೆ ಮೌಲ್ಯಮಾಪನವನ್ನು ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...'
+        : lang === 'ta'
+          ? 'உங்கள் ஊக்கம் மதிப்பீடு ஏற்றப்படுகிறது...'
+          : 'Loading your inspiration assessment...';
 
-if (loading || dataLoading) {
-  const loadingAssessmentText =
-    lang === 'kn'
-      ? 'ನಿಮ್ಮ ಪ್ರೇರಣೆ ಮೌಲ್ಯಮಾಪನವನ್ನು ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...'
-      : lang === 'ta'
-        ? 'உங்கள் ஊக்கம் மதிப்பீடு ஏற்றப்படுகிறது...'
-        : 'Loading your inspiration assessment...';
+    const loadingProgressText =
+      lang === 'kn'
+        ? 'ನಿಮ್ಮ ಉಳಿಸಿದ ಪ್ರಗತಿಯನ್ನು ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...'
+        : lang === 'ta'
+          ? 'உங்கள் சேமிக்கப்பட்ட முன்னேற்றம் ஏற்றப்படுகிறது...'
+          : 'Loading your saved progress...';
 
-  const loadingProgressText =
-    lang === 'kn'
-      ? 'ನಿಮ್ಮ ಉಳಿಸಿದ ಪ್ರಗತಿಯನ್ನು ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...'
-      : lang === 'ta'
-        ? 'உங்கள் சேமிக்கப்பட்ட முன்னேற்றம் ஏற்றப்படுகிறது...'
-        : 'Loading your saved progress...';
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-600 mx-auto"></div>
-        <p className="mt-4 text-lg text-gray-600">
-          {loading ? loadingAssessmentText : loadingProgressText}
-        </p>
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-lg text-gray-600">
+            {loading ? loadingAssessmentText : loadingProgressText}
+          </p>
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
-if (isCompleted && !readOnlyView) {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-8">
-      <div className="container mx-auto px-4">
-        <Card className="max-w-2xl mx-auto border-0 shadow-lg">
-          <CardHeader className="text-center bg-gradient-to-r from-blue-50 to-indigo-50">
-            <Lightbulb className="w-16 h-16 text-blue-500 mx-auto mb-4" />
-            <CardTitle className="text-2xl text-blue-800">
-              {lang === 'kn'
-                ? 'ಪ್ರೇರಣೆ ಮೌಲ್ಯಮಾಪನ ಪೂರ್ಣಗೊಂಡಿದೆ! ✨'
-                : lang === 'ta'
-                  ? 'ஊக்கம் செயல்பாடு முடிந்தது! ✨'
-                  : 'Inspiration Assessment Completed! ✨'}
-            </CardTitle>
-            <CardDescription className="text-blue-600">
-              {lang === 'kn'
-                ? 'ಎಲ್ಲಾ ಪ್ರೇರಣಾದಾಯಕ ವೀಡಿಯೊಗಳ ಬಗ್ಗೆ ನೀವು ಯಶಸ್ವಿಯಾಗಿ ಚಿಂತಿಸಿದ್ದಾರೆ.'
-                : lang === 'ta'
-                  ? 'அனைத்து ஊக்கமான வீடியோக்கள் பற்றியும் நீங்கள் வெற்றிகரமாக சிந்தித்து எழுதியுள்ளீர்கள்.'
-                  : "You've successfully reflected on all inspirational videos"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="text-center space-y-4">
-              <p className="text-gray-600">
+  if (isCompleted && !readOnlyView) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-8">
+        <div className="container mx-auto px-4">
+          <Card className="max-w-2xl mx-auto border-0 shadow-lg">
+            <CardHeader className="text-center bg-gradient-to-r from-blue-50 to-indigo-50">
+              <Lightbulb className="w-16 h-16 text-blue-500 mx-auto mb-4" />
+              <CardTitle className="text-2xl text-blue-800">
                 {lang === 'kn'
-                  ? 'ಪ್ರೇರಣೆ ಮೌಲ್ಯಮಾಪನವನ್ನು ಪೂರ್ಣಗೊಳಿಸಿದಕ್ಕಾಗಿ ಧನ್ಯವಾದಗಳು! ನಿಮ್ಮ ಪ್ರೇರಣಾದಾಯಕ ವೀಡಿಯೊಗಳ ಬಗ್ಗೆ ಮಾಡಿದ ಬರಹಗಳನ್ನು ನಾವು ಉಳಿಸಿದ್ದೇವೆ. ಈಗ ನಿಮ್ಮ ಶಿಕ್ಷಕರು ಅವನ್ನು ಓದಿ, ನಿಮ್ಮ ವೃತ್ತಿ ಪ್ರಯಾಣಕ್ಕೆ ಮಾರ್ಗದರ್ಶನ ನೀಡಲು ಬಳಸಬಹುದು.'
+                  ? 'ಪ್ರೇರಣೆ ಮೌಲ್ಯಮಾಪನ ಪೂರ್ಣಗೊಂಡಿದೆ! ✨'
                   : lang === 'ta'
-                    ? 'இந்த ஊக்கம் செயல்பாட்டை முழுமையாக முடித்ததற்கு நன்றி! இந்த வீடியோக்கள் பற்றி நீங்கள் எழுதிய சிந்தனைகள் அனைத்தும் பாதுகாக்கப்பட்டுள்ளன. இப்போது உங்கள் ஆசிரியர் அவற்றை படித்து, உங்கள் தொழில் பயணத்திற்கு வழிகாட்ட உதவ முடியும்.'
-                    : 'Thank you for completing the inspiration assessment! Your reflections on the inspirational videos have been saved and your teacher can now review them to help guide your career journey.'}
-              </p>
-              <div className="flex justify-center gap-4">
-                <Button
-                  variant="outline"
-                  className="border-blue-200 text-blue-700 hover:bg-blue-50"
-                  onClick={() => {
-                    const params = new URLSearchParams(searchParams.toString());
-                    if (!params.get('lang') && lang) {
-                      params.set('lang', lang);
-                    }
-                    params.set('readonly', '1');
-                    navigate(`/student/assessment/inspiration?${params.toString()}`);
-                  }}
-                >
-                  {lang === 'kn' ? 'ನನ್ನ ಉತ್ತರಗಳನ್ನು ವೀಕ್ಷಿಸಿ' : lang === 'ta' ? 'என் பதில்களை பார்' : 'View My Answers'}
-                </Button>
-                <Button
-                  onClick={() => navigate('/student')}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  {lang === 'kn' ? 'ಡ್ಯಾಶ್‌ಬೋರ್ಡ್‌ಗೆ ಹಿಂತಿರುಗಿ' : lang === 'ta' ? 'முதல் பக்கத்திற்கு போ' : 'Back to Dashboard'}
-                </Button>
+                    ? 'ஊக்கம் செயல்பாடு முடிந்தது! ✨'
+                    : 'Inspiration Assessment Completed! ✨'}
+              </CardTitle>
+              <CardDescription className="text-blue-600">
+                {lang === 'kn'
+                  ? 'ಎಲ್ಲಾ ಪ್ರೇರಣಾದಾಯಕ ವೀಡಿಯೊಗಳ ಬಗ್ಗೆ ನೀವು ಯಶಸ್ವಿಯಾಗಿ ಚಿಂತಿಸಿದ್ದಾರೆ.'
+                  : lang === 'ta'
+                    ? 'அனைத்து ஊக்கமான வீடியோக்கள் பற்றியும் நீங்கள் வெற்றிகரமாக சிந்தித்து எழுதியுள்ளீர்கள்.'
+                    : "You've successfully reflected on all inspirational videos"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="text-center space-y-4">
+                <p className="text-gray-600">
+                  {lang === 'kn'
+                    ? 'ಪ್ರೇರಣೆ ಮೌಲ್ಯಮಾಪನವನ್ನು ಪೂರ್ಣಗೊಳಿಸಿದಕ್ಕಾಗಿ ಧನ್ಯವಾದಗಳು! ನಿಮ್ಮ ಪ್ರೇರಣಾದಾಯಕ ವೀಡಿಯೊಗಳ ಬಗ್ಗೆ ಮಾಡಿದ ಬರಹಗಳನ್ನು ನಾವು ಉಳಿಸಿದ್ದೇವೆ. ಈಗ ನಿಮ್ಮ ಶಿಕ್ಷಕರು ಅವನ್ನು ಓದಿ, ನಿಮ್ಮ ವೃತ್ತಿ ಪ್ರಯಾಣಕ್ಕೆ ಮಾರ್ಗದರ್ಶನ ನೀಡಲು ಬಳಸಬಹುದು.'
+                    : lang === 'ta'
+                      ? 'இந்த ஊக்கம் செயல்பாட்டை முழுமையாக முடித்ததற்கு நன்றி! இந்த வீடியோக்கள் பற்றி நீங்கள் எழுதிய சிந்தனைகள் அனைத்தும் பாதுகாக்கப்பட்டுள்ளன. இப்போது உங்கள் ஆசிரியர் அவற்றை படித்து, உங்கள் தொழில் பயணத்திற்கு வழிகாட்ட உதவ முடியும்.'
+                      : 'Thank you for completing the inspiration assessment! Your reflections on the inspirational videos have been saved and your teacher can now review them to help guide your career journey.'}
+                </p>
+                <div className="flex justify-center gap-4">
+                  <Button
+                    variant="outline"
+                    className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                    onClick={() => {
+                      const params = new URLSearchParams(searchParams.toString());
+                      if (!params.get('lang') && lang) {
+                        params.set('lang', lang);
+                      }
+                      params.set('readonly', '1');
+                      navigate(`/student/assessment/inspiration?${params.toString()}`);
+                    }}
+                  >
+                    {lang === 'kn' ? 'ನನ್ನ ಉತ್ತರಗಳನ್ನು ವೀಕ್ಷಿಸಿ' : lang === 'ta' ? 'என் பதில்களை பார்' : 'View My Answers'}
+                  </Button>
+                  <Button
+                    onClick={() => navigate('/student')}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    {lang === 'kn' ? 'ಡ್ಯಾಶ್‌ಬೋರ್ಡ್‌ಗೆ ಹಿಂತಿರುಗಿ' : lang === 'ta' ? 'முதல் பக்கத்திற்கு போ' : 'Back to Dashboard'}
+                  </Button>
+                </div>
               </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  const currentVideo = inspirationVideos[currentVideoIndex];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 py-8" lang={lang} dir="auto">
+      <div className="container mx-auto px-4">
+        {/* Header with Back Button */}
+        <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4 md:gap-0">
+          <div className="w-full md:w-auto flex justify-start">
+            <Button
+              variant="ghost"
+              onClick={() => navigate('/student')}
+              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              {t('backToDashboard')}
+            </Button>
+          </div>
+          <div className="text-center flex-1 w-full md:w-auto">
+            <h1 className="text-2xl md:text-3xl font-bold text-blue-800 mb-2">{t('inspirationTitle')}</h1>
+            <p className="text-blue-600 text-sm md:text-lg">{t('inspirationIntro')}</p>
+          </div>
+          <div className="hidden md:block w-20"></div> {/* Spacer for centering */}
+        </div>
+
+        {/* Progress Bar */}
+        <Card className="mb-6 border-0 shadow-lg">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-800">{t('yourProgress')}</h2>
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                <Badge variant="secondary">{Math.round(getProgressPercentage())}% {t('completeSuffix')}</Badge>
+                <div className="flex flex-wrap justify-center items-center gap-3 text-xs text-gray-500">
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span>{videoProgress?.filter(v => v.savedAt && v.isComplete).length || 0} {t('saved')}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                    <span>{videoProgress?.filter(v => v.isComplete).length || 0} {t('complete')}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <Progress value={getProgressPercentage()} className="h-3" />
+            <div className="flex justify-between text-sm text-gray-600 mt-2">
+              <span>{t('videoCounter', '', currentVideoIndex + 1, inspirationVideos.length)}</span>
+              <span>{Math.round(getProgressPercentage())}% {t('completeSuffix')}</span>
             </div>
           </CardContent>
         </Card>
-      </div>
-    </div>
-  );
-}
 
-const currentVideo = inspirationVideos[currentVideoIndex];
+        {/* Video Navigation */}
+        <Card className="mb-6 border-0 shadow-lg">
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
+            <CardTitle className="text-xl text-blue-800">{t('videoNavigation')}</CardTitle>
+            <CardDescription className="text-blue-600">
+              {t('clickAnyVideo')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="flex flex-wrap gap-2 mb-4">
+              {inspirationVideos.map((video, index) => (
+                <Button
+                  key={video.id}
+                  onClick={() => setCurrentVideoIndex(index)}
+                  variant={currentVideoIndex === index ? "default" : "outline"}
+                  size="sm"
+                  className={`${currentVideoIndex === index ? "bg-blue-600" : ""}`}
+                >
+                  {t('videoLabelN', '', index + 1)}
+                  {isVideoComplete(index) && (
+                    <CheckCircle className="w-3 h-3 ml-1 text-green-500" />
+                  )}
+                  {isVideoSaved(index) && (
+                    <Save className="w-3 h-3 ml-1 text-blue-500" />
+                  )}
+                </Button>
+              ))}
+            </div>
 
-return (
-  <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 py-8" lang={lang} dir="auto">
-    <div className="container mx-auto px-4">
-      {/* Header with Back Button */}
-      <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4 md:gap-0">
-        <div className="w-full md:w-auto flex justify-start">
-          <Button
-            variant="ghost"
-            onClick={() => navigate('/student')}
-            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            {t('backToDashboard')}
-          </Button>
-        </div>
-        <div className="text-center flex-1 w-full md:w-auto">
-          <h1 className="text-2xl md:text-3xl font-bold text-blue-800 mb-2">{t('inspirationTitle')}</h1>
-          <p className="text-blue-600 text-sm md:text-lg">{t('inspirationIntro')}</p>
-        </div>
-        <div className="hidden md:block w-20"></div> {/* Spacer for centering */}
-      </div>
+          </CardContent>
+        </Card>
 
-      {/* Progress Bar */}
-      <Card className="mb-6 border-0 shadow-lg">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-800">{t('yourProgress')}</h2>
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              <Badge variant="secondary">{Math.round(getProgressPercentage())}% {t('completeSuffix')}</Badge>
-              <div className="flex flex-wrap justify-center items-center gap-3 text-xs text-gray-500">
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span>{videoProgress?.filter(v => v.savedAt && v.isComplete).length || 0} {t('saved')}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                  <span>{videoProgress?.filter(v => v.isComplete).length || 0} {t('complete')}</span>
-                </div>
+        {/* Current Video Section */}
+        <Card className="mb-6 border-0 shadow-lg">
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
+            <CardTitle className="text-xl text-blue-800">
+              {t('videoLabelN', '', currentVideoIndex + 1)}: {currentVideo.title}
+            </CardTitle>
+            <CardDescription className="text-blue-600">
+              {t('watchAndAnswer')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6">
+            {/* Video Player */}
+            <div className="mb-6">
+              <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden mb-4">
+                <iframe
+                  src={`https://www.youtube.com/embed/${currentVideo.youtubeId}`}
+                  title={currentVideo.title}
+                  className="w-full h-full"
+                  allowFullScreen
+                />
               </div>
-            </div>
-          </div>
-          <Progress value={getProgressPercentage()} className="h-3" />
-          <div className="flex justify-between text-sm text-gray-600 mt-2">
-            <span>{t('videoCounter', '', currentVideoIndex + 1, inspirationVideos.length)}</span>
-            <span>{Math.round(getProgressPercentage())}% {t('completeSuffix')}</span>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Video Navigation */}
-      <Card className="mb-6 border-0 shadow-lg">
-        <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
-          <CardTitle className="text-xl text-blue-800">{t('videoNavigation')}</CardTitle>
-          <CardDescription className="text-blue-600">
-            {t('clickAnyVideo')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="flex flex-wrap gap-2 mb-4">
-            {inspirationVideos.map((video, index) => (
-              <Button
-                key={video.id}
-                onClick={() => setCurrentVideoIndex(index)}
-                variant={currentVideoIndex === index ? "default" : "outline"}
-                size="sm"
-                className={`${currentVideoIndex === index ? "bg-blue-600" : ""}`}
-              >
-                {t('videoLabelN', '', index + 1)}
-                {isVideoComplete(index) && (
-                  <CheckCircle className="w-3 h-3 ml-1 text-green-500" />
-                )}
-                {isVideoSaved(index) && (
-                  <Save className="w-3 h-3 ml-1 text-blue-500" />
-                )}
-              </Button>
-            ))}
-          </div>
-
-        </CardContent>
-      </Card>
-
-      {/* Current Video Section */}
-      <Card className="mb-6 border-0 shadow-lg">
-        <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
-          <CardTitle className="text-xl text-blue-800">
-            {t('videoLabelN', '', currentVideoIndex + 1)}: {currentVideo.title}
-          </CardTitle>
-          <CardDescription className="text-blue-600">
-            {t('watchAndAnswer')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-6">
-          {/* Video Player */}
-          <div className="mb-6">
-            <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden mb-4">
-              <iframe
-                src={`https://www.youtube.com/embed/${currentVideo.youtubeId}`}
-                title={currentVideo.title}
-                className="w-full h-full"
-                allowFullScreen
-              />
-            </div>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Youtube className="w-4 h-4 text-red-600" />
-              <a
-                href={currentVideo.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline flex items-center gap-1"
-              >
-                {t('openInYouTube')} <ExternalLink className="w-3 h-3" />
-              </a>
-            </div>
-          </div>
-
-          {/* Questions */}
-
-          <div className="space-y-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-800">{t('reflectionQuestions')}</h3>
-              <div className="text-sm text-gray-600">
-                {(() => {
-                  const status = getCurrentVideoCompletionStatus();
-                  return (
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${status.isComplete
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-yellow-100 text-yellow-700'
-                      }`}>
-                      {status.answered}/{status.total} questions answered
-                    </span>
-                  );
-                })()}
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Youtube className="w-4 h-4 text-red-600" />
+                <a
+                  href={currentVideo.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline flex items-center gap-1"
+                >
+                  {t('openInYouTube')} <ExternalLink className="w-3 h-3" />
+                </a>
               </div>
             </div>
 
-            {/* Recording Instructions */}
-            <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-blue-600 text-lg">🎙️</span>
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-blue-800 mb-2">{t('audioRecordingInstructionsTitle')}</h3>
-                  <p className="text-sm text-blue-700 mb-2">
-                    {t('audioInstructionsLead')}
-                  </p>
-                  <div className="flex flex-wrap gap-2 text-xs text-blue-600">
-                    <span className="flex items-center gap-1">
-                      <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
-                      {t('audioInstructionsBullet1')}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
-                      {t('audioInstructionsBullet2')}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
-                      {t('audioInstructionsBullet3')}
-                    </span>
-                  </div>
+            {/* Questions */}
+
+            <div className="space-y-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-800">{t('reflectionQuestions')}</h3>
+                <div className="text-sm text-gray-600">
+                  {(() => {
+                    const status = getCurrentVideoCompletionStatus();
+                    return (
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${status.isComplete
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-yellow-100 text-yellow-700'
+                        }`}>
+                        {status.answered}/{status.total} questions answered
+                      </span>
+                    );
+                  })()}
                 </div>
               </div>
-            </div>
 
-            {/* Dynamically render all questions from database */}
-            {Array.from({ length: questionCount }, (_, index) => {
-              const questionNum = index + 1;
-              const questionKey = `question${questionNum}`;
-              const questionText = questionTexts[questionKey] || '';
-              const helpText = helpTexts[questionKey] || '';
-              const questionValue = getCurrentVideoResponses()[questionKey] || '';
-              const isAnswered = questionValue.trim() !== '' || !!audioAnswered[`${getCurrentVideoKey()}_${questionKey}`];
-              const colors = getQuestionColor(index);
-              const IconComponent = colors.icon;
-
-              return (
-                <div key={questionKey} className={`border-l-4 pl-3 md:pl-6 ${isAnswered ? colors.border : 'border-red-400'}`}>
-                  <div className="flex flex-col md:flex-row md:items-start md:justify-between mb-3 gap-3">
-                    <label className="block text-lg font-semibold text-gray-800 flex items-center gap-2">
-                      <IconComponent className={`w-5 h-5 ${colors.iconColor}`} />
-                      {questionText}
-                      <span className="text-red-500 text-sm">*</span>
-                      <button
-                        type="button"
-                        aria-label="Help"
-                        className={`ml-2 ${colors.text} ${colors.hover}`}
-                        onClick={() => toggleHelp(helpKey(questionKey))}
-                      >
-                        💬
-                      </button>
-                    </label>
-                    {helpOpen[helpKey(questionKey)] && (
-                      <div className={`mt-2 mb-2 p-3 rounded border ${colors.bg} ${colors.bgBorder} text-sm ${colors.bgText}`}>
-                        {helpText}
-                      </div>
-                    )}
-                    <div className="w-full md:w-auto md:ml-4 flex-shrink-0">
-                      {(resolvedStudentId && assessmentRecordId) ? (
-                        <AudioRecorder
-                          key={`${getCurrentVideoKey()}_${questionKey}`}
-                          questionId={`${getCurrentVideoKey()}_${questionKey}`}
-                          onRecordingComplete={(audioBlob, transcription) => {
-                            handleAudioResponse(getCurrentVideoKey(), questionKey, audioBlob, transcription);
-                          }}
-                          maxDuration={120000} // 2 minutes
-                          language={lang === 'kn' ? 'kn-IN' : lang === 'ta' ? 'ta-IN' : 'en-IN'}
-                          studentId={resolvedStudentId ?? userProfile.studentProfile.id}
-                          assessmentId={assessmentRecordId ?? 'inspiration-assessment'}
-                          assessmentType="inspiration"
-                          assessmentTitle="My Inspiration"
-                          initialSavedAt={audioResponsesMap[`${getCurrentVideoKey()}_${questionKey}`]?.savedAt ?? null}
-                          initialAudioUrl={audioResponsesMap[`${getCurrentVideoKey()}_${questionKey}`]?.url ?? null}
-                          initialTranscription={audioResponsesMap[`${getCurrentVideoKey()}_${questionKey}`]?.transcript ?? null}
-                          initialConfidence={audioResponsesMap[`${getCurrentVideoKey()}_${questionKey}`]?.confidence ?? null}
-
-                          initialConfidence={audioResponsesMap[`${getCurrentVideoKey()}_${questionKey}`]?.confidence ?? null}
-                          onStreamTranscript={(text) => handleStreamTranscript(getCurrentVideoKey(), questionKey, text)}
-                          compact={true}
-                          contextPhrases={[
-                            // Context 1: The question itself (crucial for answers that repeat part of the question)
-                            t(questionKey),
-                            // Context 2: Standard instructions students might read aloud
-                            'type or record your answer',
-                            'speak clearly',
-                            'up to 2 minutes',
-                            'up to two minutes', // Variant
-                            'record',
-                            'answer',
-                            // Context 3: Video related terms
-                            'video',
-                            'inspiration',
-                            'inspiring'
-                          ]}
-                        />
-                      ) : (
-                        <div className="text-sm text-gray-500">Loading...</div>
-                      )}
+              {/* Recording Instructions */}
+              <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                      <span className="text-blue-600 text-lg">🎙️</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 mb-1">
-                    {transcribedPrefill[`${getCurrentVideoKey()}_${questionKey}`] && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">Transcribed</span>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-blue-800 mb-2">{t('audioRecordingInstructionsTitle')}</h3>
+                    <p className="text-sm text-blue-700 mb-2">
+                      {t('audioInstructionsLead')}
+                    </p>
+                    <div className="flex flex-wrap gap-2 text-xs text-blue-600">
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
+                        {t('audioInstructionsBullet1')}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
+                        {t('audioInstructionsBullet2')}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
+                        {t('audioInstructionsBullet3')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dynamically render all questions from database */}
+              {Array.from({ length: questionCount }, (_, index) => {
+                const questionNum = index + 1;
+                const questionKey = `question${questionNum}`;
+                const questionText = questionTexts[questionKey] || '';
+                const helpText = helpTexts[questionKey] || '';
+                const questionValue = getCurrentVideoResponses()[questionKey] || '';
+                const isAnswered = questionValue.trim() !== '' || !!audioAnswered[`${getCurrentVideoKey()}_${questionKey}`];
+                const colors = getQuestionColor(index);
+                const IconComponent = colors.icon;
+
+                return (
+                  <div key={questionKey} className={`border-l-4 pl-3 md:pl-6 ${isAnswered ? colors.border : 'border-red-400'}`}>
+                    <div className="flex flex-col md:flex-row md:items-start md:justify-between mb-3 gap-3">
+                      <label className="block text-lg font-semibold text-gray-800 flex items-center gap-2">
+                        <IconComponent className={`w-5 h-5 ${colors.iconColor}`} />
+                        {questionText}
+                        <span className="text-red-500 text-sm">*</span>
+                        <button
+                          type="button"
+                          aria-label="Help"
+                          className={`ml-2 ${colors.text} ${colors.hover}`}
+                          onClick={() => toggleHelp(helpKey(questionKey))}
+                        >
+                          💬
+                        </button>
+                      </label>
+                      {helpOpen[helpKey(questionKey)] && (
+                        <div className={`mt-2 mb-2 p-3 rounded border ${colors.bg} ${colors.bgBorder} text-sm ${colors.bgText}`}>
+                          {helpText}
+                        </div>
+                      )}
+                      <div className="w-full md:w-auto md:ml-4 flex-shrink-0">
+                        {(resolvedStudentId && assessmentRecordId) ? (
+                          <AudioRecorder
+                            key={`${getCurrentVideoKey()}_${questionKey}`}
+                            questionId={`${getCurrentVideoKey()}_${questionKey}`}
+                            onRecordingComplete={(audioBlob, transcription) => {
+                              handleAudioResponse(getCurrentVideoKey(), questionKey, audioBlob, transcription);
+                            }}
+                            maxDuration={120000} // 2 minutes
+                            language={lang === 'kn' ? 'kn-IN' : lang === 'ta' ? 'ta-IN' : 'en-IN'}
+                            studentId={resolvedStudentId ?? userProfile.studentProfile.id}
+                            assessmentId={assessmentRecordId ?? 'inspiration-assessment'}
+                            assessmentType="inspiration"
+                            assessmentTitle="My Inspiration"
+                            initialSavedAt={audioResponsesMap[`${getCurrentVideoKey()}_${questionKey}`]?.savedAt ?? null}
+                            initialAudioUrl={audioResponsesMap[`${getCurrentVideoKey()}_${questionKey}`]?.url ?? null}
+                            initialTranscription={audioResponsesMap[`${getCurrentVideoKey()}_${questionKey}`]?.transcript ?? null}
+                            initialConfidence={audioResponsesMap[`${getCurrentVideoKey()}_${questionKey}`]?.confidence ?? null}
+
+                            initialConfidence={audioResponsesMap[`${getCurrentVideoKey()}_${questionKey}`]?.confidence ?? null}
+                            onStreamTranscript={(text) => handleStreamTranscript(getCurrentVideoKey(), questionKey, text)}
+                            compact={true}
+                            contextPhrases={[
+                              // Context 1: The question itself (crucial for answers that repeat part of the question)
+                              t(questionKey),
+                              // Context 2: Standard instructions students might read aloud
+                              'type or record your answer',
+                              'speak clearly',
+                              'up to 2 minutes',
+                              'up to two minutes', // Variant
+                              'record',
+                              'answer',
+                              // Context 3: Video related terms
+                              'video',
+                              'inspiration',
+                              'inspiring'
+                            ]}
+                          />
+                        ) : (
+                          <div className="text-sm text-gray-500">Loading...</div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 mb-1">
+                      {transcribedPrefill[`${getCurrentVideoKey()}_${questionKey}`] && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">Transcribed</span>
+                      )}
+                    </div>
+                    <Textarea
+                      placeholder={helpText}
+                      value={questionValue}
+                      onChange={(e) => handleResponseChange(getCurrentVideoKey(), questionKey, e.target.value)}
+                      readOnly={readOnlyView}
+                      rows={4}
+                      className={`text-base ${isAnswered
+                        ? `${colors.inputBorder} ${colors.inputFocus}`
+                        : 'border-red-300 focus:border-red-400 bg-red-50'
+                        }`}
+                      required
+                    />
+                    {!isAnswered && (
+                      <p className="text-red-500 text-sm mt-1">{t('questionRequired')}</p>
                     )}
                   </div>
-                  <Textarea
-                    placeholder={helpText}
-                    value={questionValue}
-                    onChange={(e) => handleResponseChange(getCurrentVideoKey(), questionKey, e.target.value)}
-                    readOnly={readOnlyView}
-                    rows={4}
-                    className={`text-base ${isAnswered
-                      ? `${colors.inputBorder} ${colors.inputFocus}`
-                      : 'border-red-300 focus:border-red-400 bg-red-50'
-                      }`}
-                    required
-                  />
-                  {!isAnswered && (
-                    <p className="text-red-500 text-sm mt-1">{t('questionRequired')}</p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
 
 
 
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Footer Navigation */}
-      <div className="flex justify-between items-center mt-8">
-        <Button
-          variant="outline"
-          onClick={previousVideo}
-          disabled={currentVideoIndex === 0}
-          className="border-blue-200 text-blue-700 hover:bg-blue-50"
-        >
-          {lang === 'kn' ? 'ಹಿಂದಿನ ವೀಡಿಯೊ' : lang === 'ta' ? 'முந்தைய வீடியோ' : t('previousVideo')}
-        </Button>
-
-        <div className="flex gap-2">
+        {/* Footer Navigation */}
+        <div className="flex justify-between items-center mt-8">
           <Button
             variant="outline"
-            onClick={() => saveVideoProgress(currentVideoIndex)}
-            disabled={!isVideoComplete(currentVideoIndex) || saving || isVideoSaved(currentVideoIndex) || readOnlyView}
-            className="border-green-200 text-green-700 hover:bg-green-50"
+            onClick={previousVideo}
+            disabled={currentVideoIndex === 0}
+            className="border-blue-200 text-blue-700 hover:bg-blue-50"
           >
-            {saving ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600 mr-2"></div>
-                {t('saving')}
-              </>
-            ) : isVideoSaved(currentVideoIndex) ? (
-              <>
-                <Save className="w-4 h-4 mr-2" />
-                Save Progress
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4 mr-2" />
-                Save Progress
-              </>
-            )}
+            {lang === 'kn' ? 'ಹಿಂದಿನ ವೀಡಿಯೊ' : lang === 'ta' ? 'முந்தைய வீடியோ' : t('previousVideo')}
           </Button>
 
-          {currentVideoIndex < inspirationVideos.length - 1 ? (
+          <div className="flex gap-2">
             <Button
               variant="outline"
-              onClick={nextVideo}
-              className="border-blue-200 text-blue-700 hover:bg-blue-50"
+              onClick={() => saveVideoProgress(currentVideoIndex)}
+              disabled={!isVideoComplete(currentVideoIndex) || saving || isVideoSaved(currentVideoIndex) || readOnlyView}
+              className="border-green-200 text-green-700 hover:bg-green-50"
             >
-              {lang === 'kn' ? 'ಮುಂದಿನ ವೀಡಿಯೊ' : lang === 'ta' ? 'அடுத்த வீடியோ' : t('nextVideo')}
-            </Button>
-          ) : (
-            <Button
-              onClick={submitAssessment}
-              disabled={!canSubmit() || submitting || readOnlyView}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {submitting ? (
+              {saving ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  {t('submitting')}
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600 mr-2"></div>
+                  {t('saving')}
+                </>
+              ) : isVideoSaved(currentVideoIndex) ? (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Progress
                 </>
               ) : (
                 <>
-                  <Lightbulb className="w-4 h-4 mr-2" />
-                  {t('submitInspiration')}
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Progress
                 </>
               )}
             </Button>
-          )}
+
+            {currentVideoIndex < inspirationVideos.length - 1 ? (
+              <Button
+                variant="outline"
+                onClick={nextVideo}
+                className="border-blue-200 text-blue-700 hover:bg-blue-50"
+              >
+                {lang === 'kn' ? 'ಮುಂದಿನ ವೀಡಿಯೊ' : lang === 'ta' ? 'அடுத்த வீடியோ' : t('nextVideo')}
+              </Button>
+            ) : (
+              <Button
+                onClick={submitAssessment}
+                disabled={!canSubmit() || submitting || readOnlyView}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {submitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    {t('submitting')}
+                  </>
+                ) : (
+                  <>
+                    <Lightbulb className="w-4 h-4 mr-2" />
+                    {t('submitInspiration')}
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Video List */}
+        <div className="mt-12">
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100">
+              <CardTitle className="text-xl text-gray-800">{t('allVideosTitle')}</CardTitle>
+              <CardDescription className="text-gray-600">
+                {t('allVideosSubtitle')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {inspirationVideos.map((video, index) => (
+                  <div
+                    key={video.id}
+                    className={`p-4 rounded-lg border-2 transition-all duration-200 ${currentVideoIndex === index
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300 cursor-pointer'
+                      }`}
+                    onClick={() => setCurrentVideoIndex(index)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${currentVideoIndex === index
+                        ? 'bg-blue-500 text-white'
+                        : isVideoSaved(index)
+                          ? 'bg-green-500 text-white'
+                          : isVideoComplete(index)
+                            ? 'bg-yellow-500 text-white'
+                            : 'bg-gray-200 text-gray-600'
+                        }`}>
+                        {index + 1}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-medium text-gray-800">
+                            {t('videoLabelN', '', index + 1)}
+                          </h4>
+                          {isVideoSaved(index) && (
+                            <div className="flex items-center gap-1 text-green-600 text-xs">
+                              <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                              <span>{t('saved')}</span>
+                            </div>
+                          )}
+                          {!isVideoSaved(index) && isVideoComplete(index) && (
+                            <div className="flex items-center gap-1 text-yellow-600 text-xs">
+                              <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full"></div>
+                              <span>{t('complete')}</span>
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-500 truncate">{video.url}</p>
+                      </div>
+                      <Video className="w-5 h-5 text-gray-400" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
-
-      {/* Video List */}
-      <div className="mt-12">
-        <Card className="border-0 shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100">
-            <CardTitle className="text-xl text-gray-800">{t('allVideosTitle')}</CardTitle>
-            <CardDescription className="text-gray-600">
-              {t('allVideosSubtitle')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {inspirationVideos.map((video, index) => (
-                <div
-                  key={video.id}
-                  className={`p-4 rounded-lg border-2 transition-all duration-200 ${currentVideoIndex === index
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300 cursor-pointer'
-                    }`}
-                  onClick={() => setCurrentVideoIndex(index)}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${currentVideoIndex === index
-                      ? 'bg-blue-500 text-white'
-                      : isVideoSaved(index)
-                        ? 'bg-green-500 text-white'
-                        : isVideoComplete(index)
-                          ? 'bg-yellow-500 text-white'
-                          : 'bg-gray-200 text-gray-600'
-                      }`}>
-                      {index + 1}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-medium text-gray-800">
-                          {t('videoLabelN', '', index + 1)}
-                        </h4>
-                        {isVideoSaved(index) && (
-                          <div className="flex items-center gap-1 text-green-600 text-xs">
-                            <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-                            <span>{t('saved')}</span>
-                          </div>
-                        )}
-                        {!isVideoSaved(index) && isVideoComplete(index) && (
-                          <div className="flex items-center gap-1 text-yellow-600 text-xs">
-                            <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full"></div>
-                            <span>{t('complete')}</span>
-                          </div>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-500 truncate">{video.url}</p>
-                    </div>
-                    <Video className="w-5 h-5 text-gray-400" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <KannadaKeyboard lang={lang} />
     </div>
-    <KannadaKeyboard lang={lang} />
-  </div>
-);
+  );
 }
