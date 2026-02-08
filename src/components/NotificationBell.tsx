@@ -57,7 +57,7 @@ export default function NotificationBell({ userId }: Props) {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-72 sm:w-80 bg-white border rounded-lg shadow-xl z-50 animate-in fade-in zoom-in duration-200 origin-top-right">
+        <div className="fixed inset-x-4 top-16 mt-2 z-50 bg-white border rounded-lg shadow-xl sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80 animate-in fade-in zoom-in duration-200 origin-top-right">
           <div className="flex items-center justify-between p-2 border-b">
             <span className="text-sm font-medium">Notifications</span>
             <Button variant="ghost" size="sm" onClick={markAllRead} className="h-7 px-2 text-xs">
