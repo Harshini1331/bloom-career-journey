@@ -129,7 +129,7 @@ export function getDisplaySummary(summary: AssessmentSummary): SummaryQuestions 
 
 // Check if student can edit the summary
 export function canStudentEdit(summary: AssessmentSummary): boolean {
-  return summary.approval_status === 'approved';
+  return summary.approval_status === 'revision_requested' || summary.approval_status === 'rejected';
 }
 
 // Check if teacher can approve the summary

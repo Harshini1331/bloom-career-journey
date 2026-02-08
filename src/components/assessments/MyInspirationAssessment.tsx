@@ -127,7 +127,7 @@ export default function MyInspirationAssessment() {
           setQuestionCount((list as any[]).length);
 
           // Initialize responses dynamically based on question count
-          const videoCount = inspirationVideos.length || 4; // Default to 4 if not loaded yet
+          const videoCount = inspirationVideos.length || 3; // Default to 3 if not loaded yet
           const initialResponses: AssessmentResponse = {};
           for (let v = 1; v <= videoCount; v++) {
             const videoKey = `video${v}`;
@@ -293,26 +293,17 @@ export default function MyInspirationAssessment() {
           'ta': [
             { id: 1, title: "Tamil Video 1", url: "https://youtu.be/U7-HlfpvQIA?si=_gakjQozpgbZC2aQ", youtubeId: "U7-HlfpvQIA" },
             { id: 2, title: "Tamil Video 2", url: "https://www.youtube.com/watch?v=xqb1hfgfcl8", youtubeId: "xqb1hfgfcl8" },
-            { id: 3, title: "Tamil Video 3", url: "https://youtu.be/G87ylRECJzY?si=HyhMM4-ggplVLO2i", youtubeId: "G87ylRECJzY" },
-            { id: 4, title: "Tamil Video 4", url: "https://youtu.be/X9wViEY5tPQ?si=qDOuMSUatButKwZk", youtubeId: "X9wViEY5tPQ" },
-            { id: 5, title: "Tamil Video 5", url: "https://youtu.be/3jQaBseeraY?si=n-s9lwqlpYfmS7t7", youtubeId: "3jQaBseeraY" },
-            { id: 6, title: "Tamil Video 6", url: "https://youtu.be/GPeeZ6viNgY?si=sg4hFF33p3cF4X25", youtubeId: "GPeeZ6viNgY" }
+            { id: 3, title: "Tamil Video 3", url: "https://youtu.be/G87ylRECJzY?si=HyhMM4-ggplVLO2i", youtubeId: "G87ylRECJzY" }
           ],
           'kn': [
             { id: 1, title: "Kannada Video 1", url: "https://youtu.be/U7-HlfpvQIA?si=_gakjQozpgbZC2aQ", youtubeId: "U7-HlfpvQIA" },
             { id: 2, title: "Kannada Video 2", url: "https://www.youtube.com/watch?v=xqb1hfgfcl8", youtubeId: "xqb1hfgfcl8" },
-            { id: 3, title: "Kannada Video 3", url: "https://www.youtube.com/watch?v=z3PYJ9MfMH4", youtubeId: "z3PYJ9MfMH4" },
-            { id: 4, title: "Kannada Video 4", url: "https://youtu.be/X9wViEY5tPQ?si=qDOuMSUatButKwZk", youtubeId: "X9wViEY5tPQ" },
-            { id: 5, title: "Kannada Video 5", url: "https://youtu.be/qbP8uQBs0vY?si=3fi2qXLJ9X-cAsmJ", youtubeId: "qbP8uQBs0vY" },
-            { id: 6, title: "Kannada Video 6", url: "https://youtu.be/GPeeZ6viNgY?si=sg4hFF33p3cF4X25", youtubeId: "GPeeZ6viNgY" }
+            { id: 3, title: "Kannada Video 3", url: "https://www.youtube.com/watch?v=z3PYJ9MfMH4", youtubeId: "z3PYJ9MfMH4" }
           ],
           'en': [
             { id: 1, title: "English Video 1", url: "https://youtu.be/U7-HlfpvQIA?si=_gakjQozpgbZC2aQ", youtubeId: "U7-HlfpvQIA" },
             { id: 2, title: "English Video 2", url: "https://www.youtube.com/watch?v=xqb1hfgfcl8", youtubeId: "xqb1hfgfcl8" },
-            { id: 3, title: "English Video 3", url: "https://youtu.be/Tf5c0ZMg2q8?si=tbEbN8oBp5ecjK3P", youtubeId: "Tf5c0ZMg2q8" },
-            { id: 4, title: "English Video 4", url: "https://youtu.be/X9wViEY5tPQ?si=qDOuMSUatButKwZk", youtubeId: "X9wViEY5tPQ" },
-            { id: 5, title: "English Video 5", url: "https://youtu.be/PP-kmxMY1ts?si=AqtDd0e6RFLA99up", youtubeId: "PP-kmxMY1ts" },
-            { id: 6, title: "English Video 6", url: "https://youtu.be/GPeeZ6viNgY?si=sg4hFF33p3cF4X25", youtubeId: "GPeeZ6viNgY" }
+            { id: 3, title: "English Video 3", url: "https://youtu.be/G87ylRECJzY?si=HyhMM4-ggplVLO2i", youtubeId: "G87ylRECJzY" }
           ]
         };
 
@@ -567,7 +558,7 @@ export default function MyInspirationAssessment() {
           });
           // Build merged responses dynamically based on number of videos
           const mergedResponses: AssessmentResponse = {} as AssessmentResponse;
-          const videoCount = defaultVideos.length || 4;
+          const videoCount = defaultVideos.length || 3;
           for (let v = 1; v <= videoCount; v++) {
             const videoKey = `video${v}` as keyof AssessmentResponse;
             (mergedResponses as any)[videoKey] = mergeVideo((savedResponses as any)[videoKey] || {});
@@ -850,7 +841,7 @@ export default function MyInspirationAssessment() {
   };
 
   const getProgressPercentage = () => {
-    const videosCount = inspirationVideos.length || 4;
+    const videosCount = inspirationVideos.length || 3;
     const questionsPerVideo = questionCount || 0;
     const totalQuestions = videosCount * questionsPerVideo;
     if (totalQuestions === 0) return 0;
@@ -1018,7 +1009,7 @@ export default function MyInspirationAssessment() {
         question10: vr?.question10 ?? ''
       });
       // Ensure shape for all videos dynamically
-      const videoCount = inspirationVideos.length || 4;
+      const videoCount = inspirationVideos.length || 3;
       for (let v = 1; v <= videoCount; v++) {
         const vKey = `video${v}`;
         (existingResponses as any)[vKey] = ensureShape((existingResponses as any)[vKey] || {});
@@ -1123,7 +1114,7 @@ export default function MyInspirationAssessment() {
     }
 
     if (!canSubmit()) {
-      const requiredVideos = inspirationVideos.length || defaultVideos.length || 4;
+      const requiredVideos = inspirationVideos.length || defaultVideos.length || 3;
       toast({
         title: lang === 'kn' ? "ಇನ್ನೂ ಸಲ್ಲಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ" : "Cannot Submit Yet",
         description: lang === 'kn'
@@ -1639,6 +1630,7 @@ export default function MyInspirationAssessment() {
                             initialConfidence={audioResponsesMap[`${getCurrentVideoKey()}_${questionKey}`]?.confidence ?? null}
 
                             initialConfidence={audioResponsesMap[`${getCurrentVideoKey()}_${questionKey}`]?.confidence ?? null}
+                            disabled={readOnlyView || isCompleted}
                             onStreamTranscript={(text) => handleStreamTranscript(getCurrentVideoKey(), questionKey, text)}
                             compact={true}
                             contextPhrases={[

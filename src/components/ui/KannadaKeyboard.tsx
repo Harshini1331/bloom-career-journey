@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import type React from 'react';
 import { X, Keyboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -235,7 +236,7 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
                 persist: () => { },
                 timeStamp: Date.now(),
                 type: 'change',
-              } as React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>;
+              } as unknown as React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>;
 
               // Ensure target.value is correct
               Object.defineProperty(eventTarget, 'value', {
@@ -397,13 +398,26 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
   // Auto-register all inputs/textarea elements for keyboard support
   useEffect(() => {
     const registerInputs = () => {
-      const inputs = document.querySelectorAll(
-        'textarea[lang="kn"], input[lang="kn"], [lang="kn"] textarea, [lang="kn"] input,' +
-        'textarea[lang="ta"], input[lang="ta"], [lang="ta"] textarea, [lang="ta"] input'
-      );
-      inputs.forEach((input) => {
-        if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
-          // Find the onChange handler from React
+      // Query all potential inputs
+      const allInputs = document.querySelectorAll('textarea, input');
+
+      allInputs.forEach((input) => {
+        if (!(input instanceof HTMLInputElement) && !(input instanceof HTMLTextAreaElement)) return;
+
+        // Check if this input should have the custom keyboard
+        const hasLangKn = input.getAttribute('lang') === 'kn' || input.closest('[lang="kn"]');
+        const hasLangTa = input.getAttribute('lang') === 'ta' || input.closest('[lang="ta"]');
+        const shouldHaveCustomKeyboard = hasLangKn || hasLangTa;
+
+        if (shouldHaveCustomKeyboard) {
+          // 1. Set inputMode to 'none' to prevent native keyboard on mobile
+          // only if not already set (to avoid fighting with other logic if any)
+          if (input.getAttribute('inputMode') !== 'none') {
+            input.setAttribute('inputMode', 'none');
+            input.setAttribute('data-custom-keyboard-active', 'true');
+          }
+
+          // 2. Find and register onChange handler
           const reactKeys = Object.keys(input).filter(key =>
             key.startsWith('__reactFiber') ||
             key.startsWith('__reactInternalInstance')
@@ -461,6 +475,12 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
               // Continue
             }
           }
+        } else {
+          // Cleanup if it was previously active but now isn't (e.g. lang change)
+          if (input.getAttribute('data-custom-keyboard-active') === 'true') {
+            input.removeAttribute('inputMode'); // Restore default
+            input.removeAttribute('data-custom-keyboard-active');
+          }
         }
       });
     };
@@ -468,7 +488,7 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
     // Register inputs initially and on DOM changes
     registerInputs();
     const observer = new MutationObserver(registerInputs);
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['lang'] });
 
     return () => observer.disconnect();
   }, []);
@@ -543,40 +563,31 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
   }, []);
 
   if (!isSupported) return null;
+  if (typeof document === 'undefined') return null;
 
-  if (!isOpen) {
-    const openLabel =
-      lang === 'ta'
-        ? 'விசைப்பலகை'
-        : 'ಕೀಬೋರ್ಡ್';
-    const aria =
-      lang === 'ta'
-        ? 'Show Tamil Keyboard'
-        : 'Show Kannada Keyboard';
+  const openLabel = lang === 'ta' ? 'விசைப்பலகை' : 'ಕೀಬೋರ್ಡ್';
+  const aria = lang === 'ta' ? 'Show Tamil Keyboard' : 'Show Kannada Keyboard';
 
-    return (
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onMouseDown={(e) => {
-          e.preventDefault(); // CRITICAL: Stop the focus from leaving the current input
-          setIsOpen(true);
-        }}
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-4 right-4 z-40 shadow-lg bg-blue-50 hover:bg-blue-100 border-blue-300 animate-in fade-in slide-in-from-bottom-2 duration-300"
-        aria-label={aria}
-      >
-        <Keyboard className="w-4 h-4 mr-2" />
-        {openLabel}
-      </Button>
-    );
-  }
-
-  return (
+  const content = !isOpen ? (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onMouseDown={(e) => {
+        e.preventDefault(); // CRITICAL: Stop the focus from leaving the current input
+        setIsOpen(true);
+      }}
+      onClick={() => setIsOpen(true)}
+      className="fixed bottom-4 right-4 z-[100] shadow-lg bg-blue-50 hover:bg-blue-100 border-blue-300 animate-in fade-in slide-in-from-bottom-2 duration-300"
+      aria-label={aria}
+    >
+      <Keyboard className="w-4 h-4 mr-2" />
+      {openLabel}
+    </Button>
+  ) : (
     <div
       ref={keyboardRef}
-      className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-300 shadow-2xl p-2 md:p-4"
+      className="fixed bottom-0 left-0 right-0 z-[100] bg-white border-t border-gray-300 shadow-2xl p-2 md:p-4"
       style={{ maxHeight: '40vh', overflowY: 'auto' }}
     >
       <div className="container mx-auto">
@@ -782,5 +793,7 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
       </div>
     </div>
   );
+
+  return createPortal(content, document.body);
 }
 

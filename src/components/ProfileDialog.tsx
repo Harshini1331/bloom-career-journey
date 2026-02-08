@@ -250,7 +250,7 @@ export default function ProfileDialog({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl" lang={lang} dir="auto">
+      <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto w-[95vw] md:w-full" lang={lang} dir="auto">
         <DialogHeader>
           <DialogTitle>{lang === 'kn' ? 'ನನ್ನ ಪ್ರೊಫೈಲ್' : lang === 'ta' ? 'என் விவரம்' : 'My Profile'}</DialogTitle>
           <DialogDescription>{lang === 'kn' ? 'ನಿಮ್ಮ ಪ್ರೊಫೈಲ್ ಮಾಹಿತಿಯನ್ನು ನವೀಕರಿಸಿ' : lang === 'ta' ? 'உங்கள் விவரத்தை மாற்றவும்' : 'Update your profile information'}</DialogDescription>
