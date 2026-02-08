@@ -61,21 +61,18 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
   const isSupported = isKannada || isTamil;
   const layout = isKannada ? KANNADA_LAYOUT : TAMIL_LAYOUT;
 
-  const insertChar = (char: string) => {
-    console.log('🔹 Keyboard: insertChar called with:', char);
-
+  // Shared helper to find the target input element
+  const findTargetInput = (): HTMLInputElement | HTMLTextAreaElement | null => {
     let element = targetElement;
 
     // Method 1: Use explicitly provided element
     if (!element && targetInputId) {
       element = document.getElementById(targetInputId) as HTMLInputElement | HTMLTextAreaElement | null;
-      console.log('🔍 Keyboard: Tried targetInputId:', targetInputId, 'Found:', !!element);
     }
 
     // Method 2: Use stored last focused element
     if (!element) {
       element = lastFocusedElementRef.current;
-      console.log('🔍 Keyboard: Using last focused element:', !!element);
     }
 
     // Method 3: Find currently focused input/textarea
@@ -84,60 +81,38 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
       if (focused && (focused.tagName === 'TEXTAREA' || focused.tagName === 'INPUT')) {
         element = focused as HTMLInputElement | HTMLTextAreaElement;
         lastFocusedElementRef.current = element;
-        console.log('🔍 Keyboard: Found active element:', element.tagName, element.id || element.className);
       }
     }
 
     // Method 4: Search for the most recently focused input/textarea in the document
-    // This is a fallback when focus is lost
     if (!element) {
-      // Find all textarea/input elements with lang="kn"/"ta" or inside [lang="kn"/"ta"]
-      // Using descendant selector to find inputs anywhere inside lang containers
       const allInputs = document.querySelectorAll(
         'textarea[lang="kn"], input[lang="kn"], [lang="kn"] textarea, [lang="kn"] input,' +
         'textarea[lang="ta"], input[lang="ta"], [lang="ta"] textarea, [lang="ta"] input,' +
         'textarea:not([readonly]), input:not([readonly])'
       );
-      console.log('🔍 Keyboard: Searching DOM for inputs, found:', allInputs.length);
 
       if (allInputs.length > 0) {
-        // Try to find one that's visible and not disabled
         for (let i = 0; i < allInputs.length; i++) {
           const input = allInputs[i] as HTMLInputElement | HTMLTextAreaElement;
           if (input.offsetParent !== null && !input.disabled && !input.readOnly) {
             element = input;
             lastFocusedElementRef.current = element;
-            console.log('✅ Keyboard: Found input via DOM search:', element.tagName, element.id || element.className);
             break;
           }
         }
-
-        // If still not found, use the first one
         if (!element && allInputs.length > 0) {
           element = allInputs[0] as HTMLInputElement | HTMLTextAreaElement;
           lastFocusedElementRef.current = element;
-          console.log('✅ Keyboard: Using first found input:', element.tagName);
         }
       }
     }
+    return element || null;
+  };
 
-    if (!element) {
-      console.warn('⚠️ Keyboard: No input element found');
-      console.warn('⚠️ Keyboard: activeElement:', document.activeElement?.tagName);
-      console.warn('⚠️ Keyboard: lastFocusedElement:', lastFocusedElementRef.current?.tagName);
-      return;
-    }
-
-    console.log('✅ Keyboard: Found element:', element.tagName, element.id || element.className);
-
-    const start = element.selectionStart || 0;
-    const end = element.selectionEnd || 0;
-    const currentValue = element.value || '';
-    const newValue = currentValue.slice(0, start) + char + currentValue.slice(end);
-
-    console.log('📝 Keyboard: Current value:', currentValue, 'New value:', newValue, 'Selection:', start, '-', end);
-
-    // Step 1: Set value using native setter (bypasses React's controlled check)
+  // Shared helper to update input value and trigger events
+  const triggerInputUpdate = (element: HTMLInputElement | HTMLTextAreaElement, newValue: string, char: string | null) => {
+    // Step 1: Set value using native setter
     const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
       Object.getPrototypeOf(element),
       'value'
@@ -145,14 +120,11 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
 
     if (nativeInputValueSetter) {
       nativeInputValueSetter.call(element, newValue);
-      console.log('✅ Keyboard: Set value via native setter');
     } else {
       (element as any).value = newValue;
-      console.log('✅ Keyboard: Set value directly');
     }
 
-    // Step 2: Create proper input event that React will catch
-    // React uses event delegation and listens for 'input' events
+    // Step 2: Create input event
     let inputEvent: InputEvent;
     try {
       inputEvent = new InputEvent('input', {
@@ -160,46 +132,34 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
         cancelable: true,
         composed: true,
         data: char,
+        inputType: char === null ? 'deleteContentBackward' : 'insertText'
       } as any);
-      console.log('✅ Keyboard: Created InputEvent');
     } catch (e) {
-      // Fallback for browsers that don't support InputEvent constructor
       inputEvent = document.createEvent('InputEvent') as InputEvent;
       inputEvent.initEvent('input', true, true);
-      console.log('✅ Keyboard: Created InputEvent via initEvent');
     }
 
-    // Step 3: Try multiple methods to trigger React's onChange
-
-    // Method A: Find React Fiber node and call onChange directly
+    // Step 3: Trigger React's onChange
     let handlerFound = false;
     try {
-      // React 18 uses __reactFiber$<random> or __reactInternalInstance$<random>
+      // Find React Fiber node
       const allKeys = Object.keys(element);
       const reactKeys = allKeys.filter(key =>
         key.startsWith('__reactFiber') ||
         key.startsWith('__reactInternalInstance') ||
-        key.startsWith('__reactContainereNode') ||
-        key.includes('reactFiber') ||
-        key.includes('reactInternal')
+        key.includes('reactFiber')
       );
-
-      console.log('🔍 Keyboard: Found React keys:', reactKeys.length, reactKeys.slice(0, 3));
 
       for (const reactKey of reactKeys) {
         try {
           const fiberNode = (element as any)[reactKey];
           if (!fiberNode) continue;
 
-          console.log('🔍 Keyboard: Traversing Fiber tree for key:', reactKey);
-
-          // Walk up the fiber tree to find onChange
           let currentFiber = fiberNode;
           let depth = 0;
           const maxDepth = 20;
 
           while (currentFiber && depth < maxDepth) {
-            // Check multiple prop locations
             const fiberProps =
               currentFiber.memoizedProps ||
               currentFiber.pendingProps ||
@@ -207,9 +167,6 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
               currentFiber.memoizedState?.memoizedProps;
 
             if (fiberProps && fiberProps.onChange) {
-              console.log('🎯 Keyboard: Found onChange at depth', depth, 'in', reactKey);
-
-              // Create proper React ChangeEvent
               const eventTarget = {
                 value: newValue,
                 tagName: element.tagName,
@@ -217,8 +174,6 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
                 name: element.name,
                 id: element.id,
               };
-
-              // Ensure target has all properties React might access
               Object.setPrototypeOf(eventTarget, element);
 
               const syntheticEvent = {
@@ -236,9 +191,9 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
                 persist: () => { },
                 timeStamp: Date.now(),
                 type: 'change',
-              } as unknown as React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>;
+              };
 
-              // Ensure target.value is correct
+              // Ensure target.value is correct for the event
               Object.defineProperty(eventTarget, 'value', {
                 value: newValue,
                 writable: true,
@@ -246,96 +201,65 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
                 configurable: true,
               });
 
-              try {
-                console.log('🚀 Keyboard: Calling onChange handler');
-                fiberProps.onChange(syntheticEvent as unknown as React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>);
-                console.log('✅ Keyboard: onChange called successfully');
-                handlerFound = true;
-                break;
-              } catch (e) {
-                console.error('❌ Keyboard: Error calling onChange:', e);
-              }
+              fiberProps.onChange(syntheticEvent);
+              handlerFound = true;
+              break;
             }
-
-            // Move up the fiber tree
-            currentFiber = currentFiber.return || currentFiber._debugOwner || currentFiber.return?.return;
+            currentFiber = currentFiber.return || currentFiber._debugOwner;
             depth++;
           }
-
           if (handlerFound) break;
-        } catch (e) {
-          console.warn('⚠️ Keyboard: Error accessing Fiber:', e);
-        }
+        } catch (e) { }
       }
-    } catch (e) {
-      console.warn('⚠️ Keyboard: Error in Fiber traversal:', e);
-    }
+    } catch (e) { }
 
-    // Method B: Try registered handler
+    // Fallback: Registered handler
     if (!handlerFound) {
       try {
         updateInputFromKeyboard(element, newValue);
-        console.log('✅ Keyboard: Used registered handler');
         handlerFound = true;
-      } catch (e) {
-        console.warn('⚠️ Keyboard: Registered handler not found');
-      }
+      } catch (e) { }
     }
 
-    // Method C: Dispatch native events (React should catch via event delegation)
+    // Fallback: Native events
     if (!handlerFound) {
-      console.log('📡 Keyboard: Dispatching native events');
-
-      // Dispatch input event
-      const inputDispatched = element.dispatchEvent(inputEvent);
-      console.log('📡 Keyboard: InputEvent dispatched:', inputDispatched);
-
-      // Also dispatch change event
-      const changeEvent = new Event('change', {
-        bubbles: true,
-        cancelable: true
-      });
-      const changeDispatched = element.dispatchEvent(changeEvent);
-      console.log('📡 Keyboard: ChangeEvent dispatched:', changeDispatched);
-
-      // Dispatch on document level (where React listens)
+      element.dispatchEvent(inputEvent);
+      element.dispatchEvent(new Event('change', { bubbles: true }));
       if (document.activeElement === element) {
         document.dispatchEvent(inputEvent);
-        console.log('📡 Keyboard: Dispatched to document level');
       }
     }
+  };
 
-    // Step 4: Update cursor position
+
+  const insertChar = (char: string) => {
+    const element = findTargetInput();
+    if (!element) {
+      console.warn('⚠️ Keyboard: No input element found');
+      return;
+    }
+
+    const start = element.selectionStart || 0;
+    const end = element.selectionEnd || 0;
+    const currentValue = element.value || '';
+    const newValue = currentValue.slice(0, start) + char + currentValue.slice(end);
+
+    triggerInputUpdate(element, newValue, char);
+
+    // Update cursor position
     const newPos = start + char.length;
     requestAnimationFrame(() => {
       try {
         element.setSelectionRange(newPos, newPos);
         element.focus();
-        console.log('✅ Keyboard: Cursor updated to position', newPos);
-      } catch (e) {
-        console.warn('⚠️ Keyboard: Error updating cursor:', e);
-      }
+      } catch (e) { }
     });
 
-    // Callback if provided
     if (onInput) onInput(char);
-
-    console.log('🏁 Keyboard: insertChar complete. Handler found:', handlerFound);
   };
 
   const handleBackspace = () => {
-    let element = targetElement;
-    if (!element && targetInputId) {
-      element = document.getElementById(targetInputId) as HTMLInputElement | HTMLTextAreaElement | null;
-    }
-
-    if (!element) {
-      const focused = document.activeElement;
-      if (focused && (focused.tagName === 'TEXTAREA' || focused.tagName === 'INPUT')) {
-        element = focused as HTMLInputElement | HTMLTextAreaElement;
-      }
-    }
-
+    const element = findTargetInput();
     if (element) {
       const start = element.selectionStart || 0;
       const end = element.selectionEnd || 0;
@@ -344,30 +268,24 @@ export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 
       let newPos = start;
 
       if (start === end && start > 0) {
+        // Delete previous character
+        // Check for surrogate pairs to delete properly? For now simple slice.
         newValue = value.slice(0, start - 1) + value.slice(start);
         newPos = start - 1;
       } else if (start !== end) {
+        // Delete selection
         newValue = value.slice(0, start) + value.slice(end);
         newPos = start;
       }
 
-      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-        window.HTMLInputElement?.prototype || window.HTMLTextAreaElement?.prototype,
-        'value'
-      )?.set;
-      if (nativeInputValueSetter) {
-        nativeInputValueSetter.call(element, newValue);
-      }
+      triggerInputUpdate(element, newValue, null);
 
-      const inputEvent = new Event('input', { bubbles: true });
-      element.dispatchEvent(inputEvent);
-      const changeEvent = new Event('change', { bubbles: true });
-      element.dispatchEvent(changeEvent);
-
-      setTimeout(() => {
-        element?.setSelectionRange(newPos, newPos);
-        element?.focus();
-      }, 0);
+      requestAnimationFrame(() => {
+        try {
+          element.setSelectionRange(newPos, newPos);
+          element.focus();
+        } catch (e) { }
+      });
     }
   };
 
