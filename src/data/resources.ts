@@ -23,7 +23,7 @@ export const COURSE_GUIDANCE_CHART: ResourceLink[] = [
 
 // Career Details Document (comprehensive occupation information)
 export const CAREER_DETAILS: ResourceLink[] = [
-  { id: 'cd-main', label: 'Career Details Document', fileId: '1e18wNcv160nOO6hTpNfnb07D2ZxGwcCR' },
+  { id: 'cd-main', label: 'Career Details Document', externalUrl: '/JDs_Final_PDF.pdf' },
 ];
 
 

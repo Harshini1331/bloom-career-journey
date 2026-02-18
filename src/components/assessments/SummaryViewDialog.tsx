@@ -67,6 +67,39 @@ export default function SummaryViewDialog({
     question3: ''
   });
 
+  const [dreamHeadings, setDreamHeadings] = useState({
+    dream: lang === 'kn' ? 'ಕನಸು' : lang === 'ta' ? 'கனவு' : 'Dream',
+    quality: lang === 'kn'
+      ? 'ಕನಸನ್ನು ಸಾಧಿಸಲು\nಸಹಾಯ ಮಾಡುವ ಗುಣ,\nಮೌಲ್ಯ, ಶಕ್ತಿ'
+      : lang === 'ta'
+        ? 'இந்த கனவை அடைய\nஉதவும் குணம்,\nமதிப்பு, பலம்'
+        : 'Which quality,\nvalue, strength will\nhelp you achieve\nyou dream',
+    prevent: lang === 'kn'
+      ? 'ಕನಸು ವಿಫಲವಾಗದಂತೆ\nಮಾಡಲು ನೀನು ಏನು\nಮಾಡಬೇಕು'
+      : lang === 'ta'
+        ? 'கனவு தோல்வி\nஆகாமல் இருக்க\nநீ என்ன செய்ய வேண்டும்'
+        : 'What you will have\nto do to ensure that\nthe dream doesn’t\nfail',
+    study: lang === 'kn'
+      ? 'ಈ ಕನಸನ್ನು ಸಾಧಿಸಲು\n10ನೇ ನಂತರ ಏನು\nಅಧ್ಯಯನ ಮಾಡಬೇಕು\n(ಬೇಕಿದ್ದರೆ)'
+      : lang === 'ta'
+        ? 'இந்த கனவை அடைய\n10ம் பிறகு என்ன\nபடிக்க வேண்டும்\n(தேவையெனில்)'
+        : 'What should you\nstudy after 10th\nto achieve this dream\n(if applicable)'
+  });
+
+  // Effect to update dreamHeadings from fetched titles (questionTitles is populated from content_translations)
+  useEffect(() => {
+    if (assessmentType === 'dreams' && questionTitles) {
+      setDreamHeadings(prev => {
+        const next = { ...prev };
+        if (questionTitles['col_dream']) next.dream = questionTitles['col_dream'];
+        if (questionTitles['col_quality']) next.quality = questionTitles['col_quality'];
+        if (questionTitles['col_prevent']) next.prevent = questionTitles['col_prevent'];
+        if (questionTitles['col_study']) next.study = questionTitles['col_study'];
+        return next;
+      });
+    }
+  }, [questionTitles, assessmentType]);
+
   const parseAboutMeSummary = (content: string) => {
     return content
       .split(/\r?\n/)
@@ -366,38 +399,7 @@ export default function SummaryViewDialog({
   const canEdit = canStudentEdit(summary);
   const isStudentEdited = summary.summary_type === 'student_edited';
 
-  const [dreamHeadings, setDreamHeadings] = useState({
-    dream: lang === 'kn' ? 'ಕನಸು' : lang === 'ta' ? 'கனவு' : 'Dream',
-    quality: lang === 'kn'
-      ? 'ಕನಸನ್ನು ಸಾಧಿಸಲು\nಸಹಾಯ ಮಾಡುವ ಗುಣ,\nಮೌಲ್ಯ, ಶಕ್ತಿ'
-      : lang === 'ta'
-        ? 'இந்த கனவை அடைய\nஉதவும் குணம்,\nமதிப்பு, பலம்'
-        : 'Which quality,\nvalue, strength will\nhelp you achieve\nyou dream',
-    prevent: lang === 'kn'
-      ? 'ಕನಸು ವಿಫಲವಾಗದಂತೆ\nಮಾಡಲು ನೀನು ಏನು\nಮಾಡಬೇಕು'
-      : lang === 'ta'
-        ? 'கனவு தோல்வி\nஆகாமல் இருக்க\nநீ என்ன செய்ய வேண்டும்'
-        : 'What you will have\nto do to ensure that\nthe dream doesn’t\nfail',
-    study: lang === 'kn'
-      ? 'ಈ ಕನಸನ್ನು ಸಾಧಿಸಲು\n10ನೇ ನಂತರ ಏನು\nಅಧ್ಯಯನ ಮಾಡಬೇಕು\n(ಬೇಕಿದ್ದರೆ)'
-      : lang === 'ta'
-        ? 'இந்த கனவை அடைய\n10ம் பிறகு என்ன\nபடிக்க வேண்டும்\n(தேவையெனில்)'
-        : 'What should you\nstudy after 10th\nto achieve this dream\n(if applicable)'
-  });
 
-  // Effect to update dreamHeadings from fetched titles (questionTitles is populated from content_translations)
-  useEffect(() => {
-    if (assessmentType === 'dreams' && questionTitles) {
-      setDreamHeadings(prev => {
-        const next = { ...prev };
-        if (questionTitles['col_dream']) next.dream = questionTitles['col_dream'];
-        if (questionTitles['col_quality']) next.quality = questionTitles['col_quality'];
-        if (questionTitles['col_prevent']) next.prevent = questionTitles['col_prevent'];
-        if (questionTitles['col_study']) next.study = questionTitles['col_study'];
-        return next;
-      });
-    }
-  }, [questionTitles, assessmentType]);
 
   const dreamColumnHeadings = dreamHeadings;
 

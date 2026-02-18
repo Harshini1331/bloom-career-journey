@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Bell, Check, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,21 @@ export default function NotificationBell({ userId }: Props) {
   const [count, setCount] = useState(0);
   const [items, setItems] = useState<AppNotification[]>([]);
   const navigate = useNavigate();
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Close notifications when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const refresh = async () => {
     const [c, list] = await Promise.all([
@@ -41,11 +56,14 @@ export default function NotificationBell({ userId }: Props) {
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <button
         type="button"
         className="relative p-2 rounded hover:bg-gray-100"
-        onClick={() => { setOpen(!open); if (!open) refresh(); }}
+        onClick={() => {
+          setOpen(!open);
+          if (!open) refresh();
+        }}
         aria-label="Notifications"
       >
         <Bell className="w-5 h-5 text-gray-700" />
@@ -57,26 +75,49 @@ export default function NotificationBell({ userId }: Props) {
       </button>
 
       {open && (
-        <div className="fixed inset-x-4 top-16 mt-2 z-50 bg-white border rounded-lg shadow-xl sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80 animate-in fade-in zoom-in duration-200 origin-top-right">
-          <div className="flex items-center justify-between p-2 border-b">
-            <span className="text-sm font-medium">Notifications</span>
-            <Button variant="ghost" size="sm" onClick={markAllRead} className="h-7 px-2 text-xs">
+        <div className="absolute right-0 top-full mt-2 w-80 z-50 bg-white border rounded-lg shadow-xl animate-in fade-in zoom-in duration-200 origin-top-right">
+          <div className="flex items-center justify-between p-3 border-b bg-gray-50/50 rounded-t-lg">
+            <span className="text-sm font-semibold text-gray-900">Notifications</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={markAllRead}
+              className="h-6 px-2 text-xs hover:bg-blue-50 hover:text-blue-600 transition-colors"
+            >
               <Check className="w-3 h-3 mr-1" /> Mark all read
             </Button>
           </div>
-          <div className="max-h-80 overflow-y-auto">
-            {items.length === 0 && (
-              <div className="p-4 text-sm text-gray-500">No notifications</div>
+          <div className="max-h-[80vh] overflow-y-auto">
+            {items.length === 0 ? (
+              <div className="p-8 text-center text-gray-500">
+                <Bell className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                <p className="text-sm">No new notifications</p>
+              </div>
+            ) : (
+              items.map(n => (
+                <button
+                  key={n.id}
+                  className={`w-full text-left p-3 border-b last:border-0 hover:bg-gray-50 transition-colors ${!n.read_at ? 'bg-blue-50/30' : ''}`}
+                  onClick={() => onClickItem(n)}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`mt-1 h-2 w-2 rounded-full flex-shrink-0 ${!n.read_at ? 'bg-blue-600' : 'bg-transparent'}`} />
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className={`text-sm ${!n.read_at ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'}`}>
+                          {n.title}
+                        </span>
+                        {n.link && <ExternalLink className="w-3 h-3 text-gray-400" />}
+                      </div>
+                      <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed">{n.message}</p>
+                      <p className="text-[10px] text-gray-400">
+                        {n.created_at ? new Date(n.created_at).toLocaleDateString() : 'Just now'}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              ))
             )}
-            {items.map(n => (
-              <button key={n.id} className={`w-full text-left p-3 border-b hover:bg-gray-50 ${!n.read_at ? 'bg-blue-50/40' : ''}`} onClick={() => onClickItem(n)}>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-800">{n.title}</span>
-                  {!n.read_at && <Badge variant="secondary" className="text-[10px]">new</Badge>}
-                </div>
-                <div className="text-xs text-gray-600 mt-1">{n.message}</div>
-              </button>
-            ))}
           </div>
         </div>
       )}

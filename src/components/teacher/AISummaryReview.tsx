@@ -262,6 +262,17 @@ export default function AISummaryReview({ selectedStudentId }: AISummaryReviewPr
         .eq('id', studentId)
         .maybeSingle();
 
+      console.log('🔍 Debug student fetch:', { studentId, studentData });
+
+      if (!studentData?.user_id) {
+        console.error('❌ Student user_id missing for:', studentId, studentData);
+        toast({
+          title: 'Student Data Warning',
+          description: 'Could not find user ID for this student. Summary generation may fail.',
+          variant: 'destructive'
+        });
+      }
+
       // Combine data
       const enrichedSummaries = (summariesData || [])
         .map((summary: any) => {
@@ -344,7 +355,14 @@ export default function AISummaryReview({ selectedStudentId }: AISummaryReviewPr
     try {
       for (const assessment of assessmentsWithoutSummaries) {
         try {
-          console.log(`🤖 Generating summary for ${assessment.student_name}...`);
+          // Validate student_user_id before attempting generation
+          if (!assessment.student_user_id) {
+            console.error(`❌ Missing student_user_id for ${assessment.student_name}. Skipping.`);
+            failCount++;
+            continue;
+          }
+
+          console.log(`🤖 Generating summary for ${assessment.student_name} (${assessment.assessment_type})...`);
 
           // Determine which summary generator to use based on assessment type
           let summaryResult;

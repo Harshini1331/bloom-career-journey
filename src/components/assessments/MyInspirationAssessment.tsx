@@ -991,8 +991,7 @@ export default function MyInspirationAssessment() {
       return;
     }
 
-    const video = videoProgress.find(v => v.videoId === videoIndex + 1);
-    if (!video || !video.isComplete) {
+    if (!isVideoComplete(videoIndex)) {
       toast({
         title: lang === 'kn' ? "ಇನ್ನೂ ಉಳಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ" : lang === 'ta' ? 'இப்போ சேமிக்க முடியாது' : "Cannot Save Yet",
         description:
@@ -1077,12 +1076,12 @@ export default function MyInspirationAssessment() {
       for (let v = 1; v <= videoCount; v++) {
         const vKey = `video${v}` as keyof AssessmentResponse;
         (updatedResponses as any)[vKey] = (videoKey === vKey)
-          ? (video.responses as any)
+          ? responses[videoKey]
           : (existingResponses as any)[vKey];
       }
 
       console.log('Saving video progress for video', videoIndex + 1);
-      console.log('Video responses to save:', video.responses);
+      console.log('Video responses to save:', responses[videoKey]);
       console.log('Updated responses to save:', updatedResponses);
 
       // First try to update existing record
@@ -1132,7 +1131,7 @@ export default function MyInspirationAssessment() {
         v.videoId === videoIndex + 1
           ? {
             ...v,
-            responses: video.responses,
+            responses: responses[videoKey],
             savedAt: new Date().toISOString()
           }
           : v
@@ -1754,7 +1753,7 @@ export default function MyInspirationAssessment() {
             <Button
               variant="outline"
               onClick={() => saveVideoProgress(currentVideoIndex)}
-              disabled={!isVideoComplete(currentVideoIndex) || saving || isVideoSaved(currentVideoIndex) || readOnlyView}
+              disabled={!isVideoComplete(currentVideoIndex) || saving || readOnlyView}
               className="border-green-200 text-green-700 hover:bg-green-50"
             >
               {saving ? (

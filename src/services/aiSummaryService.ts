@@ -63,10 +63,10 @@ class AISummaryService {
 
   constructor() {
     this.apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    // Use Gemini 2.0 Flash (confirmed available in your API key metrics)
-    this.endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
-    // Fallback to experimental model if needed
-    this.fallbackEndpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-exp-1206:generateContent';
+    // Use Gemini 2.0 Flash (Confirmed available via list_models.py)
+    this.endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+    // Fallback to Flash-Lite if needed
+    this.fallbackEndpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent';
   }
 
   /*
@@ -467,11 +467,11 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
       }
 
       // Validate structure - support 2, 3, 4, and 6 question formats
-      if (parsed.question1 && parsed.question2) {
+      if (parsed.question1 && (parsed.question2 || parsed.summary)) {
         return {
           question1: parsed.question1,
-          question2: parsed.question2,
-          question3: parsed.question3 || '', // Optional third question
+          question2: parsed.question2 || parsed.summary || '',
+          question3: parsed.question3 || parsed.action_plan || '', // Optional third question
           question4: parsed.question4 || '', // Optional fourth question (Dreams)
           question5: parsed.question5 || '', // Optional fifth question (School Learning)
 
