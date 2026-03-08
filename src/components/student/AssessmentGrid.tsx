@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Sparkles, Clock } from 'lucide-react';
 import type { StudentLang } from './studentStrings';
 
 interface AssessmentStatus {
@@ -12,6 +13,8 @@ interface AssessmentStatus {
     descriptionColor: string;
 }
 
+export type SummaryState = 'approved' | 'pending' | 'none';
+
 export interface AssessmentCardData {
     key: string;
     number: number;
@@ -22,7 +25,8 @@ export interface AssessmentCardData {
     assessmentStatus: AssessmentStatus;
     isCompleted: boolean;
     isUnlocked: boolean;
-    hasProgress: boolean; // for inspiration only — shows in_progress badge
+    hasProgress: boolean;
+    summaryState: SummaryState;
 }
 
 interface AssessmentGridProps {
@@ -30,9 +34,10 @@ interface AssessmentGridProps {
     resolvedLang: StudentLang;
     t: (k: string) => string;
     onStartAssessment: (key: string) => void;
+    onViewSummary: (key: string) => void;
 }
 
-export default function AssessmentGrid({ cards, resolvedLang, t, onStartAssessment }: AssessmentGridProps) {
+export default function AssessmentGrid({ cards, resolvedLang, t, onStartAssessment, onViewSummary }: AssessmentGridProps) {
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             {cards.map((card) => {
@@ -71,6 +76,25 @@ export default function AssessmentGrid({ cards, resolvedLang, t, onStartAssessme
                             )}
                             {!card.isCompleted && card.key !== 'inspiration' && !card.isUnlocked && (
                                 <Badge variant="outline" className="mt-2">{t('locked')}</Badge>
+                            )}
+
+                            {card.isCompleted && (
+                                <div className="border-t border-gray-100 mt-3 pt-3">
+                                    {card.summaryState === 'approved' ? (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); onViewSummary(card.key); }}
+                                            className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 transition-colors"
+                                        >
+                                            <Sparkles className="h-3.5 w-3.5" />
+                                            {t('view_summary')}
+                                        </button>
+                                    ) : (
+                                        <span className="flex items-center justify-center gap-1.5 text-xs text-gray-400">
+                                            <Clock className="h-3 w-3" />
+                                            {t('summary_pending_short')}
+                                        </span>
+                                    )}
+                                </div>
                             )}
                         </CardContent>
                     </Card>

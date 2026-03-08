@@ -37,6 +37,7 @@ const strings: Record<StudentLang, Record<string, string>> = {
         assessment_career_guidance: 'Exploring Career Guidance Tools',
         view_summary: 'View Summary',
         summary_pending: 'Summary Pending Review',
+        summary_pending_short: 'Summary Pending...',
     },
     kn: {
         brand: 'CareerCompass',
@@ -74,6 +75,7 @@ const strings: Record<StudentLang, Record<string, string>> = {
         assessment_career_guidance: 'ವೃತ್ತಿ ಮಾರ್ಗದರ್ಶನ ಸಾಧನಗಳನ್ನು ಅನ್ವೇಷಿಸಿ',
         view_summary: 'ಸಾರಾಂಶ ವೀಕ್ಷಿಸಿ',
         summary_pending: 'ಸಾರಾಂಶ ವಿಮರ್ಶೆ ಬಾಕಿ',
+        summary_pending_short: 'ಸಾರಾಂಶ ಬಾಕಿ...',
         menu_messages: 'ಸಂದೇಶಗಳು',
     },
     ta: {
@@ -111,8 +113,9 @@ const strings: Record<StudentLang, Record<string, string>> = {
         assessment_role_models: 'என் முன்மாதிரி நபர்',
         assessment_holland_code: 'ஹாலண்ட் குறியீடு (RIASEC) தேர்வு',
         assessment_career_guidance: 'தொழில் வழிகாட்டல் கருவிகளை அறிதல்',
-        view_summary: 'சுருக்கத்தை பார்',
+        view_summary: 'சுருக்கம் பார்க்கவும்',
         summary_pending: 'சுருக்கம் ஆசிரியர் பார்வைக்கு உள்ளது',
+        summary_pending_short: 'சுருக்கம் நிலுவையில்...',
     },
 };
 

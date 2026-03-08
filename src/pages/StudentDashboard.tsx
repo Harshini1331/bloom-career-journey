@@ -1,4 +1,4 @@
-﻿import { logger } from '@/lib/logger';
+import { logger } from '@/lib/logger';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,7 +24,7 @@ import LanguageSelectionDialog from '@/components/LanguageSelectionDialog';
 // Sub-components
 import { useStudentStrings, StudentLang } from '@/components/student/studentStrings';
 import StudentDashboardHeader from '@/components/student/StudentDashboardHeader';
-import AssessmentGrid, { AssessmentCardData } from '@/components/student/AssessmentGrid';
+import AssessmentGrid, { AssessmentCardData, SummaryState } from '@/components/student/AssessmentGrid';
 import ProgressSection, { ProgressRowData } from '@/components/student/ProgressSection';
 import CareerChatSection from '@/components/student/CareerChatSection';
 
@@ -464,24 +464,29 @@ export default function StudentDashboard() {
   //  BUILD SUB-COMPONENT DATA
   // ═══════════════════════════════════════════════════════════════════
 
+  const getSummaryState = (summary: AssessmentSummary | null): SummaryState => {
+    if (!summary) return 'none';
+    return summary.approval_status === 'approved' ? 'approved' : 'pending';
+  };
+
   const assessmentCards: AssessmentCardData[] = [
-    { key: 'inspiration', number: 1, titleKey: 'assessment_inspiration', descriptionEn: 'Discover what inspires you', descriptionKn: 'ನಿಮ್ಮನ್ನು ಪ್ರೇರೇಪಿಸುವುವುದನ್ನು ಹುಡುಕಿ', descriptionTa: 'உங்களை ஊக்கப்படுத்தும் விஷயங்களை கண்டறியுங்கள்', assessmentStatus: getAssessmentStatus('inspiration'), isCompleted: getCompletionStatus('inspiration'), isUnlocked: isAssessmentUnlocked('inspiration'), hasProgress: !!assessmentProgress },
-    { key: 'about_me', number: 2, titleKey: 'assessment_about_me', descriptionEn: 'Reflect about yourself and your strengths', descriptionKn: 'ನಿಮ್ಮ ಬಗ್ಗೆ ಮತ್ತು ನಿಮ್ಮ ಬಲಗಳನ್ನು ಆಲೋಚಿಸಿ', descriptionTa: 'உங்களைப் பற்றியும் உங்கள் பலங்களைப் பற்றியும் சிந்தியுங்கள்', assessmentStatus: getAssessmentStatus('about_me'), isCompleted: getCompletionStatus('about_me'), isUnlocked: isAssessmentUnlocked('about_me'), hasProgress: false },
-    { key: 'dreams', number: 3, titleKey: 'assessment_dreams', descriptionEn: 'Explore your future aspirations', descriptionKn: 'ನಿಮ್ಮ ಭವಿಷ್ಯದ ಆಸೆಗಳನ್ನು ಅನ್ವೇಷಿಸಿ', descriptionTa: 'உங்கள் எதிர்கால கனவுகள் மற்றும் இலக்குகளை ஆராயுங்கள்', assessmentStatus: getAssessmentStatus('dreams'), isCompleted: getCompletionStatus('dreams'), isUnlocked: isAssessmentUnlocked('dreams'), hasProgress: false },
-    { key: 'school_learning', number: 4, titleKey: 'assessment_school_learning', descriptionEn: 'Reflect on your learning journey', descriptionKn: 'ನಿಮ್ಮ ಕಲಿಕೆಯ ಪ್ರಯಾಣದ ಬಗ್ಗೆ ಚಿಂತಿಸಿರಿ', descriptionTa: 'உங்கள் கற்றல் பயணத்தை பற்றிச் சிந்தியுங்கள்', assessmentStatus: getAssessmentStatus('school_learning'), isCompleted: getCompletionStatus('school_learning'), isUnlocked: isAssessmentUnlocked('school_learning'), hasProgress: false },
-    { key: 'hobbies', number: 5, titleKey: 'assessment_hobbies', descriptionEn: 'Discover career paths from your interests', descriptionKn: 'ನಿಮ್ಮ ಆಸಕ್ತಿಗಳಿಂದ ವೃತ್ತಿ ಮಾರ್ಗಗಳನ್ನು ಅನ್ವೇಷಿಸಿ', descriptionTa: 'உங்கள் ஆர்வங்களிலிருந்து தொழில் பாதைகளை அறியுங்கள்', assessmentStatus: getAssessmentStatus('hobbies'), isCompleted: getCompletionStatus('hobbies'), isUnlocked: isAssessmentUnlocked('hobbies'), hasProgress: false },
-    { key: 'role_models', number: 6, titleKey: 'assessment_role_models', descriptionEn: 'Identify your inspiring role models', descriptionKn: 'ನಿಮ್ಮನ್ನು ಪ್ರೇರೇಪಿಸುವ ಮಾದರಿಗಳನ್ನು ಗುರುತಿಸಿ', descriptionTa: 'உங்களை ஊக்கப்படுத்தும் முன்னுதாரணங்களை கண்டறியுங்கள்', assessmentStatus: getAssessmentStatus('role_models'), isCompleted: getCompletionStatus('role_models'), isUnlocked: isAssessmentUnlocked('role_models'), hasProgress: false },
-    { key: 'holland_code', number: 7, titleKey: 'assessment_holland_code', descriptionEn: 'Identify your personality type', descriptionKn: 'ನಿಮ್ಮ ವ್ಯಕ್ತಿತ್ವದ ಪ್ರಕಾರವನ್ನು ಗುರುತಿಸಿ', descriptionTa: 'உங்கள் நற்பண்பு வகையை அறியுங்கள்', assessmentStatus: getAssessmentStatus('holland_code'), isCompleted: getCompletionStatus('holland_code'), isUnlocked: isAssessmentUnlocked('holland_code'), hasProgress: false },
-    { key: 'career_guidance_tools', number: 8, titleKey: 'assessment_career_guidance', descriptionEn: 'Explore career guidance tools and resources', descriptionKn: 'ವೃತ್ತಿ ಮಾರ್ಗದರ್ಶನ ಸಾಧನಗಳನ್ನು ಅನ್ವೇಷಿಸಿ', descriptionTa: 'தொழில் வழிகாட்டல் கருவிகள் மற்றும் ஆதாரங்களை ஆராயுங்கள்', assessmentStatus: getAssessmentStatus('career_guidance_tools'), isCompleted: getCompletionStatus('career_guidance_tools'), isUnlocked: isAssessmentUnlocked('career_guidance_tools'), hasProgress: false },
+    { key: 'inspiration', number: 1, titleKey: 'assessment_inspiration', descriptionEn: 'Discover what inspires you', descriptionKn: 'ನಿಮ್ಮನ್ನು ಪ್ರೇರೇಪಿಸುವುವುದನ್ನು ಹುಡುಕಿ', descriptionTa: 'உங்களை ஊக்கப்படுத்தும் விஷயங்களை கண்டறியுங்கள்', assessmentStatus: getAssessmentStatus('inspiration'), isCompleted: getCompletionStatus('inspiration'), isUnlocked: isAssessmentUnlocked('inspiration'), hasProgress: !!assessmentProgress, summaryState: getSummaryState(inspirationSummary) },
+    { key: 'about_me', number: 2, titleKey: 'assessment_about_me', descriptionEn: 'Reflect about yourself and your strengths', descriptionKn: 'ನಿಮ್ಮ ಬಗ್ಗೆ ಮತ್ತು ನಿಮ್ಮ ಬಲಗಳನ್ನು ಆಲೋಚಿಸಿ', descriptionTa: 'உங்களைப் பற்றியும் உங்கள் பலங்களைப் பற்றியும் சிந்தியுங்கள்', assessmentStatus: getAssessmentStatus('about_me'), isCompleted: getCompletionStatus('about_me'), isUnlocked: isAssessmentUnlocked('about_me'), hasProgress: false, summaryState: getSummaryState(aboutMeSummary) },
+    { key: 'dreams', number: 3, titleKey: 'assessment_dreams', descriptionEn: 'Explore your future aspirations', descriptionKn: 'ನಿಮ್ಮ ಭವಿಷ್ಯದ ಆಸೆಗಳನ್ನು ಅನ್ವೇಷಿಸಿ', descriptionTa: 'உங்கள் எதிர்கால கனவுகள் மற்றும் இலக்குகளை ஆராயுங்கள்', assessmentStatus: getAssessmentStatus('dreams'), isCompleted: getCompletionStatus('dreams'), isUnlocked: isAssessmentUnlocked('dreams'), hasProgress: false, summaryState: getSummaryState(dreamsSummary) },
+    { key: 'school_learning', number: 4, titleKey: 'assessment_school_learning', descriptionEn: 'Reflect on your learning journey', descriptionKn: 'ನಿಮ್ಮ ಕಲಿಕೆಯ ಪ್ರಯಾಣದ ಬಗ್ಗೆ ಚಿಂತಿಸಿರಿ', descriptionTa: 'உங்கள் கற்றல் பயணத்தை பற்றிச் சிந்தியுங்கள்', assessmentStatus: getAssessmentStatus('school_learning'), isCompleted: getCompletionStatus('school_learning'), isUnlocked: isAssessmentUnlocked('school_learning'), hasProgress: false, summaryState: getSummaryState(schoolLearningSummary) },
+    { key: 'hobbies', number: 5, titleKey: 'assessment_hobbies', descriptionEn: 'Discover career paths from your interests', descriptionKn: 'ನಿಮ್ಮ ಆಸಕ್ತಿಗಳಿಂದ ವೃತ್ತಿ ಮಾರ್ಗಗಳನ್ನು ಅನ್ವೇಷಿಸಿ', descriptionTa: 'உங்கள் ஆர்வங்களிலிருந்து தொழில் பாதைகளை அறியுங்கள்', assessmentStatus: getAssessmentStatus('hobbies'), isCompleted: getCompletionStatus('hobbies'), isUnlocked: isAssessmentUnlocked('hobbies'), hasProgress: false, summaryState: getSummaryState(hobbiesSummary) },
+    { key: 'role_models', number: 6, titleKey: 'assessment_role_models', descriptionEn: 'Identify your inspiring role models', descriptionKn: 'ನಿಮ್ಮನ್ನು ಪ್ರೇರೇಪಿಸುವ ಮಾದರಿಗಳನ್ನು ಗುರುತಿಸಿ', descriptionTa: 'உங்களை ஊக்கப்படுத்தும் முன்னுதாரணங்களை கண்டறியுங்கள்', assessmentStatus: getAssessmentStatus('role_models'), isCompleted: getCompletionStatus('role_models'), isUnlocked: isAssessmentUnlocked('role_models'), hasProgress: false, summaryState: getSummaryState(roleModelsSummary) },
+    { key: 'holland_code', number: 7, titleKey: 'assessment_holland_code', descriptionEn: 'Identify your personality type', descriptionKn: 'ನಿಮ್ಮ ವ್ಯಕ್ತಿತ್ವದ ಪ್ರಕಾರವನ್ನು ಗುರುತಿಸಿ', descriptionTa: 'உங்கள் நற்பண்பு வகையை அறியுங்கள்', assessmentStatus: getAssessmentStatus('holland_code'), isCompleted: getCompletionStatus('holland_code'), isUnlocked: isAssessmentUnlocked('holland_code'), hasProgress: false, summaryState: 'none' as SummaryState },
+    { key: 'career_guidance_tools', number: 8, titleKey: 'assessment_career_guidance', descriptionEn: 'Explore career guidance tools and resources', descriptionKn: 'ವೃತ್ತಿ ಮಾರ್ಗದರ್ಶನ ಸಾಧನಗಳನ್ನು ಅನ್ವೇಷಿಸಿ', descriptionTa: 'தொழில் வழிகாட்டல் கருவிகள் மற்றும் ஆதாரங்களை ஆராயுங்கள்', assessmentStatus: getAssessmentStatus('career_guidance_tools'), isCompleted: getCompletionStatus('career_guidance_tools'), isUnlocked: isAssessmentUnlocked('career_guidance_tools'), hasProgress: false, summaryState: 'none' as SummaryState },
   ];
 
   const progressRows: ProgressRowData[] = [
-    { number: 1, titleKey: 'assessment_inspiration', assessmentType: 'inspiration', bgColor: 'bg-green-50', textColor: 'text-green-800', isCompleted: inspirationCompleted, previousCompleted: true, summary: inspirationSummary, assessmentResponseId, fetchSummary: fetchInspirationSummary, setSummaryNull: () => setInspirationSummary(null) },
-    { number: 2, titleKey: 'assessment_about_me', assessmentType: 'about_me', bgColor: 'bg-blue-50', textColor: 'text-blue-800', isCompleted: aboutMeCompleted, previousCompleted: inspirationCompleted, summary: aboutMeSummary, assessmentResponseId: aboutMeAssessmentResponseId, fetchSummary: fetchAboutMeSummary, setSummaryNull: () => setAboutMeSummary(null) },
-    { number: 3, titleKey: 'assessment_dreams', assessmentType: 'dreams', bgColor: 'bg-blue-50', textColor: 'text-blue-800', isCompleted: dreamsCompleted, previousCompleted: aboutMeCompleted, summary: dreamsSummary, assessmentResponseId: dreamsAssessmentResponseId, fetchSummary: null, setSummaryNull: null },
-    { number: 4, titleKey: 'assessment_school_learning', assessmentType: 'school_learning', bgColor: 'bg-purple-50', textColor: 'text-purple-800', isCompleted: stateLearningCompleted, previousCompleted: dreamsCompleted, summary: schoolLearningSummary, assessmentResponseId: schoolLearningAssessmentResponseId, fetchSummary: null, setSummaryNull: null },
-    { number: 5, titleKey: 'assessment_hobbies', assessmentType: 'hobbies', bgColor: 'bg-orange-50', textColor: 'text-orange-800', isCompleted: hobbiesCompleted, previousCompleted: stateLearningCompleted, summary: hobbiesSummary, assessmentResponseId: hobbiesAssessmentResponseId, fetchSummary: null, setSummaryNull: null },
-    { number: 6, titleKey: 'assessment_role_models', assessmentType: 'role_models', bgColor: 'bg-pink-50', textColor: 'text-pink-800', isCompleted: roleModelsCompleted, previousCompleted: hobbiesCompleted, summary: roleModelsSummary, assessmentResponseId: roleModelsAssessmentResponseId, fetchSummary: null, setSummaryNull: null },
+    { number: 1, titleKey: 'assessment_inspiration', assessmentType: 'inspiration', bgColor: 'bg-green-50', textColor: 'text-green-800', isCompleted: inspirationCompleted, previousCompleted: true },
+    { number: 2, titleKey: 'assessment_about_me', assessmentType: 'about_me', bgColor: 'bg-blue-50', textColor: 'text-blue-800', isCompleted: aboutMeCompleted, previousCompleted: inspirationCompleted },
+    { number: 3, titleKey: 'assessment_dreams', assessmentType: 'dreams', bgColor: 'bg-blue-50', textColor: 'text-blue-800', isCompleted: dreamsCompleted, previousCompleted: aboutMeCompleted },
+    { number: 4, titleKey: 'assessment_school_learning', assessmentType: 'school_learning', bgColor: 'bg-purple-50', textColor: 'text-purple-800', isCompleted: stateLearningCompleted, previousCompleted: dreamsCompleted },
+    { number: 5, titleKey: 'assessment_hobbies', assessmentType: 'hobbies', bgColor: 'bg-orange-50', textColor: 'text-orange-800', isCompleted: hobbiesCompleted, previousCompleted: stateLearningCompleted },
+    { number: 6, titleKey: 'assessment_role_models', assessmentType: 'role_models', bgColor: 'bg-pink-50', textColor: 'text-pink-800', isCompleted: roleModelsCompleted, previousCompleted: hobbiesCompleted },
   ];
 
   // ═══════════════════════════════════════════════════════════════════
@@ -526,6 +531,7 @@ export default function StudentDashboard() {
           resolvedLang={resolvedLang}
           t={t}
           onStartAssessment={startAssessment}
+          onViewSummary={handleViewSummary}
         />
 
         {/* Progress Summary */}
@@ -533,7 +539,6 @@ export default function StudentDashboard() {
           rows={progressRows}
           resolvedLang={resolvedLang}
           t={t}
-          onViewSummary={handleViewSummary}
           hollandCodeCompleted={hollandCodeCompleted}
           roleModelsCompleted={roleModelsCompleted}
           careerGuidanceToolsCompleted={careerGuidanceToolsCompleted}

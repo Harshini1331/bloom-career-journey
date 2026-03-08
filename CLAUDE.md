@@ -874,6 +874,10 @@ npm run build
 - **Root cause**: The Summary tab lock logic used `canSubmit()`, which returns `false` when `isReadOnly` is true. This meant students viewing completed assessments or teachers reviewing them could not access the Summary tab.
 - **Fix**: Extracted a pure `areCoreSectionsComplete()` function that only checks whether all required fields are answered (no `isReadOnly` check). The Summary tab lock and "Next Section" navigation guard now use `areCoreSectionsComplete()`. `canSubmit()` is kept for the submit button only, delegating to `areCoreSectionsComplete()` after its own `isReadOnly` check. Also removed a dead `q.section === 'Summary'` guard that never triggered (summary questions are stored in a separate array).
 
+### Student Dashboard — View Summary button moved from progress list to assessment grid cards
+- **Files**: `src/components/student/AssessmentGrid.tsx`, `src/components/student/ProgressSection.tsx`, `src/pages/StudentDashboard.tsx`, `src/components/student/studentStrings.ts`
+- **Change**: The "View Summary" button and ⟳ refresh button were removed from the Assessment Progress Summary list (`ProgressSection`). The progress list now shows only assessment name + status badge (clean rows, no extra buttons). The "View Summary ✨" button was added to the assessment grid cards (`AssessmentGrid`) — it appears in the card footer only for completed assessments with an approved summary. Completed assessments without an approved summary show a muted "Summary Pending..." text. The `AssessmentCardData` interface gained a `summaryState: SummaryState` field (`'approved' | 'pending' | 'none'`). The `ProgressRowData` interface was simplified to remove `summary`, `fetchSummary`, `setSummaryNull`, and `assessmentResponseId` fields. New localized string key `summary_pending_short` added for en/kn/ta. Tamil `view_summary` text updated to match spec.
+
 ## Self-Update Rule
 At the end of any session where files were added/removed or dependencies changed,
 update the relevant sections of this file before finishing.
