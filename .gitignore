@@ -30,6 +30,9 @@ dist-ssr
 *.sln
 *.sw?
 
+# Sync reports (latest is regenerated, only dated reports are committed)
+docs/sync-report-latest.md
+
 # Timesheets and Logs
 *timesheet*
 *manual_log*
