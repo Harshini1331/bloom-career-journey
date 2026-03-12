@@ -445,3 +445,6 @@ Frontend → Supabase directly (queries, RPCs, storage). AI/ML services are dire
 
 > [!NOTE]
 > **sync-questions**: `scripts/sync_questions.ts` and Google Sheets automation pending implementation.
+
+> [!NOTE]
+> **Career roadmap milestone labels**: Hardcoded in English/Kannada/Tamil only — no Hindi support. Pending decision on DB migration.
