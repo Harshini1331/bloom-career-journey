@@ -559,7 +559,7 @@ export default function StudentDashboard() {
         />
       </div>
 
-      {resolvedLang === 'kn' && <IndicKeyboard lang={resolvedLang} />}
+      {(['kn', 'ta', 'hi'].includes(resolvedLang)) && <IndicKeyboard lang={resolvedLang} />}
       <ChatBubble role="student" isOpen={isChatOpen} onOpenChange={setIsChatOpen} hideTrigger={true} />
       <ProfileDialog open={isProfileOpen} onOpenChange={setIsProfileOpen} />
       <SummaryViewDialog

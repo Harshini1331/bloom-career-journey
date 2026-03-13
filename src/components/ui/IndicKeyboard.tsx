@@ -10,8 +10,8 @@ interface IndicKeyboardProps {
   targetInputId?: string;
   targetElement?: HTMLInputElement | HTMLTextAreaElement | null;
   onInput?: (char: string) => void;
-  // Support English UI plus Kannada + Tamil input
-  lang?: 'en' | 'kn' | 'ta';
+  // Support English UI plus Kannada, Tamil, Hindi input
+  lang?: 'en' | 'kn' | 'ta' | 'hi';
 }
 
 // Kannada script layout - closer to Google Inscript style (grouped for familiarity)
@@ -44,11 +44,27 @@ const TAMIL_LAYOUT = {
   row3: ['ய', 'ர', 'ல', 'வ', 'ழ', 'ள', 'ற', 'ன'],
   // Additional consonants used in loanwords
   row4: ['ஜ', 'ஷ', 'ஸ', 'ஹ'],
-  row5: [] as string[],
+  row5: ['ௐ'] as string[],
   row6: [] as string[],
   row7: [] as string[],
   // Hide dedicated number row for Tamil keyboard to avoid extra yellow strip
   numbers: [] as string[],
+};
+
+// Hindi (Devanagari) script layout – INSCRIPT-style groupings
+const HINDI_LAYOUT = {
+  // Independent vowels (अं and अः are multi-codepoint)
+  vowels: ['अ', 'आ', 'इ', 'ई', 'उ', 'ऊ', 'ऋ', 'ए', 'ऐ', 'ओ', 'औ', 'अं', 'अः'],
+  // Vowel signs (matras) and virama
+  row1: ['ा', 'ि', 'ी', 'ु', 'ू', 'ृ', 'े', 'ै', 'ो', 'ौ', 'ं', 'ः', 'ँ', '्'],
+  // Consonants grouped like INSCRIPT rows
+  row2: ['क', 'ख', 'ग', 'घ', 'ङ', 'च', 'छ', 'ज', 'झ', 'ञ'],
+  row3: ['ट', 'ठ', 'ड', 'ढ', 'ण', 'त', 'थ', 'द', 'ध', 'न'],
+  row4: ['प', 'फ', 'ब', 'भ', 'म', 'य', 'र', 'ल', 'व'],
+  row5: ['श', 'ष', 'स', 'ह'],
+  row6: ['ॐ'] as string[],
+  row7: [] as string[],
+  numbers: ['०', '१', '२', '३', '४', '५', '६', '७', '८', '९'],
 };
 
 export function IndicKeyboard({ targetInputId, targetElement, onInput, lang = 'en' }: IndicKeyboardProps) {
@@ -59,8 +75,9 @@ export function IndicKeyboard({ targetInputId, targetElement, onInput, lang = 'e
 
   const isKannada = lang === 'kn';
   const isTamil = lang === 'ta';
-  const isSupported = isKannada || isTamil;
-  const layout = isKannada ? KANNADA_LAYOUT : TAMIL_LAYOUT;
+  const isHindi = lang === 'hi';
+  const isSupported = isKannada || isTamil || isHindi;
+  const layout = isKannada ? KANNADA_LAYOUT : isTamil ? TAMIL_LAYOUT : HINDI_LAYOUT;
 
   // Shared helper to find the target input element
   const findTargetInput = (): HTMLInputElement | HTMLTextAreaElement | null => {
@@ -90,6 +107,7 @@ export function IndicKeyboard({ targetInputId, targetElement, onInput, lang = 'e
       const allInputs = document.querySelectorAll(
         'textarea[lang="kn"], input[lang="kn"], [lang="kn"] textarea, [lang="kn"] input,' +
         'textarea[lang="ta"], input[lang="ta"], [lang="ta"] textarea, [lang="ta"] input,' +
+        'textarea[lang="hi"], input[lang="hi"], [lang="hi"] textarea, [lang="hi"] input,' +
         'textarea:not([readonly]), input:not([readonly])'
       );
 
@@ -326,7 +344,8 @@ export function IndicKeyboard({ targetInputId, targetElement, onInput, lang = 'e
         // Check if this input should have the custom keyboard
         const hasLangKn = input.getAttribute('lang') === 'kn' || input.closest('[lang="kn"]');
         const hasLangTa = input.getAttribute('lang') === 'ta' || input.closest('[lang="ta"]');
-        const shouldHaveCustomKeyboard = hasLangKn || hasLangTa;
+        const hasLangHi = input.getAttribute('lang') === 'hi' || input.closest('[lang="hi"]');
+        const shouldHaveCustomKeyboard = hasLangKn || hasLangTa || hasLangHi;
 
         if (shouldHaveCustomKeyboard) {
           // 1. Set inputMode to 'none' to prevent native keyboard on mobile
@@ -421,8 +440,9 @@ export function IndicKeyboard({ targetInputId, targetElement, onInput, lang = 'e
       const isTextInput = target.tagName === 'TEXTAREA' || target.tagName === 'INPUT';
       const hasLangKn = target.getAttribute('lang') === 'kn' || target.closest('[lang="kn"]');
       const hasLangTa = target.getAttribute('lang') === 'ta' || target.closest('[lang="ta"]');
+      const hasLangHi = target.getAttribute('lang') === 'hi' || target.closest('[lang="hi"]');
 
-      if (isTextInput && (hasLangKn || hasLangTa)) {
+      if (isTextInput && (hasLangKn || hasLangTa || hasLangHi)) {
         // Store the focused element for later use
         lastFocusedElementRef.current = target as HTMLInputElement | HTMLTextAreaElement;
 
@@ -447,8 +467,10 @@ export function IndicKeyboard({ targetInputId, targetElement, onInput, lang = 'e
         const targetHasLang = activeElement && (
           activeElement.getAttribute('lang') === 'kn' ||
           activeElement.getAttribute('lang') === 'ta' ||
+          activeElement.getAttribute('lang') === 'hi' ||
           activeElement.closest('[lang="kn"]') ||
-          activeElement.closest('[lang="ta"]')
+          activeElement.closest('[lang="ta"]') ||
+          activeElement.closest('[lang="hi"]')
         );
 
         if (isClickInsideKeyboard || (isTargetTextInput && targetHasLang)) {
@@ -484,8 +506,8 @@ export function IndicKeyboard({ targetInputId, targetElement, onInput, lang = 'e
   if (!isSupported) return null;
   if (typeof document === 'undefined') return null;
 
-  const openLabel = lang === 'ta' ? 'விசைப்பலகை' : 'ಕೀಬೋರ್ಡ್';
-  const aria = lang === 'ta' ? 'Show Tamil Keyboard' : 'Show Kannada Keyboard';
+  const openLabel = lang === 'ta' ? 'விசைப்பலகை' : lang === 'hi' ? 'कीबोर्ड' : 'ಕೀಬೋರ್ಡ್';
+  const aria = lang === 'ta' ? 'Show Tamil Keyboard' : lang === 'hi' ? 'Show Hindi Keyboard' : 'Show Kannada Keyboard';
 
   const content = !isOpen ? (
     <Button
@@ -512,7 +534,7 @@ export function IndicKeyboard({ targetInputId, targetElement, onInput, lang = 'e
       <div className="container mx-auto">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-sm font-semibold text-gray-700">
-            {isKannada ? 'ಕನ್ನಡ ಕೀಬೋರ್ಡ್' : 'தமிழ் விசைப்பலகை'}
+            {isKannada ? 'ಕನ್ನಡ ಕೀಬೋರ್ಡ್' : isTamil ? 'தமிழ் விசைப்பலகை' : 'हिंदी कीबोर्ड'}
           </h3>
           <Button
             type="button"
