@@ -15,7 +15,7 @@
 ### Regional/Language Context
 - Supports **English (`en`)**, **Kannada (`kn`)**, **Tamil (`ta`)**, and **Hindi (`hi`)** (Hindi in progress)
 - AI language detection at the Unicode level (Kannada: `0C80–0CFF`, Tamil: `0B80–0BFF`, Hindi: `0900–097F`)
-- Includes a **Kannada virtual keyboard** (`useKannadaKeyboard` hook + `simple-keyboard` library)
+- Includes an **IndicKeyboard** component (`IndicKeyboard.tsx`) supporting Kannada, Tamil, and Hindi layouts with scroll compensation, enlarged touch targets, and haptic feedback
 - Speech-to-Text optimized for **Indian accents and rural pronunciation** with post-processing for common Indian-English phonetic spellings
 
 ---
@@ -44,7 +44,7 @@
 - `lucide-react` — icon system
 - `date-fns` — date formatting
 - `embla-carousel-react` — carousels
-- `simple-keyboard` — Kannada virtual keyboard
+- `IndicKeyboard` — custom multi-script virtual keyboard (Kannada, Tamil, Hindi layouts; replaced `simple-keyboard`)
 - `react-resizable-panels` — resizable layouts
 - `cmdk` — command palette
 - `vaul` — drawer component
@@ -100,7 +100,7 @@ bloom-career-journey/
 │   ├── hooks/
 │   │   ├── useAuth.tsx               # Auth context: signIn, signUp, signOut, profile management
 │   │   ├── useLang.tsx               # i18n context: language + translation provider
-│   │   ├── useKannadaKeyboard.ts     # Kannada virtual keyboard hook
+│   │   ├── useIndicKeyboard.ts        # Multi-script virtual keyboard hook (Kannada, Tamil, Hindi)
 │   │   ├── use-toast.tsx             # Toast notification hook
 │   │   └── use-mobile.tsx            # Mobile detection hook
 │   ├── integrations/supabase/
@@ -207,7 +207,7 @@ Each assessment has a companion `*DB.tsx` component for DB operations. Responses
 | role | enum: `admin`, `teacher`, `student` |
 | full_name, email | text NOT NULL |
 | mobile, state_id, school | nullable |
-| preferred_language | enum: `en`, `kn`, `ta`, `hi` (default `en`) |
+| preferred_language | CHECK constraint: `en`, `kn`, `ta`, `hi` (default `en`) |
 | bio, interests, career_goals, strengths, areas_for_growth | text nullable |
 | profile_picture_url, date_of_birth, gender, address | nullable |
 
@@ -293,19 +293,22 @@ students + teachers ──→ chat_channels ──1:N──→ chat_messages
 
 ## 6. Database Migrations
 
-See `supabase/migrations/` for full history (142 files, Jan 2025 – Mar 2026).
+See `supabase/migrations/` for full history (146+ files, Jan 2025 – Mar 2026).
 
-### Recent Migrations (last 3)
+### Recent Migrations (last 5)
 | Date | Migration | What It Does |
 |------|-----------|--------------|
+| 2026-03-13 | `add_hindi_to_preferred_language` | Adds `hi` to `preferred_language` CHECK constraint (was enum, now CHECK) |
+| 2026-03-13 | `fix_role_models_rpc` | Creates `get_role_models_assessment_template` RPC (fixes 404 bug) |
+| 2026-03-13 | `fix_school_learning_summary_questions` | Fixes corrupted `question1` in school_learning summary questions |
+| 2026-03-13 | `move_summary_titles_to_db` | Moves summary section titles for 4 assessments + About Me section titles + School Learning method options to DB |
 | 2026-03-08 | `add_compass_tables` | Creates `profile_card_cache` and `career_roadmap` tables with RLS |
-| 2026-03-08 | `update_assessment_questions_from_excel` | Bulk update all 6 assessment questions (main + summary) in en/kn/ta |
-| 2026-03-01 | `role_models_summary` | Role models summary template |
 
 ### Notable Schema Notes
 - **Schools → States**: Renamed organizational unit to "state"
 - **SQL Unicode rule**: All Kannada/Tamil/Hindi text in migrations must use PostgreSQL dollar-quoting (`$$...$$`)
 - **Bulk question update (Mar 2026)**: `about_me_fields.question11` deleted, `role_models_questions` shifted by 1, `question19` removed
+- **preferred_language (Mar 2026)**: Changed from enum to CHECK constraint to allow adding languages without migration complexity
 
 ---
 
@@ -432,13 +435,22 @@ Frontend → Supabase directly (queries, RPCs, storage). AI/ML services are dire
 > **Assessment unlock bypassed**: `checkAssessmentUnlock()` hardcoded to return `true`. Re-enable before production.
 
 > [!CAUTION]
-> **API keys in client bundle**: `VITE_GEMINI_API_KEY` etc. exposed in browser. Proxy through backend before production.
+> **API keys in client bundle**: `VITE_GEMINI_API_KEY` etc. exposed in browser. Must proxy through backend before production.
 
 > [!NOTE]
 > **Holland Code & Career Guidance Tools**: No AI summary or teacher approval wired — intentional for now.
 
 > [!NOTE]
-> **Hindi language**: Added as 4th language option (`hi`) — UI translations are English placeholders pending ILP input via `sync-questions`.
+> **Hindi UI translations**: All Hindi strings are English fallback — pending ILP providing Hindi translations.
+
+> [!NOTE]
+> **Hindi content translations**: No `content_translations` rows for `hi` yet — pending ILP updating Google Sheet.
+
+> [!NOTE]
+> **Career roadmap milestone labels**: Hardcoded in English/Kannada/Tamil only — no Hindi support. Pending decision on DB migration.
+
+> [!NOTE]
+> **Sheet restructuring in progress**: Phases 2–3 (Google Sheets sync automation) paused until new sheet format is finalized by ILP.
 
 > [!NOTE]
 > **Assessment Progress Summary**: Section in student dashboard is placeholder — will be redesigned later.
@@ -446,5 +458,17 @@ Frontend → Supabase directly (queries, RPCs, storage). AI/ML services are dire
 > [!NOTE]
 > **sync-questions**: `scripts/sync_questions.ts` and Google Sheets automation pending implementation.
 
-> [!NOTE]
-> **Career roadmap milestone labels**: Hardcoded in English/Kannada/Tamil only — no Hindi support. Pending decision on DB migration.
+### Completed Work (Mar 2026 Session)
+| Phase | Description | Status |
+|-------|-------------|--------|
+| **0A** | Fix corrupted `question1` in School Learning summary questions | ✅ |
+| **0B** | Create `get_role_models_assessment_template` RPC, fix 404 bug | ✅ |
+| **1C** | Move summary section titles to DB (Inspiration, About Me, Dreams, School Learning) | ✅ |
+| **1D** | Move About Me section titles to DB | ✅ |
+| **1E** | Move School Learning method options to DB | ✅ |
+| **4A** | Rename keyboard to IndicKeyboard, add Tamil + Hindi layouts, UX improvements (scroll compensation, touch targets, haptic feedback) | ✅ |
+| **4B** | Add Hindi (`hi`) to `preferred_language` CHECK constraint | ✅ |
+| **4C** | Hindi language support across all services and components (English fallback strings) | ✅ |
+| **4D** | Remove unused `simple-keyboard` dependency | ✅ |
+| **4E** | Full verification: `tsc`, `vite build`, dependency audit — all passing | ✅ |
+| **2–3** | Google Sheets sync automation | ⏸️ Paused — sheet restructuring in progress |
