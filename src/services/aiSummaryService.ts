@@ -55,7 +55,7 @@ interface SummaryTemplate {
   ta?: SummaryTemplateLanguageBlock;
 }
 
-type SummaryLanguage = 'en' | 'kn' | 'ta';
+type SummaryLanguage = 'en' | 'kn' | 'ta' | 'hi';
 
 class AISummaryService {
   private apiKey: string | undefined;
@@ -97,7 +97,16 @@ class AISummaryService {
   }
 
   /**
-   * Detect if student responses are primarily in Kannada, Tamil, or default to English.
+   * Detect if text contains Hindi / Devanagari script (Unicode range: 0900-097F)
+   */
+  private containsHindi(text: string): boolean {
+    if (!text) return false;
+    // Devanagari Unicode range: 0900-097F
+    return /[\u0900-\u097F]/.test(text);
+  }
+
+  /**
+   * Detect if student responses are primarily in Kannada, Tamil, Hindi, or default to English.
    * - Works for BOTH flat and deeply nested response objects (sections, question groups, etc.).
    * - Looks only at the actual answer strings, not at UI language.
    * - If preferredLanguage is provided (and supported), it takes precedence.
@@ -106,10 +115,12 @@ class AISummaryService {
     // If a supported preferred language is provided, strictly enforce it
     if (preferredLanguage === 'kn') return 'kn';
     if (preferredLanguage === 'ta') return 'ta';
+    if (preferredLanguage === 'hi') return 'hi';
     if (preferredLanguage === 'en') return 'en';
 
     let kannadaCount = 0;
     let tamilCount = 0;
+    let hindiCount = 0;
     let totalCount = 0;
 
     const scanNode = (node: any) => {
@@ -123,6 +134,8 @@ class AISummaryService {
           kannadaCount++;
         } else if (this.containsTamil(trimmed)) {
           tamilCount++;
+        } else if (this.containsHindi(trimmed)) {
+          hindiCount++;
         }
         return;
       }
@@ -151,9 +164,11 @@ class AISummaryService {
 
     const kannadaRatio = kannadaCount / totalCount;
     const tamilRatio = tamilCount / totalCount;
+    const hindiRatio = hindiCount / totalCount;
 
     if (kannadaRatio > 0.5) return 'kn';
     if (tamilRatio > 0.5) return 'ta';
+    if (hindiRatio > 0.5) return 'hi';
 
     return 'en';
   }

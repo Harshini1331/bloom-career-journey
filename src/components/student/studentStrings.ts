@@ -1,4 +1,4 @@
-export type StudentLang = 'en' | 'kn' | 'ta';
+export type StudentLang = 'en' | 'kn' | 'ta' | 'hi';
 
 const strings: Record<StudentLang, Record<string, string>> = {
     en: {
@@ -152,6 +152,57 @@ const strings: Record<StudentLang, Record<string, string>> = {
         roadmap_all_saved: 'அனைத்து மாற்றங்களும் சேமிக்கப்பட்டன',
         roadmap_saving: 'சேமிக்கிறது...',
         roadmap_save_failed: 'சேமிப்பு தோல்வியடைந்தது',
+    },
+    // TODO: Hindi translation pending from ILP — English fallback for now
+    hi: {
+        brand: 'CareerCompass',
+        menu_profile: 'My Profile',
+        menu_messages: 'Messages',
+        menu_logout: 'Logout',
+        welcome_title: 'Welcome to Your Career Journey',
+        welcome_body:
+            "Welcome, young explorer, to the thrilling Career Discovery Journey! We invite you to step into this interactive space with curiosity and embark on a curated journey of Self-Discovery and comprehensive career exposure, designed to pave your path toward a productive future. Through engaging and carefully developed modules, you will explore your core interests, unlock your unique abilities, and define your personal dreams and aspirations. This journey is personalized, allowing ample time for reflection and exploration. Our specialized Vidya Saathis are integral to this process; they actively review your input, helping you chart your course, offering expert assessment, mentorship, and personalized guidance every step of the way to ensure you make informed decisions about your educational and career choices.",
+        progress_title: 'Your Journey Progress',
+        assessments_total: 'Assessments Total',
+        complete_suffix: 'Complete',
+        completed: 'Completed ✓',
+        in_progress: 'In Progress',
+        not_started: 'Not Started',
+        available: 'Available',
+        locked: 'Locked 🔒',
+        start_here: 'Start Here',
+        progress_summary_title: 'Assessment Progress Summary',
+        progress_summary_desc: 'Track your completion status across all assessments',
+        tests_title: 'Psychometric Tests',
+        tests_item: 'Psychometric Tests – Holland Code Assessment',
+        tests_open: 'Open 🔓',
+        chat_title: 'CareerChat LM',
+        chat_desc: 'Get personalized career guidance based on your assessment responses',
+        chat_placeholder: 'Ask me about your career path...',
+        chat_send_hint: 'AI-powered career guidance',
+        assessment_inspiration: 'My Inspiration',
+        assessment_about_me: 'About Me',
+        assessment_dreams: 'My Dreams',
+        assessment_school_learning: 'My School, My Learning and I',
+        assessment_hobbies: 'My Talents and Hobbies',
+        assessment_role_models: 'My Role Models',
+        assessment_holland_code: 'Holland Code (RIASEC) Test',
+        assessment_career_guidance: 'Exploring Career Guidance Tools',
+        my_profile_card: 'My Profile Card',
+        career_roadmap: 'Career Roadmap',
+        view_summary: 'View Summary',
+        summary_pending: 'Summary Pending Review',
+        summary_pending_short: 'Summary Pending...',
+        compass_subtitle: 'Your personal career profile, built from your journey',
+        complete_module_nudge: 'Complete this module to see your personal insights',
+        career_direction_motivational: 'Complete all 6 modules and your unique career direction will appear here',
+        generating_keywords: 'Generating keywords...',
+        generating_direction: 'Generating your career direction...',
+        roadmap_enter_career: 'Enter career option...',
+        roadmap_available_later: 'Available later',
+        roadmap_all_saved: 'All changes saved',
+        roadmap_saving: 'Saving...',
+        roadmap_save_failed: 'Save failed',
     },
 };
 

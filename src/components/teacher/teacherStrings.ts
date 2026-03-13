@@ -1,4 +1,4 @@
-export type TeacherLang = 'en' | 'kn' | 'ta';
+export type TeacherLang = 'en' | 'kn' | 'ta' | 'hi';
 
 const strings: Record<TeacherLang, Record<string, any>> = {
     en: {
@@ -81,6 +81,34 @@ const strings: Record<TeacherLang, Record<string, any>> = {
         contactIlp: 'ILP தொடர்பு',
         inspirationTitle: 'என் உத்வேகம்',
         aboutMeTitle: 'என்னைப் பற்றி',
+    },
+    // TODO: Hindi translation pending from ILP — English fallback for now
+    hi: {
+        brand: 'Vidya Saathi',
+        welcome: (name: string) => `Welcome, ${name}!`,
+        manageStudents: 'Manage your students and guide them through their career journey',
+        totalStudents: 'Total Students',
+        activeStudents: 'Active Students',
+        recentAdditions: 'Recent Additions',
+        studentsTab: 'Students',
+        reviewsTab: 'Reviews',
+        resourcesTab: 'Resources',
+        analyticsTab: 'Analytics',
+        addStudent: 'Add Student',
+        addExisting: 'Add Existing Student',
+        importCsv: 'Import CSV',
+        studentManagement: 'Student Management',
+        studentListEmpty: 'No students found',
+        tryAdjustFilters: 'Try adjusting your search or filters',
+        getStartedAdding: 'Get started by adding your first student',
+        startFirstStudent: 'Add Your First Student',
+        temporaryPassword: 'Temporary password for new student accounts:',
+        reviewedLabel: 'reviewed',
+        logout: 'Logout',
+        myProfile: 'My Profile',
+        contactIlp: 'Contact ILP',
+        inspirationTitle: 'MY INSPIRATION',
+        aboutMeTitle: 'ABOUT ME',
     },
 };
 

@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 export async function fetchTranslations(
   resourceType: string,
   keys: string[],
-  lang: 'en' | 'kn' | 'ta'
+  lang: 'en' | 'kn' | 'ta' | 'hi'
 ): Promise<Record<string, string>> {
   if (!keys.length) return {};
   const { data, error } = await supabase

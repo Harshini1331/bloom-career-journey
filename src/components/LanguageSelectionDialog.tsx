@@ -16,13 +16,14 @@ interface Props {
 export default function LanguageSelectionDialog({ open, onOpenChange }: Props) {
     const { userProfile, refreshUserProfile } = useAuth();
     const { setLang } = useLang();
-    const [selected, setSelected] = useState<'en' | 'kn' | 'ta' | null>(null);
+    const [selected, setSelected] = useState<'en' | 'kn' | 'ta' | 'hi' | null>(null);
     const [saving, setSaving] = useState(false);
 
     const languages = [
         { code: 'en', label: 'English', native: 'English', icon: '🇺🇸' },
         { code: 'kn', label: 'Kannada', native: 'ಕನ್ನಡ', icon: '🇮🇳' },
         { code: 'ta', label: 'Tamil', native: 'தமிழ்', icon: '🇮🇳' },
+        { code: 'hi', label: 'Hindi', native: 'हिन्दी', icon: '🇮🇳' },
     ] as const;
 
     const handleSelect = async () => {
