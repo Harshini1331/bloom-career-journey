@@ -15,7 +15,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { handleDatabaseError, validateApiResponse } from '@/utils/errorHandler';
 import { useLang } from '@/hooks/useLang';
-import { KannadaKeyboard } from '@/components/ui/KannadaKeyboard';
+import { IndicKeyboard } from '@/components/ui/IndicKeyboard';
 import { checkAssessmentUnlock } from '@/utils/assessmentUnlock';
 import { fetchTranslations } from '@/services/translationService';
 import { aiSummaryService } from '@/services/aiSummaryService';
@@ -999,7 +999,7 @@ export default function AboutMeAssessment() {
           </CardContent>
         </Card>
       </div>
-      <KannadaKeyboard lang={lang} />
+      <IndicKeyboard lang={lang} />
     </div>
   );
 }

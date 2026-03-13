@@ -33,7 +33,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useLang } from '@/hooks/useLang';
 import { fetchTranslations } from '@/services/translationService';
 
-import { KannadaKeyboard } from '@/components/ui/KannadaKeyboard';
+import { IndicKeyboard } from '@/components/ui/IndicKeyboard';
 import { checkAssessmentUnlock } from '@/utils/assessmentUnlock';
 
 interface HobbyQuestion {
@@ -1242,7 +1242,7 @@ export default function MyHobbiesAssessment() {
           </div>
         </div>
       </div>
-      <KannadaKeyboard lang={lang} />
+      <IndicKeyboard lang={lang} />
     </div>
   );
 }

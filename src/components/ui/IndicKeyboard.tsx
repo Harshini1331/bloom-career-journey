@@ -4,9 +4,9 @@ import { createPortal } from 'react-dom';
 import type React from 'react';
 import { X, Keyboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { updateInputFromKeyboard, registerInputForKeyboard } from '@/hooks/useKannadaKeyboard';
+import { updateInputFromKeyboard, registerInputForKeyboard } from '@/hooks/useIndicKeyboard';
 
-interface KannadaKeyboardProps {
+interface IndicKeyboardProps {
   targetInputId?: string;
   targetElement?: HTMLInputElement | HTMLTextAreaElement | null;
   onInput?: (char: string) => void;
@@ -51,7 +51,7 @@ const TAMIL_LAYOUT = {
   numbers: [] as string[],
 };
 
-export function KannadaKeyboard({ targetInputId, targetElement, onInput, lang = 'en' }: KannadaKeyboardProps) {
+export function IndicKeyboard({ targetInputId, targetElement, onInput, lang = 'en' }: IndicKeyboardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isShift, setIsShift] = useState(false);
   const keyboardRef = useRef<HTMLDivElement>(null);

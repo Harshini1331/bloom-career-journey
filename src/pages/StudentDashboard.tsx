@@ -16,7 +16,7 @@ import ChatBubble from '@/components/chat/ChatBubble';
 import SummaryViewDialog from '@/components/assessments/SummaryViewDialog';
 import { AssessmentSummary } from '@/types/assessmentSummary';
 import { summaryDatabaseService } from '@/services/summaryDatabaseService';
-import { KannadaKeyboard } from '@/components/ui/KannadaKeyboard';
+import { IndicKeyboard } from '@/components/ui/IndicKeyboard';
 import { useLang } from '@/hooks/useLang';
 import { aiChatService } from '@/services/aiChatService';
 import LanguageSelectionDialog from '@/components/LanguageSelectionDialog';
@@ -559,7 +559,7 @@ export default function StudentDashboard() {
         />
       </div>
 
-      {resolvedLang === 'kn' && <KannadaKeyboard lang={resolvedLang} />}
+      {resolvedLang === 'kn' && <IndicKeyboard lang={resolvedLang} />}
       <ChatBubble role="student" isOpen={isChatOpen} onOpenChange={setIsChatOpen} hideTrigger={true} />
       <ProfileDialog open={isProfileOpen} onOpenChange={setIsProfileOpen} />
       <SummaryViewDialog

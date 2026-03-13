@@ -26,7 +26,7 @@ export function updateInputFromKeyboard(
 }
 
 // Hook to register an input for keyboard support
-export function useKannadaKeyboard<T extends HTMLInputElement | HTMLTextAreaElement>(
+export function useIndicKeyboard<T extends HTMLInputElement | HTMLTextAreaElement>(
   value: string,
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void
 ) {

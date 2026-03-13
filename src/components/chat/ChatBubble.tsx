@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useLang } from '@/hooks/useLang';
-import { KannadaKeyboard } from '@/components/ui/KannadaKeyboard';
+import { IndicKeyboard } from '@/components/ui/IndicKeyboard';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface Message {
@@ -661,7 +661,7 @@ export default function ChatBubble({ role, isOpen: controlledIsOpen, onOpenChang
               </>
             )}
           </CardContent>
-          {(lang === 'kn' || lang === 'ta') && <KannadaKeyboard lang={lang} />}
+          {(lang === 'kn' || lang === 'ta') && <IndicKeyboard lang={lang} />}
         </Card>
       )}
     </>

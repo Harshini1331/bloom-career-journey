@@ -35,7 +35,7 @@ import { AudioRecorder } from '@/components/ui/AudioRecorder';
 import { aiSummaryService } from '@/services/aiSummaryService';
 import { summaryDatabaseService } from '@/services/summaryDatabaseService';
 import { notificationService } from '@/services/notificationService';
-import { KannadaKeyboard } from '@/components/ui/KannadaKeyboard';
+import { IndicKeyboard } from '@/components/ui/IndicKeyboard';
 
 interface InspirationVideo {
   id: number;
@@ -1973,7 +1973,7 @@ export default function MyInspirationAssessment() {
 
 
       </div>
-      <KannadaKeyboard lang={lang} />
+      <IndicKeyboard lang={lang} />
     </div >
   );
 }
