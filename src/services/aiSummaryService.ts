@@ -50,9 +50,10 @@ type SummaryTemplateLanguageBlock = {
 interface SummaryTemplate {
   // English is always expected
   en: SummaryTemplateLanguageBlock;
-  // Kannada and Tamil blocks are optional – fall back to English when missing
+  // Other language blocks are optional – fall back to English when missing
   kn?: SummaryTemplateLanguageBlock;
   ta?: SummaryTemplateLanguageBlock;
+  hi?: SummaryTemplateLanguageBlock;
 }
 
 type SummaryLanguage = 'en' | 'kn' | 'ta' | 'hi';
@@ -257,10 +258,11 @@ class AISummaryService {
 
     const isKannada = language === 'kn';
     const isTamil = language === 'ta';
+    const isHindi = language === 'hi';
 
     // Choose the appropriate language block from the template, with safe fallback to English
     const preferredKey: SummaryLanguage = language;
-    const hasPreferred = (template as any)[preferredKey];
+    const hasPreferred = template[preferredKey];
     const langKey: keyof SummaryTemplate =
       (hasPreferred ? preferredKey : 'en') as keyof SummaryTemplate;
 
@@ -268,7 +270,9 @@ class AISummaryService {
       ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Kannada (ಕನ್ನಡ).\n- You MUST generate your summary answers in Kannada (ಕನ್ನಡ) script.\n- Write all three answers in Kannada, maintaining the student\'s natural voice.\n- Use Kannada script for all text in question1, question2, and question3.\n'
       : isTamil
         ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Tamil (தமிழ்).\n- You MUST generate your summary answers in Tamil (தமிழ்) script.\n- Write all three answers in Tamil, maintaining the student\'s natural voice.\n- Use Tamil script for all text in question1, question2, and question3.\n'
-        : '';
+        : isHindi
+          ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Hindi (हिन्दी).\n- You MUST generate your summary answers in Hindi (हिन्दी / Devanagari) script.\n- Write all three answers in Hindi, maintaining the student\'s natural voice.\n- Use Devanagari script for all text in question1, question2, and question3.\n'
+          : '';
 
     // Get questions from database template – fall back to English if specific language block is missing
     const questions =
@@ -365,12 +369,15 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
     const formattedResponses = this.formatResponses(responses);
     const isKannada = language === 'kn';
     const isTamil = language === 'ta';
+    const isHindi = language === 'hi';
 
     const languageInstruction = isKannada
       ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Kannada (ಕನ್ನಡ).\n- You MUST generate your summary answers in Kannada (ಕನ್ನಡ) script.\n- Write all three answers in Kannada, maintaining the student\'s natural voice.\n- Use Kannada script for all text in question1, question2, and question3.\n'
       : isTamil
         ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Tamil (தமிழ்).\n- You MUST generate your summary answers in Tamil (தமிழ்) script.\n- Write all three answers in Tamil, maintaining the student\'s natural voice.\n- Use Tamil script for all text in question1, question2, and question3.\n'
-        : '';
+        : isHindi
+          ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Hindi (हिन्दी).\n- You MUST generate your summary answers in Hindi (हिन्दी / Devanagari) script.\n- Write all three answers in Hindi, maintaining the student\'s natural voice.\n- Use Devanagari script for all text in question1, question2, and question3.\n'
+          : '';
 
     const questionsPrompt = isKannada
       ? `Question 1: ಈ ವೀಡಿಯೊಗಳಿಂದ ಮತ್ತು ನಿಮ್ಮ ಸ್ವಂತ ಅನುಭವಗಳಿಂದ ನಿಮ್ಮನ್ನು ಪ್ರೇರೇಪಿಸಿದ ವಿಷಯಗಳನ್ನು ಪಟ್ಟಿ ಮಾಡಿ.
@@ -708,8 +715,9 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
 
     const isKannada = language === 'kn';
     const isTamil = language === 'ta';
+    const isHindi = language === 'hi';
     const preferredKey: SummaryLanguage = language;
-    const hasPreferred = (template as any)[preferredKey];
+    const hasPreferred = template[preferredKey];
     const langKey: keyof SummaryTemplate =
       (hasPreferred ? preferredKey : 'en') as keyof SummaryTemplate;
 
@@ -717,7 +725,9 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
       ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Kannada (ಕನ್ನಡ).\n- You MUST generate your summary answers in Kannada (ಕನ್ನಡ) script.\n- Write all entries in Kannada, maintaining the student\'s natural voice.\n'
       : isTamil
         ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Tamil (தமிழ்).\n- You MUST generate your summary answers in Tamil (தமிழ்) script.\n- Write all entries in Tamil, maintaining the student\'s natural voice.\n'
-        : '';
+        : isHindi
+          ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Hindi (हिन्दी).\n- You MUST generate your summary answers in Hindi (हिन्दी / Devanagari) script.\n- Write all entries in Hindi, maintaining the student\'s natural voice.\n'
+          : '';
 
     // Get questions from database template
     const questions =
@@ -810,12 +820,15 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
     const formattedResponses = this.formatDreamsResponses(responses);
     const isKannada = language === 'kn';
     const isTamil = language === 'ta';
+    const isHindi = language === 'hi';
 
     const languageInstruction = isKannada
       ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Kannada (ಕನ್ನಡ).\n- You MUST generate your summary answers in Kannada (ಕನ್ನಡ) script.\n- Write all entries in Kannada, maintaining the student\'s natural voice.\n'
       : isTamil
         ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Tamil (தமிழ்).\n- You MUST generate your summary answers in Tamil (தமிழ்) script.\n- Write all entries in Tamil, maintaining the student\'s natural voice.\n'
-        : '';
+        : isHindi
+          ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Hindi (हिन्दी).\n- You MUST generate your summary answers in Hindi (हिन्दी / Devanagari) script.\n- Write all entries in Hindi, maintaining the student\'s natural voice.\n'
+          : '';
 
     const questionsPrompt = isKannada
       ? `Create a dream portfolio with 3 dream entries. For each entry, fill in:
@@ -1097,8 +1110,9 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
 
     const isKannada = language === 'kn';
     const isTamil = language === 'ta';
+    const isHindi = language === 'hi';
     const preferredKey: SummaryLanguage = language;
-    const hasPreferred = (template as any)[preferredKey];
+    const hasPreferred = template[preferredKey];
     const langKey: keyof SummaryTemplate =
       (hasPreferred ? preferredKey : 'en') as keyof SummaryTemplate;
 
@@ -1106,7 +1120,9 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
       ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Kannada (ಕನ್ನಡ).\n- You MUST generate your summary answers in Kannada (ಕನ್ನಡ) script ONLY.\n- Even though the questions may be written in English, ALL your answers must be in Kannada.\n- Write all answers in Kannada, maintaining the student\'s natural voice.\n'
       : isTamil
         ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Tamil (தமிழ்).\n- You MUST generate your summary answers in Tamil (தமிழ்) script ONLY.\n- Even though the questions may be written in English, ALL your answers must be in Tamil.\n- Write all answers in Tamil, maintaining the student\'s natural voice.\n'
-        : '';
+        : isHindi
+          ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Hindi (हिन्दी).\n- You MUST generate your summary answers in Hindi (हिन्दी / Devanagari) script ONLY.\n- Even though the questions may be written in English, ALL your answers must be in Hindi.\n- Write all answers in Hindi, maintaining the student\'s natural voice.\n'
+          : '';
 
     // Get questions from database template
     const questions =
@@ -1142,7 +1158,9 @@ ${instructions}`;
         ? '- Use simple Kannada words – no difficult or English-heavy phrases.\n'
         : isTamil
           ? '- Use simple Tamil words – no difficult or English-heavy phrases.\n'
-          : '- Use plain English – no difficult words.\n';
+          : isHindi
+            ? '- Use simple Hindi words – no difficult or English-heavy phrases.\n'
+            : '- Use plain English – no difficult words.\n';
 
     const coreInstructions =
       'You are a career guidance counsellor for rural students in India.\n' +
@@ -1200,12 +1218,15 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
     const formattedResponses = this.formatSchoolLearningResponses(responses);
     const isKannada = language === 'kn';
     const isTamil = language === 'ta';
+    const isHindi = language === 'hi';
 
     const languageInstruction = isKannada
       ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Kannada (ಕನ್ನಡ).\n- You MUST generate your summary answers in Kannada (ಕನ್ನಡ) script.\n- Write all answers in Kannada, maintaining the student\'s natural voice.\n'
       : isTamil
         ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Tamil (தமிழ்).\n- You MUST generate your summary answers in Tamil (தமிழ்) script.\n- Write all answers in Tamil, maintaining the student\'s natural voice.\n'
-        : '';
+        : isHindi
+          ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Hindi (हिन्दी).\n- You MUST generate your summary answers in Hindi (हिन्दी / Devanagari) script.\n- Write all answers in Hindi, maintaining the student\'s natural voice.\n'
+          : '';
 
     const questionsPrompt = isKannada
       ? `Question 1: ನಾನು ಇಷ್ಟಪಡುವ ವಿಷಯಗಳು
@@ -1423,8 +1444,9 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
 
     const isKannada = language === 'kn';
     const isTamil = language === 'ta';
+    const isHindi = language === 'hi';
     const preferredKey: SummaryLanguage = language;
-    const hasPreferred = (template as any)[preferredKey];
+    const hasPreferred = template[preferredKey];
     const langKey: keyof SummaryTemplate =
       (hasPreferred ? preferredKey : 'en') as keyof SummaryTemplate;
 
@@ -1432,7 +1454,9 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
       ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Kannada (ಕನ್ನಡ).\n- You MUST generate your summary answers in Kannada (ಕನ್ನಡ) script.\n- Write all entries in Kannada, maintaining the student\'s natural voice.\n'
       : isTamil
         ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Tamil (தமிழ்).\n- You MUST generate your summary answers in Tamil (தமிழ்) script.\n- Write all entries in Tamil, maintaining the student\'s natural voice.\n'
-        : '';
+        : isHindi
+          ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Hindi (हिन्दी).\n- You MUST generate your summary answers in Hindi (हिन्दी / Devanagari) script.\n- Write all entries in Hindi, maintaining the student\'s natural voice.\n'
+          : '';
 
     // Get questions from database template
     const questions =
@@ -1538,12 +1562,15 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
 
     const isKannada = language === 'kn';
     const isTamil = language === 'ta';
+    const isHindi = language === 'hi';
 
     const languageInstruction = isKannada
       ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Kannada (ಕನ್ನಡ).\n- You MUST generate your summary answers in Kannada (ಕನ್ನಡ) script.\n- Write all entries in Kannada, maintaining the student\'s natural voice.\n'
       : isTamil
         ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Tamil (தமிழ்).\n- You MUST generate your summary answers in Tamil (தமிழ்) script.\n- Write all entries in Tamil, maintaining the student\'s natural voice.\n'
-        : '';
+        : isHindi
+          ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Hindi (हिन्दी).\n- You MUST generate your summary answers in Hindi (हिन्दी / Devanagari) script.\n- Write all entries in Hindi, maintaining the student\'s natural voice.\n'
+          : '';
 
     return `You are a career counselor helping a student create portfolios of their talents and hobbies.
 Based on the student's responses below, generate thoughtful, personalized portfolios.
@@ -1792,8 +1819,9 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
 
     const isKannada = language === 'kn';
     const isTamil = language === 'ta';
+    const isHindi = language === 'hi';
     const preferredKey: SummaryLanguage = language;
-    const hasPreferred = (template as any)[preferredKey];
+    const hasPreferred = template[preferredKey];
     const langKey: keyof SummaryTemplate =
       (hasPreferred ? preferredKey : 'en') as keyof SummaryTemplate;
 
@@ -1801,7 +1829,9 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
       ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Kannada (ಕನ್ನಡ).\n- You MUST generate your summary answers in Kannada (ಕನ್ನಡ) script.\n- Write all three answers in Kannada, maintaining the student\'s natural voice.\n- Use Kannada script for all text in question1, question2, and question3.\n'
       : isTamil
         ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Tamil (தமிழ்).\n- You MUST generate your summary answers in Tamil (தமிழ்) script.\n- Write all three answers in Tamil, maintaining the student\'s natural voice.\n- Use Tamil script for all text in question1, question2, and question3.\n'
-        : '';
+        : isHindi
+          ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Hindi (हिन्दी).\n- You MUST generate your summary answers in Hindi (हिन्दी / Devanagari) script.\n- Write all three answers in Hindi, maintaining the student\'s natural voice.\n- Use Devanagari script for all text in question1, question2, and question3.\n'
+          : '';
 
     // Get questions from database template
     const questions =
@@ -1869,12 +1899,15 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
     const formattedResponses = this.formatAboutMeResponses(responses);
     const isKannada = language === 'kn';
     const isTamil = language === 'ta';
+    const isHindi = language === 'hi';
 
     const languageInstruction = isKannada
       ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Kannada (ಕನ್ನಡ).\n- You MUST generate your summary answers in Kannada (ಕನ್ನಡ) script.\n- Write all three answers in Kannada, maintaining the student\'s natural voice.\n- Use Kannada script for all text in question1, question2, and question3.\n'
       : isTamil
         ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Tamil (தமிழ்).\n- You MUST generate your summary answers in Tamil (தமிழ்) script.\n- Write all three answers in Tamil, maintaining the student\'s natural voice.\n- Use Tamil script for all text in question1, question2, and question3.\n'
-        : '';
+        : isHindi
+          ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Hindi (हिन्दी).\n- You MUST generate your summary answers in Hindi (हिन्दी / Devanagari) script.\n- Write all three answers in Hindi, maintaining the student\'s natural voice.\n- Use Devanagari script for all text in question1, question2, and question3.\n'
+          : '';
 
     const questionsPrompt = isKannada
       ? `Question 1: ಕುಟುಂಬ ಬಿಟ್ಟು ಹೊರಗಿನ ನನ್ನ ಸ್ನೇಹಿತ
@@ -2136,8 +2169,9 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
 
     const isKannada = language === 'kn';
     const isTamil = language === 'ta';
+    const isHindi = language === 'hi';
     const preferredKey: SummaryLanguage = language;
-    const hasPreferred = (template as any)[preferredKey];
+    const hasPreferred = template[preferredKey];
     const langKey: keyof SummaryTemplate =
       (hasPreferred ? preferredKey : 'en') as keyof SummaryTemplate;
 
@@ -2145,17 +2179,15 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
       ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Kannada (ಕನ್ನಡ).\n- You MUST generate your summary answers in Kannada (ಕನ್ನಡ) script.\n- Write the answer in Kannada, maintaining the student\'s natural voice.\n- Use Kannada script for all text in question1.\n'
       : isTamil
         ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Tamil (தமிழ்).\n- You MUST generate your summary answers in Tamil (தமிழ்) script.\n- Write the answer in Tamil, maintaining the student\'s natural voice.\n- Use Tamil script for all text in question1.\n'
-        : '';
+        : isHindi
+          ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Hindi (हिन्दी).\n- You MUST generate your summary answers in Hindi (हिन्दी / Devanagari) script.\n- Write the answer in Hindi, maintaining the student\'s natural voice.\n- Use Devanagari script for all text in question1.\n'
+          : '';
 
     // Get questions from database template
     const questions =
       (template[langKey] as SummaryTemplateLanguageBlock | undefined) ?? template.en;
 
-    const questionsPrompt = isKannada
-      ? `Question 1: ನಿಮ್ಮ ಆದರ್ಶ ವ್ಯಕ್ತಿಯೊಂದಿಗೆ ನಿಮ್ಮ ವೃತ್ತಿ ಮಾರ್ಗದರ್ಶನಕ್ಕಾಗಿ ನೀವು ಕೇಳಲು ಬಯಸುವ 5 ರಿಂದ 10 ಪ್ರಶ್ನೆಗಳನ್ನು ಬರೆಯಿರಿ.`
-      : isTamil
-        ? `Question 1: உங்கள் முன்மாதிரி நபரிடம் உங்கள் தொழில் வழிகாட்டலுக்காக நீங்கள் கேட்க விரும்பும் 5 முதல் 10 கேள்விகளை எழுதுங்கள்.`
-        : `Question 1: Write 5 to 10 questions you would like to ask your role model for career guidance.`;
+    const questionsPrompt = `Question 1: ${questions.question1}`;
 
     const coreInstructions =
       'You are a career guidance counsellor for rural students in India.\n' +
@@ -2209,12 +2241,15 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
     const formattedResponses = this.formatRoleModelsResponses(responses);
     const isKannada = language === 'kn';
     const isTamil = language === 'ta';
+    const isHindi = language === 'hi';
 
     const languageInstruction = isKannada
       ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Kannada (ಕನ್ನಡ).\n- You MUST generate your summary answers in Kannada (ಕನ್ನಡ) script.\n- Write the answer in Kannada, maintaining the student\'s natural voice.\n- Use Kannada script for all text in question1.\n'
       : isTamil
         ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Tamil (தமிழ்).\n- You MUST generate your summary answers in Tamil (தமிழ்) script.\n- Write the answer in Tamil, maintaining the student\'s natural voice.\n- Use Tamil script for all text in question1.\n'
-        : '';
+        : isHindi
+          ? '\n\nIMPORTANT LANGUAGE REQUIREMENT:\n- The student\'s responses are in Hindi (हिन्दी).\n- You MUST generate your summary answers in Hindi (हिन्दी / Devanagari) script.\n- Write the answer in Hindi, maintaining the student\'s natural voice.\n- Use Devanagari script for all text in question1.\n'
+          : '';
 
     const questionsPrompt = isKannada
       ? `Question 1: ನಿಮ್ಮ ಪಾತ್ರ ಮಾದರಿಗಳಿಂದ ವೃತ್ತಿ ಮಾರ್ಗದರ್ಶನದ ಕುರಿತಾಗಿ ನೀವು ಕೇಳಲು ಬಯಸುವ 5 ರಿಂದ 10 ಪ್ರಶ್ನೆಗಳನ್ನು ಬರೆಯಿರಿ.`
