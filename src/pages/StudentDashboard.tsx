@@ -467,11 +467,40 @@ export default function StudentDashboard() {
     return { status: 'locked', icon: Lock, className: 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 opacity-60 cursor-not-allowed', iconColor: 'text-gray-400', textColor: 'text-gray-500', descriptionColor: 'text-gray-500' };
   };
 
+  // First-time assessment triggers → redirect to career roadmap
+  const ROADMAP_TRIGGERS: Record<string, string> = {
+    'inspiration': 'beginning_9th',
+    'school_learning': 'midterm_9th',
+    'career_guidance_tools': 'end_9th',
+  };
+
+  const hasProgress = (assessmentType: string): boolean => {
+    switch (assessmentType) {
+      case 'inspiration': return !!assessmentProgress;
+      case 'about_me': return !!aboutMeProgress;
+      case 'dreams': return !!dreamsProgress;
+      case 'school_learning': return !!stateLearningProgress;
+      case 'hobbies': return !!hobbiesProgress;
+      case 'role_models': return !!roleModelsProgress;
+      case 'holland_code': return !!hollandCodeProgress;
+      case 'career_guidance_tools': return !!careerGuidanceToolsProgress;
+      default: return false;
+    }
+  };
+
   const startAssessment = (assessmentType: string) => {
     if (!isAssessmentUnlocked(assessmentType)) {
       toast({ title: resolvedLang === 'kn' ? "ಮೌಲ್ಯಮಾಪನ ಲಾಕ್ ಮಾಡಲಾಗಿದೆ" : resolvedLang === 'ta' ? "செயல் பூட்டப்பட்டுள்ளது" : "Assessment Locked", description: resolvedLang === 'kn' ? "ಇದನ್ನು ಅನ್ಲಾಕ್ ಮಾಡಲು ಹಿಂದಿನ ಮೌಲ್ಯಮಾಪನವನ್ನು ಪೂರ್ಣಗೊಳಿಸಿ." : resolvedLang === 'ta' ? "இந்த செயலியைத் திறக்க முன் உள்ள செயலையை முடிக்கவும்." : "Complete the previous assessment to unlock this one.", variant: "destructive" });
       return;
     }
+
+    // First-time open: redirect to career roadmap to fill milestone first
+    const milestone = ROADMAP_TRIGGERS[assessmentType];
+    if (milestone && !hasProgress(assessmentType)) {
+      navigate(`/student/career-roadmap?highlight=${milestone}`);
+      return;
+    }
+
     const qp = `?lang=${resolvedLang}`;
     const routes: Record<string, string> = {
       'inspiration': 'inspiration', 'about_me': 'about-me', 'dreams': 'dreams',
