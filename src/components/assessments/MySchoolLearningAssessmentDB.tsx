@@ -120,7 +120,7 @@ export default function MySchoolLearningAssessmentDB() {
           .select('responses, completed_at')
           .eq('student_id', studentId)
           .eq('assessment_type', 'school_learning')
-          .eq('assessment_title', 'My School Learning')
+          .eq('assessment_title', 'My School, My Learning and I')
           .order('updated_at', { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -160,7 +160,7 @@ export default function MySchoolLearningAssessmentDB() {
         await supabase.from('assessment_responses').upsert({
           student_id: studentId,
           assessment_type: 'school_learning',
-          assessment_title: 'My School Learning',
+          assessment_title: 'My School, My Learning and I',
           responses,
           updated_at: new Date().toISOString(),
           completed_at: null
@@ -214,7 +214,7 @@ export default function MySchoolLearningAssessmentDB() {
       await supabase.from('assessment_responses').upsert({
         student_id: studentId,
         assessment_type: 'school_learning',
-        assessment_title: 'My School Learning',
+        assessment_title: 'My School, My Learning and I',
         responses,
         completed_at: new Date().toISOString(),
         updated_at: new Date().toISOString()

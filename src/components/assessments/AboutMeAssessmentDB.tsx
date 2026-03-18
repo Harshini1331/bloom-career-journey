@@ -173,7 +173,7 @@ export default function AboutMeAssessmentDB() {
           .from('assessment_responses')
           .select('responses, completed_at')
           .eq('student_id', studentId)
-          .eq('assessment_type', 'personality')
+          .eq('assessment_type', 'about_me')
           .eq('assessment_title', 'About Me')
           .order('updated_at', { ascending: false })
           .limit(1)
@@ -214,7 +214,7 @@ export default function AboutMeAssessmentDB() {
         if (!studentId) return;
         await supabase.from('assessment_responses').upsert({
           student_id: studentId,
-          assessment_type: 'personality',
+          assessment_type: 'about_me',
           assessment_title: 'About Me',
           responses,
           updated_at: new Date().toISOString(),

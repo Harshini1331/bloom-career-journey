@@ -76,7 +76,6 @@ const ASSESSMENT_CONFIGS = [
   {
     type: 'about_me',
     title: 'About Me',
-    dbType: 'personality', // AboutMe saves as 'personality' in DB
     responses: {
       question1: 'My best friends are Ravi and Meena from my village. We play cricket together after school.',
       question2: 'At home I help my mother cook and take care of my younger brother. I also feed the cows.',
@@ -149,6 +148,7 @@ const ASSESSMENT_CONFIGS = [
   {
     type: 'hobbies',
     title: 'My Talents and Hobbies',
+    // Dashboard queries this exact title; component was previously inconsistent
     responses: {
       hobbies: [
         {
@@ -313,7 +313,6 @@ async function main() {
   const responseIds: Record<string, string> = {};
 
   for (const cfg of ASSESSMENT_CONFIGS) {
-    const dbType = (cfg as any).dbType || cfg.type;
     const stepName = `2. Create response: ${cfg.type}`;
 
     // Insert the response (table allows multiple rows per student+type)
@@ -321,7 +320,7 @@ async function main() {
       .from('assessment_responses')
       .insert({
         student_id: studentId,
-        assessment_type: dbType,
+        assessment_type: cfg.type,
         assessment_title: cfg.title,
         responses: cfg.responses,
         completed_at: new Date().toISOString(),

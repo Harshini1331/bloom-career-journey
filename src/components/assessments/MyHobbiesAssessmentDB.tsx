@@ -120,7 +120,7 @@ export default function MyHobbiesAssessmentDB() {
           .select('responses, completed_at')
           .eq('student_id', studentId)
           .eq('assessment_type', 'hobbies')
-          .eq('assessment_title', 'My Hobbies')
+          .eq('assessment_title', 'My Talents and Hobbies')
           .order('updated_at', { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -221,7 +221,7 @@ export default function MyHobbiesAssessmentDB() {
       await supabase.from('assessment_responses').upsert({
         student_id: studentId,
         assessment_type: 'hobbies',
-        assessment_title: 'My Hobbies',
+        assessment_title: 'My Talents and Hobbies',
         responses,
         completed_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
