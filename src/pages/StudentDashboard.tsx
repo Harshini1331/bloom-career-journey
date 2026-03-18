@@ -25,7 +25,6 @@ import LanguageSelectionDialog from '@/components/LanguageSelectionDialog';
 import { useStudentStrings, StudentLang } from '@/components/student/studentStrings';
 import StudentDashboardHeader from '@/components/student/StudentDashboardHeader';
 import AssessmentGrid, { AssessmentCardData, SummaryState } from '@/components/student/AssessmentGrid';
-import ProgressSection, { ProgressRowData } from '@/components/student/ProgressSection';
 import CareerChatSection from '@/components/student/CareerChatSection';
 
 export default function StudentDashboard() {
@@ -511,15 +510,6 @@ export default function StudentDashboard() {
     { key: 'career_guidance_tools', number: 8, titleKey: 'assessment_career_guidance', descriptionEn: 'Explore career guidance tools and resources', descriptionKn: 'ವೃತ್ತಿ ಮಾರ್ಗದರ್ಶನ ಸಾಧನಗಳನ್ನು ಅನ್ವೇಷಿಸಿ', descriptionTa: 'தொழில் வழிகாட்டல் கருவிகள் மற்றும் ஆதாரங்களை ஆராயுங்கள்', assessmentStatus: getAssessmentStatus('career_guidance_tools'), isCompleted: getCompletionStatus('career_guidance_tools'), isUnlocked: isAssessmentUnlocked('career_guidance_tools'), hasProgress: false, summaryState: 'none' as SummaryState },
   ];
 
-  const progressRows: ProgressRowData[] = [
-    { number: 1, titleKey: 'assessment_inspiration', assessmentType: 'inspiration', bgColor: 'bg-green-50', textColor: 'text-green-800', isCompleted: inspirationCompleted, previousCompleted: true },
-    { number: 2, titleKey: 'assessment_about_me', assessmentType: 'about_me', bgColor: 'bg-blue-50', textColor: 'text-blue-800', isCompleted: aboutMeCompleted, previousCompleted: inspirationCompleted },
-    { number: 3, titleKey: 'assessment_dreams', assessmentType: 'dreams', bgColor: 'bg-blue-50', textColor: 'text-blue-800', isCompleted: dreamsCompleted, previousCompleted: aboutMeCompleted },
-    { number: 4, titleKey: 'assessment_school_learning', assessmentType: 'school_learning', bgColor: 'bg-purple-50', textColor: 'text-purple-800', isCompleted: stateLearningCompleted, previousCompleted: dreamsCompleted },
-    { number: 5, titleKey: 'assessment_hobbies', assessmentType: 'hobbies', bgColor: 'bg-orange-50', textColor: 'text-orange-800', isCompleted: hobbiesCompleted, previousCompleted: stateLearningCompleted },
-    { number: 6, titleKey: 'assessment_role_models', assessmentType: 'role_models', bgColor: 'bg-pink-50', textColor: 'text-pink-800', isCompleted: roleModelsCompleted, previousCompleted: hobbiesCompleted },
-  ];
-
   // ═══════════════════════════════════════════════════════════════════
   //  RENDER
   // ═══════════════════════════════════════════════════════════════════
@@ -563,17 +553,6 @@ export default function StudentDashboard() {
           t={t}
           onStartAssessment={startAssessment}
           onViewSummary={handleViewSummary}
-        />
-
-        {/* Progress Summary */}
-        <ProgressSection
-          rows={progressRows}
-          resolvedLang={resolvedLang}
-          t={t}
-          hollandCodeCompleted={hollandCodeCompleted}
-          roleModelsCompleted={roleModelsCompleted}
-          careerGuidanceToolsCompleted={careerGuidanceToolsCompleted}
-          hollandCodeCompleted2={hollandCodeCompleted}
         />
 
         {/* Career Spotlight + Chat */}
