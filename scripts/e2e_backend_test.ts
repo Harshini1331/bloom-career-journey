@@ -53,22 +53,50 @@ const ASSESSMENT_CONFIGS = [
   {
     type: 'inspiration',
     title: 'My Inspiration',
+    // 3 videos × 10 questions each (from content_translations: inspiration_question)
     responses: {
       video1: {
-        videoTitle: 'Kiran Bedi',
-        question1: 'I was very inspired by how Kiran Bedi overcame difficulties. She showed that hard work and courage can help anyone succeed.',
-        question2: 'I should avoid being lazy and making excuses. Instead I should focus on my goals like she did.',
-        question3: 'Both Kiran Bedi and my school teacher show the same qualities of patience and dedication.',
+        videoTitle: 'Video 1',
+        question1: 'I liked the part where the person talked about never giving up even when things are hard.',
+        question2: 'I liked the way the main person spoke with confidence and kindness.',
+        question3: 'I noticed courage, honesty, and hard work in them.',
+        question4: 'Their patience can bring a positive change in my life.',
+        question5: 'I found the village student relatable because I also come from a small village.',
+        question6: 'Yes, I helped my friend when he was sad and that showed kindness.',
+        question7: 'If I were that character, I would also help my community.',
+        question8: 'The teacher in the video inspired me because she helped every student equally.',
+        question9: 'I would like to follow their dedication and honesty in my real life.',
+        question10: 'I also noticed that the video showed the importance of education for village children.',
       },
       video2: {
-        videoTitle: 'APJ Abdul Kalam',
-        question1: 'Dr. Kalam came from a small village like mine. His story shows that where you come from does not decide where you can go.',
-        question2: 'I should not waste time watching too much TV. I should read books and study science.',
-        question3: 'My grandfather also worked hard like Dr. Kalam. They both believed in education.',
+        videoTitle: 'Video 2',
+        question1: 'I liked how Dr. Kalam came from a small village and became a great scientist.',
+        question2: 'Dr. Kalam spoke very simply and from the heart. I liked that.',
+        question3: 'I saw hard work, curiosity, and love for learning in him.',
+        question4: 'His love for reading books can bring a positive change in my life.',
+        question5: 'I related to the village boy character because I also dream big.',
+        question6: 'Yes, I once read extra books to learn about space, like Dr. Kalam did.',
+        question7: 'If I were Dr. Kalam, I would build schools in every village.',
+        question8: 'Dr. Kalam is an inspiration because he proved that poor students can succeed.',
+        question9: 'I would like to follow his habit of reading and learning every day.',
+        question10: 'The video also showed that teachers play a very important role in our lives.',
+      },
+      video3: {
+        videoTitle: 'Video 3',
+        question1: 'I liked the story about a girl who started a small business from her hobby.',
+        question2: 'The girl spoke confidently about her dreams. I admired that.',
+        question3: 'I observed creativity, determination, and self-belief in her.',
+        question4: 'Her self-belief can help me feel more confident about my own dreams.',
+        question5: 'I related to her because she also loved art and drawing like me.',
+        question6: 'Yes, I once sold my drawings at a school fair and earned some money.',
+        question7: 'If I were her, I would also teach art to other children in my village.',
+        question8: 'She inspired me because she turned her hobby into a career.',
+        question9: 'I would like to follow her creativity and courage to try new things.',
+        question10: 'The video taught me that any hobby can become a career if you work hard.',
       },
       summary: {
-        question1: 'Hard work, courage, patience, dedication',
-        question2: 'Laziness, excuses, wasting time',
+        question1: 'Hard work, courage, patience, dedication, love for learning',
+        question2: 'Laziness, excuses, wasting time, giving up too easily',
         question3: 'Both video characters and my family members show dedication to their goals',
       },
     },
@@ -76,138 +104,167 @@ const ASSESSMENT_CONFIGS = [
   {
     type: 'about_me',
     title: 'About Me',
+    // 19 questions (question11 deleted per schema): A(q1-3), B(q4-6), C(q7-10), D(q12-20)
     responses: {
-      question1: 'My best friends are Ravi and Meena from my village. We play cricket together after school.',
-      question2: 'At home I help my mother cook and take care of my younger brother. I also feed the cows.',
-      question3: 'I enjoy art class and sports period. Drawing is my favorite activity in school.',
-      question4: 'After school I like playing cricket and drawing pictures of nature.',
-      question5: 'I enjoy drawing alone at home. It makes me feel peaceful.',
-      question6: 'I enjoy playing cricket with friends. We work as a team.',
-      question7: 'Mathematics is difficult for me. I find multiplication and division confusing.',
-      question8: 'It is hard for me to wake up early for tuition classes.',
-      question9: 'I must study every day and do my homework on time.',
-      question10: 'I can draw very well. I can also run fast in races.',
-      question11: 'I find it difficult to speak in front of the whole class.',
-      question12: 'I am kind to my friends and always help them. I am honest.',
-      question13: 'My teacher says I am creative and hardworking. My friends say I am funny.',
+      question1: 'In my family I can freely share my feelings with my mother. She always listens and never judges me.',
+      question2: 'My best friends are Ravi and Meena from my village. We play cricket together after school.',
+      question3: 'At home I help my mother cook and take care of my younger brother. I also feed the cows.',
+      question4: 'I enjoy art class and sports period during school. After school I like playing cricket and drawing.',
+      question5: 'I enjoy drawing alone at home. It makes me feel peaceful and happy.',
+      question6: 'I enjoy playing cricket with friends. We work as a team and have fun.',
+      question7: 'Mathematics is difficult for me at school. I find multiplication and division confusing.',
+      question8: 'It is hard for me to wake up early for tuition classes outside school.',
+      question9: 'I must study every day and do my homework on time even though I do not always want to.',
+      question10: 'I can draw very well. I can also run fast in races and organize events.',
+      question12: 'I am kind to my friends and always help them. I am honest and creative.',
+      question13: 'My teacher says I am creative and hardworking. My friends say I am funny and helpful.',
       question14: 'I need to improve my math skills and be more confident in speaking.',
+      question15: 'My friends say I talk too much sometimes and I should listen more.',
+      question16: 'I want to become a teacher so I can help children in my village learn.',
+      question17: 'I felt proud when I won the drawing competition at school. I practiced every day for two weeks.',
+      question18: 'When my friend and I had a fight, I talked to my teacher and we solved it together.',
+      question19: 'Once my neighbor thought I broke their window but it was not me. I stayed calm and explained.',
+      question20: 'I am a kind and hardworking student who loves drawing and wants to become a teacher.',
     },
   },
   {
     type: 'dreams',
     title: 'My Dreams',
+    // Main component uses flat UUID keys from dreams_questions table.
+    // It also supports old part1/part2 format via migration logic.
+    // Using part structure since it maps correctly via section→part conversion.
     responses: {
+      // section1 (6 questions) → part1
       part1: {
-        question1: 'I want to become a doctor so I can help people in my village who are sick.',
-        question2: 'I am caring and patient with people. I always help when someone is hurt.',
-        question3: 'I must study hard and not get distracted by games.',
-        question4: 'I need to study science and biology after 10th standard.',
+        question1: 'I dream of becoming a doctor so I can help sick people in my village.',
+        question2: 'I want to score well in 10th board exams and get into a good science college.',
+        question3: 'I dream of becoming a doctor or a scientist.',
+        question4: 'I want to play cricket for my state team one day.',
+        question5: 'If I become a writer, I would write stories about village life.',
+        question6: 'I love listening to music. I would like to learn to play the flute.',
       },
+      // section2 (6 questions) → part2
       part2: {
-        question1: 'My second dream is to become an artist who draws for books and magazines.',
-        question2: 'I have good drawing skills and creativity. My teacher says my art is excellent.',
-        question3: 'I should practice drawing every day and learn new techniques.',
-        question4: 'I could study fine arts or graphic design after 10th.',
+        question1: 'I want to study at a good medical college in the city.',
+        question2: 'I want to serve the poor and sick people in rural areas.',
+        question3: 'I would like to live near my village so I can help my community.',
+        question4: 'I would like to learn drawing better, maybe become an illustrator.',
+        question5: 'Yes, I love travelling. I like seeing new places and meeting new people.',
+        question6: 'I would like to learn from a doctor for one day to understand their work.',
       },
+      // section3 (6 questions) → part3
       part3: {
-        question1: 'I also want to be a cricket player and play for India.',
-        question2: 'I am fast, strong and good at batting. I practice every day.',
-        question3: 'I need to stay fit and practice regularly. I should not get injured.',
-        question4: 'I could join a sports academy after 10th if I get selected.',
+        question1: 'Yes, I really want to make my dreams come true.',
+        question2: 'I need to study hard, get good marks, and join a medical college after 12th.',
+        question3: 'The first step is to focus on science and biology in 9th and 10th standard.',
+        question4: 'Yes, I have strong determination. My family also encourages me every day.',
+        question5: 'The main obstacle is money for college fees. But I will try for a scholarship.',
+        question6: 'Yes, learning science in school directly helps me prepare for a medical career.',
       },
     },
   },
   {
     type: 'school_learning',
-    title: 'My School Learning',
+    title: 'My School, My Learning and I',
+    // Main component uses section1..5 with GLOBAL question numbering (question1..21)
+    // Section 6 is the summary tab (question1..6 scoped to section6)
     responses: {
-      part1: {
-        question1: 'I like science and art. Science helps me understand the world and art lets me express myself.',
-        question2: 'Science can help me become a doctor. Art can help me become an illustrator or designer.',
-        question3: 'I do not like mathematics because the problems are confusing.',
-        question4: 'If I improve in math, I could become an engineer or accountant.',
-        question5: 'I am good at drawing, running races, and helping organize school events.',
-        question6: 'These skills could help me in design, sports, or management careers.',
-        question7: 'I learn best by doing experiments and looking at pictures.',
-        question8: 'I could also improve by discussing with classmates and practicing more.',
-        question9: 'I want to improve in speaking and math this year.',
-        question10: 'I will ask my teacher for extra help and practice every day.',
+      section1: {
+        question1: 'Yes, I like coming to school because I get to learn new things and meet my friends.',
+        question2: 'I like to learn science and art in school. Science experiments are very exciting.',
+        question3: 'I do not like mathematics because the problems are confusing and I get stuck.',
+        question4: 'My close friends in school are Ravi and Meena. They are helpful and always share notes.',
+      },
+      section2: {
+        question5: 'I like science and art the most. I also enjoy English stories.',
+        question6: 'I like science because I can do experiments and see how things work in real life.',
+        question7: 'I do not like mathematics and sometimes grammar is also difficult for me.',
+        question8: 'I do not like math because the teacher goes too fast and I cannot understand.',
+      },
+      section3: {
+        question9: 'I score the highest marks in science and art. I got 90 in science last exam.',
+        question10: 'I score low marks in mathematics and sometimes in Hindi grammar.',
         question11: {
-          lookingAtPictures: true,
-          reading: false,
-          listening: true,
-          experiment: true,
-          discussions: false,
-          practice: true,
-          groupSessions: false,
-          others: '',
+          visual: true,
+          audio: true,
+          experimenting: true,
+          discuss: false,
+          groupDiscussions: false,
+          presentation: false,
+          rolePlay: false,
+          teaching: false,
+          other: '',
         },
+        question12: 'I prefer to learn in a group because my friends help me understand difficult topics.',
+      },
+      section4: {
+        question13: 'Yes, I learn from my friends. Recently Meena taught me how to solve fraction problems.',
+        question14: 'Apart from subjects, I am attracted to school sports day and drawing competitions.',
+        question15: 'My favorite teachers are Lakshmi Ma\'am and Ramesh Sir. They explain things simply and care about us.',
+        question16: 'When I won the drawing competition, I felt very proud and successful.',
+      },
+      section5: {
+        question17: 'The things I learn in school like science help me understand the world and get closer to my dream.',
+        question18: 'I want more art classes and a proper science lab in our school.',
+        question19: 'Yes, I have a small desk near the window at home where I study every evening.',
+        question20: 'Yes, school plays a very important role. Without school I would not know about careers.',
+        question21: 'Yes, I discuss what I learned with my mother. She is happy when I tell her about science.',
       },
     },
   },
   {
     type: 'hobbies',
     title: 'My Talents and Hobbies',
-    // Dashboard queries this exact title; component was previously inconsistent
-    responses: {
-      hobbies: [
-        {
-          id: '1',
-          name: 'Drawing',
-          description: 'I draw pictures of animals, nature and village scenes. I use pencils and watercolors.',
-          timeSpent: '2 hours daily',
-          enjoyment: 'I feel very happy and peaceful when I draw.',
-          skills: 'Creativity, patience, attention to detail',
-        },
-        {
-          id: '2',
-          name: 'Cricket',
-          description: 'I play cricket with my friends every evening after school in the village ground.',
-          timeSpent: '1.5 hours daily',
-          enjoyment: 'I love the teamwork and competition. Hitting a six feels amazing.',
-          skills: 'Teamwork, fitness, hand-eye coordination',
-        },
-        {
-          id: '3',
-          name: 'Reading stories',
-          description: 'I read Kannada story books and Panchatantra tales from the school library.',
-          timeSpent: '30 minutes before bed',
-          enjoyment: 'Stories take me to different worlds. I learn new words.',
-          skills: 'Imagination, vocabulary, concentration',
-        },
-      ],
-    },
+    // Main component uses flat UUID keys from hobbies_questions table.
+    // UUIDs are fetched dynamically at runtime — see buildHobbiesResponses().
+    responses: {}, // Populated dynamically before test run
   },
   {
     type: 'role_models',
     title: 'My Role Models',
+    // Main component uses roleModel1/2/3 objects (11 fields each) + question12 + question13
     responses: {
-      roleModels: [
-        {
-          id: '1',
-          name: 'My school teacher Lakshmi Ma\'am',
-          relationship: 'My class teacher who teaches science',
-          qualities: 'Patient, kind, explains difficult things simply. She never gives up on any student.',
-          influence: 'She inspired me to love science and think about becoming a doctor.',
-          incorporatePlan: 'I try to be patient like her and help my classmates with their studies.',
-        },
-        {
-          id: '2',
-          name: 'My grandfather',
-          relationship: 'Family elder',
-          qualities: 'Hardworking farmer, honest, cares for the whole village. Wakes up at 4 AM every day.',
-          influence: 'He taught me that hard work always pays off. He started with nothing but built our family.',
-          incorporatePlan: 'I wake up early like him and work hard in my studies without complaining.',
-        },
-        {
-          id: '3',
-          name: 'Dr. APJ Abdul Kalam',
-          relationship: 'Historical figure',
-          qualities: 'Brilliant scientist from a poor family. Never forgot his roots. Loved children.',
-          influence: 'His story shows that a village boy can become anything if he studies hard.',
-          incorporatePlan: 'I read about scientists and try to do small experiments at home.',
-        },
-      ],
+      roleModel1: {
+        name: 'My school teacher Lakshmi Ma\'am',
+        relationship: 'My class teacher who teaches science',
+        admirationReasons: 'She is patient, kind, and explains difficult things simply. She never gives up on any student.',
+        profession: 'Science teacher at my school',
+        desiredQualities: 'I want to develop her patience and ability to explain things clearly.',
+        careerDiscussed: 'Yes, she told me about different science careers and how to prepare for them.',
+        opinion: 'She says I have potential and should focus on science subjects.',
+        willingToHelp: 'Yes, she gives me extra books and helps me after school.',
+        helpLookingFor: 'I need her guidance on which subjects to focus on for medical entrance.',
+        similarities: 'We both love science and enjoy helping others learn new things.',
+        incorporatePlan: 'I try to be patient like her and help my classmates with their studies.',
+      },
+      roleModel2: {
+        name: 'My grandfather',
+        relationship: 'Family elder who lives with us',
+        admirationReasons: 'He is hardworking, honest, and cares for the whole village. He wakes up at 4 AM every day.',
+        profession: 'Farmer who grows rice and vegetables',
+        desiredQualities: 'I want his discipline and dedication to wake up early and work hard.',
+        careerDiscussed: 'He tells me about how farming has changed and why education is important.',
+        opinion: 'He believes I should study hard and not become a farmer like him.',
+        willingToHelp: 'Yes, he saves money for my education and encourages me.',
+        helpLookingFor: 'I want him to help me stay motivated when studies get difficult.',
+        similarities: 'We are both hardworking and care about our family and village.',
+        incorporatePlan: 'I wake up early like him and work hard in my studies without complaining.',
+      },
+      roleModel3: {
+        name: 'Dr. APJ Abdul Kalam',
+        relationship: 'Former President of India, a scientist I read about in school',
+        admirationReasons: 'He was a brilliant scientist from a poor family who never forgot his roots and loved children.',
+        profession: 'Scientist and former President of India',
+        desiredQualities: 'I want his love for learning and his ability to dream big despite being poor.',
+        careerDiscussed: 'I read his book Wings of Fire and learned about his journey.',
+        opinion: 'His story shows that a village boy can become anything if he studies hard.',
+        willingToHelp: 'His books and speeches inspire me even though he is no longer alive.',
+        helpLookingFor: 'I follow his teachings to read books and never stop learning.',
+        similarities: 'We both come from small villages and dream of making a difference in India.',
+        incorporatePlan: 'I read about scientists and try to do small experiments at home.',
+      },
+      question12: 'Yes, I have noticed that all three role models are hardworking and dedicated. Like them, I also try my best in everything I do.',
+      question13: 'I try to wake up early like my grandfather, be patient like my teacher, and read books like Dr. Kalam. I practice these qualities every day.',
     },
   },
 ];
@@ -221,20 +278,25 @@ function mockSummary(type: string): Record<string, string> {
       question3: 'Both the video characters and my family members share dedication, patience, and belief in education.',
     },
     about_me: {
-      question1: 'Ravi and Meena from my village',
-      question2: 'Cooking, caring for brother, feeding cows',
-      question3: 'Art class and sports period',
-      question4: 'Cricket and drawing pictures',
+      question1: 'My mother is my trusted person in the family',
+      question2: 'Ravi and Meena from my village',
+      question3: 'Cooking, caring for brother, feeding cows',
+      question4: 'Art class, sports, cricket, drawing',
       question5: 'Drawing alone at home',
       question6: 'Playing cricket with friends',
       question7: 'Mathematics — multiplication and division',
       question8: 'Waking up early for tuition',
       question9: 'Study every day, do homework on time',
       question10: 'Drawing and running fast',
-      question11: 'Speaking in front of the class',
-      question12: 'Kind, helpful, honest',
+      question12: 'Kind, helpful, honest, creative',
       question13: 'Creative, hardworking, funny',
       question14: 'Math skills and speaking confidence',
+      question15: 'Talk less and listen more',
+      question16: 'Become a teacher for village children',
+      question17: 'Won the drawing competition',
+      question18: 'Talked to teacher to resolve fight',
+      question19: 'Stayed calm when wrongly blamed',
+      question20: 'Kind hardworking student who loves drawing',
     },
     dreams: {
       question1: JSON.stringify([
@@ -308,6 +370,43 @@ async function main() {
   }
   const studentId = studentRow.id;
   pass('1b. Get student record', `students.id=${studentId}`);
+
+  // ── Step 1c: Fetch hobbies question UUIDs and build responses ────
+  const hobbiesAnswers = [
+    'In my free time I draw pictures, play cricket with friends, and read story books.',
+    'Yes, my hobbies are drawing, playing cricket, and reading Panchatantra stories.',
+    'Drawing is my favorite hobby because it makes me feel calm and happy.',
+    'Yes, earlier I used to like only cricket but now I also love drawing.',
+    'My art teacher Lakshmi Ma\'am inspired me to start drawing.',
+    'Yes, my friend Meena also likes drawing. We draw together sometimes.',
+    'When I draw, I feel peaceful and forget all my worries. Time passes quickly.',
+    'My talents are drawing, running fast, and organizing school events.',
+    'Yes, I practice drawing every day and try new techniques from YouTube videos.',
+    'Yes, my school gives me chances to draw for competitions and display my art.',
+    'Yes, my parents bought me drawing materials and they appreciate my art.',
+    'Yes, my drawing hobby matches my talent in art and creativity.',
+    'Yes, drawing can become a career as graphic designer or illustrator.',
+    'My neighbor uncle turned his painting hobby into a career. He paints shop signs.',
+  ];
+  const { data: hobbiesQRows, error: hobbiesQErr } = await studentClient
+    .from('hobbies_questions')
+    .select('id, sequence_number')
+    .eq('is_active', true)
+    .order('sequence_number');
+  if (hobbiesQErr || !hobbiesQRows || hobbiesQRows.length === 0) {
+    fail('1c. Fetch hobbies question IDs', hobbiesQErr?.message || 'No rows returned (check RLS)');
+    // Fallback: try via linked query approach — use sequence-based keys
+    console.log('  ⚠ Falling back to sequence-based keys for hobbies');
+  } else {
+    const hobbiesResponses: Record<string, string> = {};
+    hobbiesQRows.forEach((row, i) => {
+      hobbiesResponses[row.id] = hobbiesAnswers[i] || '';
+    });
+    // Update the hobbies config with dynamic responses
+    const hobbiesCfg = ASSESSMENT_CONFIGS.find(c => c.type === 'hobbies');
+    if (hobbiesCfg) hobbiesCfg.responses = hobbiesResponses;
+    pass('1c. Fetch hobbies question IDs', `${hobbiesQRows.length} question UUIDs loaded`);
+  }
 
   // ── Step 2: Create assessment responses ──────────────────────────
   const responseIds: Record<string, string> = {};
