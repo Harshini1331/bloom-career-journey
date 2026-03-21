@@ -590,7 +590,7 @@ export default function MyInspirationAssessment() {
           responses,
           updated_at: new Date().toISOString(),
           completed_at: null
-        });
+        }, { onConflict: 'student_id,assessment_type' });
       } catch { }
     }, 800);
     return () => clearTimeout(t);
@@ -1277,7 +1277,7 @@ export default function MyInspirationAssessment() {
           responses: responses,
           completed_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        })
+        }, { onConflict: 'student_id,assessment_type' })
         .select()
         .single();
 

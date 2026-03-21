@@ -1,4 +1,4 @@
-﻿import { logger } from '@/lib/logger';
+import { logger } from '@/lib/logger';
 import React, { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -92,7 +92,7 @@ export default function HollandCodeTestDB({ onCompleted }: { onCompleted?: (code
         },
         completed_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
-      });
+      }, { onConflict: 'student_id,assessment_type' });
 
       setResult(hollandCode);
       onCompleted?.(hollandCode);
