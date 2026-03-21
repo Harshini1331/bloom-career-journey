@@ -64,11 +64,15 @@ interface ProfileCardPageProps {
 
 export default function ProfileCardPage({ studentIdOverride, readOnly }: ProfileCardPageProps) {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const { lang: currentLang } = useLang();
   const params = useParams<{ studentId?: string }>();
 
-  const studentId = studentIdOverride || params.studentId || user?.id || '';
+  // For assessment_responses & profile_card_cache queries we need the students table UUID,
+  // NOT the auth/users UUID.  studentIdOverride and params.studentId are already students.id.
+  const studentId = studentIdOverride || params.studentId || userProfile?.studentProfile?.id || '';
+  // For the users-table name lookup we still need the auth user id
+  const userId = user?.id || '';
   const lang = (currentLang || 'en') as 'en' | 'kn' | 'ta' | 'hi';
   const { t } = useStudentStrings(lang);
 
@@ -85,12 +89,17 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
     if (!studentId) return;
     setLoading(true);
     try {
-      const { data: profile } = await supabase
-        .from('users')
-        .select('full_name')
-        .eq('id', studentId)
-        .single();
-      if (profile) setStudentName(profile.full_name || '');
+      // Look up name: for own card use auth userId; for teacher view resolve via students table
+      if (studentIdOverride || params.studentId) {
+        const { data: stu } = await supabase.from('students').select('user_id').eq('id', studentId).maybeSingle();
+        if (stu?.user_id) {
+          const { data: u } = await supabase.from('users').select('full_name').eq('id', stu.user_id).single();
+          if (u) setStudentName(u.full_name || '');
+        }
+      } else {
+        const { data: profile } = await supabase.from('users').select('full_name').eq('id', userId).single();
+        if (profile) setStudentName(profile.full_name || '');
+      }
 
       const summaryMap: Record<string, AssessmentSummary | null> = {};
       for (const mod of MODULES) {
@@ -172,7 +181,7 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
     } finally {
       setLoading(false);
     }
-  }, [studentId, lang]);
+  }, [studentId, userId, lang]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
