@@ -1737,7 +1737,7 @@ export default function MyInspirationAssessment() {
                             <span className="text-red-500 text-sm">*</span>
                           </label>
                           <Textarea
-                            placeholder={t('typeYourAnswerHere', 'Type your answer here...')}
+                            placeholder={sq.help_text || sq.question_text || t('typeYourAnswerHere', 'Type your answer here...')}
                             value={questionValue}
                             onChange={(e) => handleResponseChange('summary', qKey, e.target.value)}
                             readOnly={readOnlyView}

@@ -775,7 +775,7 @@ export default function AboutMeAssessment() {
                                     <span className="text-red-500 ml-1">*</span>
                                   </label>
                                   <Textarea
-                                    placeholder={t('typeYourAnswerHere', 'Type your answer here...')}
+                                    placeholder={sq.help_text || sq.question_text || t('typeYourAnswerHere', 'Type your answer here...')}
                                     value={summaryData[qKey] || ''}
                                     onChange={(e) => {
                                       const newSummary = { ...summaryData, [qKey]: e.target.value };

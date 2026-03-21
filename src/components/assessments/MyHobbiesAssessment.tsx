@@ -1,4 +1,4 @@
-﻿import { logger } from '@/lib/logger';
+import { logger } from '@/lib/logger';
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -1100,7 +1100,7 @@ export default function MyHobbiesAssessment() {
                         )}
 
                         <Textarea
-                          placeholder={lang === 'kn' ? 'ನಿಮ್ಮ ಉತ್ತರವನ್ನು ಇಲ್ಲಿ ಬರೆಯಿರಿ...' : lang === 'ta' ? 'உங்கள் பதிலை இங்கே எழுதுங்கள்...' : 'Type your answer here...'}
+                          placeholder={q.help_text || (lang === 'kn' ? 'ನಿಮ್ಮ ಉತ್ತರವನ್ನು ಇಲ್ಲಿ ಬರೆಯಿರಿ...' : lang === 'ta' ? 'உங்கள் பதிலை இங்கே எழுதுங்கள்...' : lang === 'hi' ? 'अपना उत्तर यहाँ लिखें...' : 'Type your answer here...')}
                           className="min-h-[120px] text-base border-orange-100 focus:border-orange-300 focus:ring-orange-200"
                           value={responses[sectionKey === 'summary' ? `summary_${q.sequence_number}` : q.id] || ''}
                           onChange={(e) => handleResponseChange(sectionKey === 'summary' ? `summary_${q.sequence_number}` : q.id, e.target.value)}
