@@ -519,7 +519,6 @@ export default function MyInspirationAssessment() {
           .select('id')
           .eq('student_id', studentId)
           .eq('assessment_type', 'inspiration')
-          .eq('assessment_title', 'My Inspiration')
           .order('updated_at', { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -536,14 +535,14 @@ export default function MyInspirationAssessment() {
         // Create a new placeholder record to attach audio responses
         const { data: inserted, error: insertError } = await supabase
           .from('assessment_responses')
-          .insert({
+          .upsert({
             student_id: studentId,
             assessment_type: 'inspiration',
             assessment_title: 'My Inspiration',
             responses: responses || {}, // Use current responses or empty object
             completed_at: null,
             updated_at: new Date().toISOString(),
-          })
+          }, { onConflict: 'student_id,assessment_type' })
           .select('id')
           .single();
 
@@ -1172,37 +1171,16 @@ export default function MyInspirationAssessment() {
       logger.log('Video responses to save:', responses[videoKey]);
       logger.log('Updated responses to save:', updatedResponses);
 
-      // First try to update existing record
-      const { data: updateData, error: updateError } = await supabase
+      const { error } = await supabase
         .from('assessment_responses')
-        .update({
+        .upsert({
+          student_id: studentId,
+          assessment_type: 'inspiration',
+          assessment_title: 'My Inspiration',
           responses: updatedResponses,
-          updated_at: new Date().toISOString()
-        })
-        .eq('student_id', studentId)
-        .eq('assessment_type', 'inspiration')
-        .eq('assessment_title', 'My Inspiration')
-        .select();
-
-      logger.log('Update result:', { updateData, updateError });
-
-      let error = updateError;
-
-      // If no rows were updated (no existing record), insert a new one
-      if (!updateError && (!updateData || updateData.length === 0)) {
-        logger.log('No existing record found, inserting new one...');
-        const { error: insertError } = await supabase
-          .from('assessment_responses')
-          .insert({
-            student_id: studentId,
-            assessment_type: 'inspiration',
-            assessment_title: 'My Inspiration',
-            responses: updatedResponses,
-            completed_at: null
-          });
-        error = insertError;
-        logger.log('Insert result:', { insertError });
-      }
+          updated_at: new Date().toISOString(),
+          completed_at: null
+        }, { onConflict: 'student_id,assessment_type' });
 
       if (error) {
         logger.error('Error saving to database:', error);

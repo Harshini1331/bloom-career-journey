@@ -439,13 +439,12 @@ export default function MySchoolLearningAssessment() {
     try {
       logger.log('💾 Saving section:', section, 'with responses:', responses);
 
-      // First, check if a record exists - get the most recent one
+      // Fetch existing record to merge responses
       const { data: existingRecords, error: fetchError } = await supabase
         .from('assessment_responses')
         .select('id, responses')
         .eq('student_id', studentId)
         .eq('assessment_type', 'school_learning')
-        .eq('assessment_title', 'My School, My Learning and I')
         .order('updated_at', { ascending: false })
         .limit(1);
 
@@ -455,51 +454,27 @@ export default function MySchoolLearningAssessment() {
       }
 
       const existing = existingRecords && existingRecords.length > 0 ? existingRecords[0] : null;
-      logger.log('📋 Existing record:', existing);
+      const existingResponses = (existing?.responses as any) || {};
+      const mergedResponses = { ...existingResponses, ...responses };
 
-      if (existing) {
-        // Update existing record, merge responses
-        const existingResponses = existing.responses as any || {};
-        const mergedResponses = {
-          ...existingResponses,
-          ...responses
-        };
+      logger.log('🔄 Merging responses:', { existing: existingResponses, current: responses, merged: mergedResponses });
 
-        logger.log('🔄 Merging responses:', { existing: existingResponses, current: responses, merged: mergedResponses });
+      const { error } = await supabase
+        .from('assessment_responses')
+        .upsert({
+          student_id: studentId,
+          assessment_type: 'school_learning',
+          assessment_title: 'My School, My Learning and I',
+          responses: mergedResponses,
+          updated_at: new Date().toISOString(),
+          completed_at: null
+        }, { onConflict: 'student_id,assessment_type' });
 
-        const { error } = await supabase
-          .from('assessment_responses')
-          .update({
-            responses: mergedResponses,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existing.id);
-
-        if (error) {
-          logger.error('❌ Error updating record:', error);
-          throw error;
-        }
-        logger.log('✅ Successfully updated existing record');
-      } else {
-        // Create new record
-        logger.log('📝 Creating new record with responses:', responses);
-        const { error } = await supabase
-          .from('assessment_responses')
-          .insert({
-            student_id: studentId,
-            assessment_type: 'school_learning',
-            assessment_title: 'My School, My Learning and I',
-            responses,
-            updated_at: new Date().toISOString(),
-            completed_at: null
-          });
-
-        if (error) {
-          logger.error('❌ Error inserting new record:', error);
-          throw error;
-        }
-        logger.log('✅ Successfully created new record');
+      if (error) {
+        logger.error('❌ Error saving record:', error);
+        throw error;
       }
+      logger.log('✅ Successfully saved record');
 
       toast({
         title:
