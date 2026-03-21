@@ -293,41 +293,20 @@ export default function HollandCodeAssessment() {
         ...currentResponses
       };
 
-      // First try to update existing record
-      const { data: updateData, error: updateError } = await supabase
+      const { data: upsertData, error } = await supabase
         .from('assessment_responses')
-        .update({
+        .upsert({
+          student_id: studentId,
+          assessment_type: 'personality',
+          assessment_title: 'Holland Code (RIASEC) Test',
           responses: combinedResponses,
           completed_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        })
-        .eq('student_id', studentId)
-        .eq('assessment_type', 'personality')
-        .eq('assessment_title', 'Holland Code (RIASEC) Test')
-        .select();
+        }, { onConflict: 'student_id,assessment_type' })
+        .select()
+        .single();
 
-      let assessmentData = updateData && updateData.length > 0 ? updateData[0] : null;
-      let error = updateError;
-
-      // If no rows were updated (no existing record), insert a new one
-      if (!updateError && (!updateData || updateData.length === 0)) {
-        const { data: insertData, error: insertError } = await supabase
-          .from('assessment_responses')
-          .insert({
-            student_id: studentId,
-            assessment_type: 'personality',
-            assessment_title: 'Holland Code (RIASEC) Test',
-            responses: combinedResponses,
-            completed_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .select()
-          .single();
-        assessmentData = insertData;
-        error = insertError;
-      }
-
-      if (error) throw error;
+      const assessmentData = upsertData;
 
       if (error) throw error;
 
@@ -396,31 +375,16 @@ export default function HollandCodeAssessment() {
           ...currentResponses
         };
 
-        // Update existing logic
-        const { data: updateData, error: updateError } = await supabase
+        const { error } = await supabase
           .from('assessment_responses')
-          .update({
-            responses: combinedResponses,
-            updated_at: new Date().toISOString()
-          })
-          .eq('student_id', studentId)
-          .eq('assessment_type', 'personality')
-          .eq('assessment_title', 'Holland Code (RIASEC) Test')
-          .select();
-
-        let error = updateError;
-
-        if (!updateError && (!updateData || updateData.length === 0)) {
-          const { error: insertError } = await supabase.from('assessment_responses').insert({
+          .upsert({
             student_id: studentId,
             assessment_type: 'personality',
             assessment_title: 'Holland Code (RIASEC) Test',
             responses: combinedResponses,
             updated_at: new Date().toISOString(),
             completed_at: null
-          });
-          error = insertError;
-        }
+          }, { onConflict: 'student_id,assessment_type' });
 
         if (error) throw error;
       } catch { }
