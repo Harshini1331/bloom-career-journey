@@ -14,6 +14,7 @@ import StudentSummary from './pages/StudentSummary';
 import NotFound from './pages/NotFound';
 import ProfileCardPage from './pages/ProfileCardPage';
 import CareerRoadmapPage from './pages/CareerRoadmapPage';
+import ThingsInterestMePage from './pages/ThingsInterestMePage';
 import MyInspirationAssessment from './components/assessments/MyInspirationAssessment';
 import MyDreamsAssessment from './components/assessments/MyDreamsAssessment';
 import MySchoolLearningAssessment from './components/assessments/MySchoolLearningAssessment';
@@ -306,6 +307,14 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={['student']}>
                     <ProfileCardPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/student/things-interest-me"
+                element={
+                  <ProtectedRoute allowedRoles={['student']}>
+                    <ThingsInterestMePage />
                   </ProtectedRoute>
                 }
               />

@@ -733,6 +733,7 @@ export default function MySchoolLearningAssessment() {
       });
 
       setIsCompleted(true);
+      setTimeout(() => navigate('/student/things-interest-me?from=school_learning'), 2000);
 
       try {
         const { aiSummaryService } = await import('@/services/aiSummaryService');

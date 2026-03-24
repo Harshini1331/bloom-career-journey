@@ -567,6 +567,7 @@ export default function MyDreamsAssessment() {
       });
 
       setIsCompleted(true);
+      setTimeout(() => navigate('/student/things-interest-me?from=dreams'), 2000);
 
       // Generate AI summary in the background
       try {

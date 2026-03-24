@@ -523,6 +523,7 @@ export default function AboutMeAssessment() {
 
       if (complete) {
         setIsCompleted(true);
+        setTimeout(() => navigate('/student/things-interest-me?from=about_me'), 2000);
 
         // Generate AI summary in the background
         try {

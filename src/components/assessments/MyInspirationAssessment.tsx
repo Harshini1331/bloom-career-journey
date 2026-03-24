@@ -1415,6 +1415,7 @@ export default function MyInspirationAssessment() {
       }
 
       setIsCompleted(true);
+      setTimeout(() => navigate('/student/things-interest-me?from=inspiration'), 2000);
     } catch (error) {
       logger.error('Error submitting assessment:', error);
       toast({

@@ -10,7 +10,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Crown, Edit, MessageSquare, LogOut, ChevronDown, Compass, User, Map } from 'lucide-react';
+import { Crown, Edit, MessageSquare, LogOut, ChevronDown, Compass, User, Map, Heart } from 'lucide-react';
 
 interface StudentDashboardHeaderProps {
     userProfile: any;
@@ -54,6 +54,10 @@ export default function StudentDashboardHeader({
                                 <DropdownMenuItem onClick={() => navigate('/student/profile-card')}>
                                     <User className="w-4 h-4 mr-2" />
                                     {t('my_profile_card')}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => navigate('/student/things-interest-me')}>
+                                    <Heart className="w-4 h-4 mr-2" />
+                                    {t('things_interest_me')}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => navigate('/student/career-roadmap')}>
                                     <Map className="w-4 h-4 mr-2" />

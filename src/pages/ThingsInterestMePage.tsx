@@ -1,0 +1,374 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { logger } from '@/lib/logger';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { useLang } from '@/hooks/useLang';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ArrowLeft, Plus, Trash2, Loader2, Info } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
+interface InterestRow {
+  id?: string;
+  subject: string;
+  lesson_chapter: string;
+  why_factors: string;
+  compatible_career: string;
+  source_assessment?: string;
+  _dirty?: boolean;
+  _new?: boolean;
+}
+
+const STRINGS: Record<string, Record<string, string>> = {
+  en: {
+    title: 'Things that Interest Me',
+    col_subject: 'Subject',
+    col_lesson: 'Lesson / Chapter',
+    col_why: 'Why or What factors led you to like this lesson/chapter?',
+    col_career: 'A compatible career',
+    add_row: 'Add Row',
+    saving: 'Saving...',
+    saved: 'Saved',
+    delete_confirm: 'Delete this row?',
+    empty: 'No entries yet. Add your first interest!',
+    from_banner: 'Based on your {name} responses, add any subjects or topics that interest you.',
+    assessment_inspiration: 'My Inspiration',
+    assessment_about_me: 'About Me',
+    assessment_dreams: 'My Dreams',
+    assessment_school_learning: 'My School, My Learning and I',
+    assessment_hobbies: 'My Talents and Hobbies',
+    assessment_role_models: 'My Role Models',
+  },
+  kn: {
+    title: 'ನನಗೆ ಆಸಕ್ತಿ ಇರುವ ವಿಷಯಗಳು',
+    col_subject: 'ವಿಷಯ',
+    col_lesson: 'ಪಾಠ / ಅಧ್ಯಾಯ',
+    col_why: 'ಈ ಪಾಠ/ಅಧ್ಯಾಯವನ್ನು ಇಷ್ಟಪಡಲು ಯಾವ ಅಂಶಗಳು ಕಾರಣ?',
+    col_career: 'ಹೊಂದಿಕೆಯಾಗುವ ವೃತ್ತಿ',
+    add_row: 'ಸಾಲು ಸೇರಿಸಿ',
+    saving: 'ಉಳಿಸಲಾಗುತ್ತಿದೆ...',
+    saved: 'ಉಳಿಸಲಾಗಿದೆ',
+    delete_confirm: 'ಈ ಸಾಲನ್ನು ಅಳಿಸುವುದೇ?',
+    empty: 'ಇನ್ನೂ ಯಾವುದೇ ನಮೂದುಗಳಿಲ್ಲ. ನಿಮ್ಮ ಮೊದಲ ಆಸಕ್ತಿಯನ್ನು ಸೇರಿಸಿ!',
+    from_banner: 'ನಿಮ್ಮ {name} ಉತ್ತರಗಳ ಆಧಾರದ ಮೇಲೆ, ನಿಮಗೆ ಆಸಕ್ತಿ ಇರುವ ವಿಷಯಗಳನ್ನು ಸೇರಿಸಿ.',
+    assessment_inspiration: 'ನನ್ನ ಪ್ರೇರಣೆ',
+    assessment_about_me: 'ನನ್ನ ಬಗ್ಗೆ',
+    assessment_dreams: 'ನನ್ನ ಕನಸುಗಳು',
+    assessment_school_learning: 'ನನ್ನ ಶಾಲೆ, ನನ್ನ ಕಲಿಕೆ',
+    assessment_hobbies: 'ನನ್ನ ಪ್ರತಿಭೆಗಳು ಮತ್ತು ಹವ್ಯಾಸಗಳು',
+    assessment_role_models: 'ನನ್ನ ಆದರ್ಶ ವ್ಯಕ್ತಿ',
+  },
+  ta: {
+    title: 'எனக்கு ஆர்வமான விஷயங்கள்',
+    col_subject: 'பாடம்',
+    col_lesson: 'பாடம் / அத்தியாயம்',
+    col_why: 'இந்த பாடம்/அத்தியாயத்தை ஏன் விரும்புகிறீர்கள்?',
+    col_career: 'பொருத்தமான தொழில்',
+    add_row: 'வரிசை சேர்',
+    saving: 'சேமிக்கிறது...',
+    saved: 'சேமிக்கப்பட்டது',
+    delete_confirm: 'இந்த வரிசையை நீக்கவா?',
+    empty: 'இன்னும் எந்த பதிவும் இல்லை. உங்கள் முதல் ஆர்வத்தைச் சேர்க்கவும்!',
+    from_banner: 'உங்கள் {name} பதில்களின் அடிப்படையில், உங்களுக்கு ஆர்வமான பாடங்களைச் சேர்க்கவும்.',
+    assessment_inspiration: 'என் உத்வேகம்',
+    assessment_about_me: 'என்னைப் பற்றி',
+    assessment_dreams: 'என் கனவுகள்',
+    assessment_school_learning: 'நானும், என் பள்ளியும், என் கற்றலும்',
+    assessment_hobbies: 'என் திறமைகள் மற்றும் பொழுதுபோக்குகள்',
+    assessment_role_models: 'என் முன்மாதிரி நபர்',
+  },
+  hi: {
+    title: 'Things that Interest Me',
+    col_subject: 'Subject',
+    col_lesson: 'Lesson / Chapter',
+    col_why: 'Why or What factors led you to like this lesson/chapter?',
+    col_career: 'A compatible career',
+    add_row: 'Add Row',
+    saving: 'Saving...',
+    saved: 'Saved',
+    delete_confirm: 'Delete this row?',
+    empty: 'No entries yet. Add your first interest!',
+    from_banner: 'Based on your {name} responses, add any subjects or topics that interest you.',
+    assessment_inspiration: 'My Inspiration',
+    assessment_about_me: 'About Me',
+    assessment_dreams: 'My Dreams',
+    assessment_school_learning: 'My School, My Learning and I',
+    assessment_hobbies: 'My Talents and Hobbies',
+    assessment_role_models: 'My Role Models',
+  },
+};
+
+const ASSESSMENT_NAME_KEYS: Record<string, string> = {
+  inspiration: 'assessment_inspiration',
+  about_me: 'assessment_about_me',
+  dreams: 'assessment_dreams',
+  school_learning: 'assessment_school_learning',
+  hobbies: 'assessment_hobbies',
+  role_models: 'assessment_role_models',
+};
+
+export default function ThingsInterestMePage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { userProfile } = useAuth();
+  const { lang } = useLang();
+  const { toast } = useToast();
+
+  const resolvedLang = (lang && ['en', 'kn', 'ta', 'hi'].includes(lang) ? lang : 'en') as string;
+  const t = (key: string) => STRINGS[resolvedLang]?.[key] || STRINGS.en[key] || key;
+
+  const [rows, setRows] = useState<InterestRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [savingIds, setSavingIds] = useState<Set<number>>(new Set());
+  const debounceTimers = useRef<Record<number, NodeJS.Timeout>>({});
+
+  const fromAssessment = searchParams.get('from');
+
+  // Load existing entries
+  useEffect(() => {
+    if (!userProfile?.id) return;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('things_that_interest_me' as any)
+          .select('*')
+          .eq('student_id', userProfile.id)
+          .order('created_at', { ascending: true });
+
+        if (error) throw error;
+        setRows((data as any[])?.map((r: any) => ({
+          id: r.id,
+          subject: r.subject || '',
+          lesson_chapter: r.lesson_chapter || '',
+          why_factors: r.why_factors || '',
+          compatible_career: r.compatible_career || '',
+          source_assessment: r.source_assessment,
+        })) || []);
+      } catch (err) {
+        logger.error('Error loading interests:', err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [userProfile?.id]);
+
+  const saveRow = useCallback(async (index: number, row: InterestRow) => {
+    if (!userProfile?.id) return;
+    setSavingIds(prev => new Set(prev).add(index));
+
+    try {
+      if (row.id && !row._new) {
+        // Update existing
+        const { error } = await supabase
+          .from('things_that_interest_me' as any)
+          .update({
+            subject: row.subject,
+            lesson_chapter: row.lesson_chapter,
+            why_factors: row.why_factors,
+            compatible_career: row.compatible_career,
+            updated_at: new Date().toISOString(),
+          } as any)
+          .eq('id', row.id);
+        if (error) throw error;
+      } else {
+        // Insert new
+        const { data, error } = await supabase
+          .from('things_that_interest_me' as any)
+          .insert({
+            student_id: userProfile.id,
+            subject: row.subject,
+            lesson_chapter: row.lesson_chapter,
+            why_factors: row.why_factors,
+            compatible_career: row.compatible_career,
+            source_assessment: row.source_assessment || fromAssessment || null,
+          } as any)
+          .select()
+          .single();
+        if (error) throw error;
+        // Update row with DB id
+        setRows(prev => prev.map((r, i) => i === index ? { ...r, id: (data as any).id, _new: false, _dirty: false } : r));
+      }
+    } catch (err) {
+      logger.error('Error saving interest row:', err);
+      toast({ title: 'Save failed', variant: 'destructive' });
+    } finally {
+      setSavingIds(prev => { const n = new Set(prev); n.delete(index); return n; });
+    }
+  }, [userProfile?.id, fromAssessment, toast]);
+
+  const handleChange = useCallback((index: number, field: keyof InterestRow, value: string) => {
+    setRows(prev => prev.map((r, i) => i === index ? { ...r, [field]: value, _dirty: true } : r));
+
+    // Debounced save
+    if (debounceTimers.current[index]) clearTimeout(debounceTimers.current[index]);
+    debounceTimers.current[index] = setTimeout(() => {
+      setRows(prev => {
+        const row = prev[index];
+        if (row?._dirty) saveRow(index, row);
+        return prev;
+      });
+    }, 1000);
+  }, [saveRow]);
+
+  const addRow = () => {
+    setRows(prev => [...prev, {
+      subject: '', lesson_chapter: '', why_factors: '', compatible_career: '',
+      source_assessment: fromAssessment || undefined, _new: true, _dirty: false,
+    }]);
+  };
+
+  const deleteRow = async (index: number) => {
+    const row = rows[index];
+    if (row.id && !row._new) {
+      try {
+        const { error } = await supabase
+          .from('things_that_interest_me' as any)
+          .delete()
+          .eq('id', row.id);
+        if (error) throw error;
+      } catch (err) {
+        logger.error('Error deleting interest row:', err);
+        toast({ title: 'Delete failed', variant: 'destructive' });
+        return;
+      }
+    }
+    if (debounceTimers.current[index]) clearTimeout(debounceTimers.current[index]);
+    setRows(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const fromBanner = fromAssessment && ASSESSMENT_NAME_KEYS[fromAssessment]
+    ? t('from_banner').replace('{name}', t(ASSESSMENT_NAME_KEYS[fromAssessment]))
+    : null;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 shadow-sm">
+        <div className="container mx-auto px-4 py-4 flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/student')}>
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <h1 className="text-xl font-bold text-gray-800">{t('title')}</h1>
+        </div>
+      </div>
+
+      <div className="container mx-auto px-4 py-6 max-w-5xl">
+        {/* From-assessment banner */}
+        {fromBanner && (
+          <div className="mb-4 flex items-start gap-2 rounded-lg bg-indigo-50 border border-indigo-200 p-3 text-sm text-indigo-800">
+            <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <span>{fromBanner}</span>
+          </div>
+        )}
+
+        {/* Desktop table */}
+        <div className="hidden md:block bg-white rounded-lg shadow overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-indigo-50 border-b border-indigo-100">
+                <th className="px-3 py-3 text-left text-xs font-semibold text-indigo-700 w-[18%]">{t('col_subject')}</th>
+                <th className="px-3 py-3 text-left text-xs font-semibold text-indigo-700 w-[20%]">{t('col_lesson')}</th>
+                <th className="px-3 py-3 text-left text-xs font-semibold text-indigo-700 w-[37%]">{t('col_why')}</th>
+                <th className="px-3 py-3 text-left text-xs font-semibold text-indigo-700 w-[20%]">{t('col_career')}</th>
+                <th className="px-3 py-3 w-[5%]" />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 && (
+                <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">{t('empty')}</td></tr>
+              )}
+              {rows.map((row, i) => (
+                <tr key={row.id || `new-${i}`} className="border-b border-gray-100 hover:bg-gray-50">
+                  <td className="px-2 py-2">
+                    <Input value={row.subject} onChange={e => handleChange(i, 'subject', e.target.value)}
+                      className="text-sm h-9" />
+                  </td>
+                  <td className="px-2 py-2">
+                    <Input value={row.lesson_chapter} onChange={e => handleChange(i, 'lesson_chapter', e.target.value)}
+                      className="text-sm h-9" />
+                  </td>
+                  <td className="px-2 py-2">
+                    <Input value={row.why_factors} onChange={e => handleChange(i, 'why_factors', e.target.value)}
+                      className="text-sm h-9" />
+                  </td>
+                  <td className="px-2 py-2">
+                    <Input value={row.compatible_career} onChange={e => handleChange(i, 'compatible_career', e.target.value)}
+                      className="text-sm h-9" />
+                  </td>
+                  <td className="px-2 py-2 text-center">
+                    {savingIds.has(i) ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-gray-400 mx-auto" />
+                    ) : (
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:text-red-600 hover:bg-red-50"
+                        onClick={() => deleteRow(i)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile stacked cards */}
+        <div className="md:hidden space-y-4">
+          {rows.length === 0 && (
+            <div className="text-center text-gray-400 py-8">{t('empty')}</div>
+          )}
+          {rows.map((row, i) => (
+            <div key={row.id || `new-${i}`} className="bg-white rounded-lg shadow p-4 space-y-3 relative">
+              <div className="absolute top-2 right-2">
+                {savingIds.has(i) ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                ) : (
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600"
+                    onClick={() => deleteRow(i)}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                )}
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500">{t('col_subject')}</label>
+                <Input value={row.subject} onChange={e => handleChange(i, 'subject', e.target.value)}
+                  className="text-sm mt-1" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500">{t('col_lesson')}</label>
+                <Input value={row.lesson_chapter} onChange={e => handleChange(i, 'lesson_chapter', e.target.value)}
+                  className="text-sm mt-1" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500">{t('col_why')}</label>
+                <Input value={row.why_factors} onChange={e => handleChange(i, 'why_factors', e.target.value)}
+                  className="text-sm mt-1" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500">{t('col_career')}</label>
+                <Input value={row.compatible_career} onChange={e => handleChange(i, 'compatible_career', e.target.value)}
+                  className="text-sm mt-1" />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Add row button */}
+        <div className="mt-4">
+          <Button onClick={addRow} variant="outline" className="gap-2">
+            <Plus className="w-4 h-4" />
+            {t('add_row')}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
