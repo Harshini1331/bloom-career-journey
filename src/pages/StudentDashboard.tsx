@@ -482,7 +482,7 @@ export default function StudentDashboard() {
   // First-time assessment triggers → redirect to career roadmap
   const ROADMAP_TRIGGERS: Record<string, string> = {
     'inspiration': 'beginning_9th',
-    'school_learning': 'midterm_9th',
+    'hobbies': 'midterm_9th',
     'career_guidance_tools': 'end_9th',
   };
 

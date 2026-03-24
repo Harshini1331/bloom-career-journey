@@ -56,7 +56,7 @@ const COLUMN_LABELS: Record<string, { milestone: string; planA: string; planB: s
 // Milestone → assessment route mapping (for "Continue to Assessment" button)
 const MILESTONE_ASSESSMENT_ROUTE: Partial<Record<MilestoneKey, string>> = {
   beginning_9th: '/student/assessment/inspiration',
-  midterm_9th: '/student/assessment/school-learning',
+  midterm_9th: '/student/assessment/hobbies',
   end_9th: '/student/assessment/career-guidance-tools',
 };
 
