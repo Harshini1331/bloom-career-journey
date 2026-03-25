@@ -508,20 +508,24 @@ export function IndicKeyboard({ targetInputId, targetElement, onInput, lang = 'e
     };
   }, []);
 
-  // Scroll compensation: add bottom padding when keyboard opens so content isn't hidden
+  // Scroll compensation + body scroll lock when keyboard is open
   useEffect(() => {
     const scrollContainer = document.querySelector('main') || document.documentElement;
     if (isOpen) {
       scrollContainer.style.paddingBottom = '40vh';
+      // Lock body scroll to prevent background interaction while keyboard is open
+      document.body.style.overflow = 'hidden';
       // Scroll the focused input into view above the keyboard
       if (lastFocusedElementRef.current) {
         lastFocusedElementRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     } else {
       scrollContainer.style.paddingBottom = '';
+      document.body.style.overflow = '';
     }
     return () => {
       scrollContainer.style.paddingBottom = '';
+      document.body.style.overflow = '';
     };
   }, [isOpen]);
 
@@ -541,18 +545,25 @@ export function IndicKeyboard({ targetInputId, targetElement, onInput, lang = 'e
         setIsOpen(true);
       }}
       onClick={() => setIsOpen(true)}
-      className="fixed bottom-4 right-4 z-[100] shadow-lg bg-blue-50 hover:bg-blue-100 border-blue-300 animate-in fade-in slide-in-from-bottom-2 duration-300"
+      className="fixed top-2 right-2 z-[100] shadow-lg bg-blue-50 hover:bg-blue-100 border-blue-300 animate-in fade-in slide-in-from-top-2 duration-300 h-8 px-2"
       aria-label={aria}
     >
-      <Keyboard className="w-4 h-4 mr-2" />
-      {openLabel}
+      <Keyboard className="w-4 h-4 mr-1" />
+      <span className="text-xs">{openLabel}</span>
     </Button>
   ) : (
-    <div
-      ref={keyboardRef}
-      className="fixed bottom-0 left-0 right-0 z-[100] bg-white border-t border-gray-300 shadow-2xl p-2 md:p-4"
-      style={{ maxHeight: '40vh', overflowY: 'auto' }}
-    >
+    <>
+      {/* Semi-transparent backdrop to prevent background interaction */}
+      <div
+        className="fixed inset-0 z-[99] bg-black/20"
+        onClick={() => setIsOpen(false)}
+        onTouchStart={() => setIsOpen(false)}
+      />
+      <div
+        ref={keyboardRef}
+        className="fixed bottom-0 left-0 right-0 z-[100] bg-white border-t border-gray-300 shadow-2xl p-2 md:p-4"
+        style={{ maxHeight: '40vh', overflowY: 'auto' }}
+      >
       <div className="container mx-auto">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-sm font-semibold text-gray-700">
@@ -563,10 +574,11 @@ export function IndicKeyboard({ targetInputId, targetElement, onInput, lang = 'e
             variant="ghost"
             size="sm"
             onClick={() => setIsOpen(false)}
-            className="h-6 w-6 p-0"
+            onTouchStart={(e) => { e.preventDefault(); setIsOpen(false); }}
+            className="h-8 w-8 p-0 bg-red-50 hover:bg-red-100 rounded-full"
             aria-label="Close Keyboard"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5 text-red-600" />
           </Button>
         </div>
 
@@ -755,6 +767,7 @@ export function IndicKeyboard({ targetInputId, targetElement, onInput, lang = 'e
         </div>
       </div>
     </div>
+    </>
   );
 
   return createPortal(content, document.body);

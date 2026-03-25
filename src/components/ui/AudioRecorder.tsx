@@ -275,7 +275,11 @@ export function AudioRecorder({
         },
         (error) => {
           logger.error('❌ Streaming error:', error);
-          setErrorState('warning', 'Live transcription connection lost. Recording continues.');
+          const recordingMsg = lang === 'kn' ? 'ರೆಕಾರ್ಡಿಂಗ್ ನಡೆಯುತ್ತಿದೆ. ನಿಮ್ಮ ಉತ್ತರವನ್ನು ಉಳಿಸಲಾಗುತ್ತದೆ.'
+            : lang === 'ta' ? 'பதிவு நடைபெறுகிறது. உங்கள் பதில் சேமிக்கப்படும்.'
+            : lang === 'hi' ? 'रिकॉर्डिंग जारी है। आपका उत्तर सहेजा जाएगा।'
+            : 'Recording in progress. Your response will be saved.';
+          setErrorState('warning', recordingMsg);
         }
       );
 
@@ -546,7 +550,11 @@ export function AudioRecorder({
 
         startStreamingCapture(streamClone).catch(err => {
           logger.warn("Streaming failed, but local recording continues:", err);
-          setErrorState('warning', 'Live transcription unavailable. Recording locally.');
+          const unavailMsg = lang === 'kn' ? 'ರೆಕಾರ್ಡಿಂಗ್ ನಡೆಯುತ್ತಿದೆ. ನಿಮ್ಮ ಉತ್ತರವನ್ನು ಉಳಿಸಲಾಗುತ್ತದೆ.'
+            : lang === 'ta' ? 'பதிவு நடைபெறுகிறது. உங்கள் பதில் சேமிக்கப்படும்.'
+            : lang === 'hi' ? 'रिकॉर्डिंग जारी है। आपका उत्तर सहेजा जाएगा।'
+            : 'Recording in progress. Your response will be saved.';
+          setErrorState('warning', unavailMsg);
         });
       }
 

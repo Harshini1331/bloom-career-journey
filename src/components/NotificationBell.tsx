@@ -81,7 +81,7 @@ export default function NotificationBell({ userId }: Props) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 z-50 bg-white border rounded-lg shadow-xl animate-in fade-in zoom-in duration-200 origin-top-right">
+        <div className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] sm:w-80 max-w-sm z-50 bg-white border rounded-lg shadow-xl animate-in fade-in zoom-in duration-200 origin-top-right">
           <div className="flex items-center justify-between p-3 border-b bg-gray-50/50 rounded-t-lg">
             <span className="text-sm font-semibold text-gray-900">{notifLabel}</span>
             <Button
