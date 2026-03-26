@@ -1025,7 +1025,7 @@ export default function MySchoolLearningAssessment() {
             <CardContent className="p-6 space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                  {qLabel(1, '1. Do you like coming to school? Why?')}
+                  {qLabel(1, '1. Do you like coming to school? Why?')}<span className="text-red-500 text-sm">*</span>
                   <button
                     type="button"
                     aria-label="Help"
@@ -1052,7 +1052,7 @@ export default function MySchoolLearningAssessment() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                  {qLabel(2, '2. What do you like to learn at school?')}
+                  {qLabel(2, '2. What do you like to learn at school?')}<span className="text-red-500 text-sm">*</span>
                   <button
                     type="button"
                     aria-label="Help"
@@ -1079,7 +1079,7 @@ export default function MySchoolLearningAssessment() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                  {qLabel(3, "3. What are the reasons you do not like learning in school? Explain.")}
+                  {qLabel(3, "3. What are the reasons you do not like learning in school? Explain.")}<span className="text-red-500 text-sm">*</span>
                   <button
                     type="button"
                     aria-label="Help"
@@ -1106,7 +1106,7 @@ export default function MySchoolLearningAssessment() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                  {qLabel(4, '4. Who are your close friends in school? What qualities or traits in them have made them your close friends?')}
+                  {qLabel(4, '4. Who are your close friends in school? What qualities or traits in them have made them your close friends?')}<span className="text-red-500 text-sm">*</span>
                   <button
                     type="button"
                     aria-label="Help"
@@ -1151,7 +1151,7 @@ export default function MySchoolLearningAssessment() {
             <CardContent className="p-6 space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                  {qLabel(5, '5. Which subjects do you like the most? Write them.')}
+                  {qLabel(5, '5. Which subjects do you like the most? Write them.')}<span className="text-red-500 text-sm">*</span>
                   <button
                     type="button"
                     aria-label="Help"
@@ -1178,7 +1178,7 @@ export default function MySchoolLearningAssessment() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                  {qLabel(6, '6. Why do you like this subject? Write the reason.')}
+                  {qLabel(6, '6. Why do you like this subject? Write the reason.')}<span className="text-red-500 text-sm">*</span>
                   <button
                     type="button"
                     aria-label="Help"
@@ -1205,7 +1205,7 @@ export default function MySchoolLearningAssessment() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                  {qLabel(7, '7. Which subjects do you not like to study?')}
+                  {qLabel(7, '7. Which subjects do you not like to study?')}<span className="text-red-500 text-sm">*</span>
                   <button
                     type="button"
                     aria-label="Help"
@@ -1232,7 +1232,7 @@ export default function MySchoolLearningAssessment() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                  {qLabel(8, '8. Why do you have less interest in the above subjects? What help did you receive to learn these subjects?')}
+                  {qLabel(8, '8. Why do you have less interest in the above subjects? What help did you receive to learn these subjects?')}<span className="text-red-500 text-sm">*</span>
                   <button
                     type="button"
                     aria-label="Help"
@@ -1277,7 +1277,7 @@ export default function MySchoolLearningAssessment() {
             <CardContent className="p-6 space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                  {qLabel(9, '9. Which subjects do you score the highest marks in?')}
+                  {qLabel(9, '9. Which subjects do you score the highest marks in?')}<span className="text-red-500 text-sm">*</span>
                   <button
                     type="button"
                     aria-label="Help"
@@ -1304,7 +1304,7 @@ export default function MySchoolLearningAssessment() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                  {qLabel(10, '10. Which subjects do you score low marks in?')}
+                  {qLabel(10, '10. Which subjects do you score low marks in?')}<span className="text-red-500 text-sm">*</span>
                   <button
                     type="button"
                     aria-label="Help"
@@ -1331,7 +1331,7 @@ export default function MySchoolLearningAssessment() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                  {qLabel(11, '11. Which learning methodologies from the following options resonate with you the most? (Mark with ✔ that applies to you)')}
+                  {qLabel(11, '11. Which learning methodologies from the following options resonate with you the most? (Mark with ✔ that applies to you)')}<span className="text-red-500 text-sm">*</span>
                   <button
                     type="button"
                     aria-label="Help"
@@ -1418,7 +1418,7 @@ export default function MySchoolLearningAssessment() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                  {qLabel(12, '12. Do you prefer to learn alone or in a group? Why? Write the reason.')}
+                  {qLabel(12, '12. Do you prefer to learn alone or in a group? Why? Write the reason.')}<span className="text-red-500 text-sm">*</span>
                   <button
                     type="button"
                     aria-label="Help"
@@ -1463,7 +1463,7 @@ export default function MySchoolLearningAssessment() {
             <CardContent className="p-6 space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                  {qLabel(13, '13. Do you learn from your friends in school? List some of the things you have recently learned from friends at school.')}
+                  {qLabel(13, '13. Do you learn from your friends in school? List some of the things you have recently learned from friends at school.')}<span className="text-red-500 text-sm">*</span>
                   <button
                     type="button"
                     aria-label="Help"
@@ -1491,7 +1491,7 @@ export default function MySchoolLearningAssessment() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                  {qLabel(14, '14. Apart from textbook subjects, what aspects attract you to school?')}
+                  {qLabel(14, '14. Apart from textbook subjects, what aspects attract you to school?')}<span className="text-red-500 text-sm">*</span>
                   <button
                     type="button"
                     aria-label="Help"
@@ -1518,7 +1518,7 @@ export default function MySchoolLearningAssessment() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                  {qLabel(15, '15. Who are your two favourite teachers and why? How have these two teachers influenced you?')}
+                  {qLabel(15, '15. Who are your two favourite teachers and why? How have these two teachers influenced you?')}<span className="text-red-500 text-sm">*</span>
                   <button
                     type="button"
                     aria-label="Help"
@@ -1545,7 +1545,7 @@ export default function MySchoolLearningAssessment() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                  {qLabel(16, '16. Is there any specific incident or experience in school that gave you a great sense of success or satisfaction? What is it?')}
+                  {qLabel(16, '16. Is there any specific incident or experience in school that gave you a great sense of success or satisfaction? What is it?')}<span className="text-red-500 text-sm">*</span>
                   <button
                     type="button"
                     aria-label="Help"
@@ -1590,7 +1590,7 @@ export default function MySchoolLearningAssessment() {
             <CardContent className="p-6 space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                  {qLabel(17, '17. How do the things you learned in school help you achieve your dreams and expectations?')}
+                  {qLabel(17, '17. How do the things you learned in school help you achieve your dreams and expectations?')}<span className="text-red-500 text-sm">*</span>
                   <button
                     type="button"
                     aria-label="Help"
@@ -1617,7 +1617,7 @@ export default function MySchoolLearningAssessment() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                  {qLabel(18, '18. What are the things you want to be changed in your school? What is the reason for that?')}
+                  {qLabel(18, '18. What are the things you want to be changed in your school? What is the reason for that?')}<span className="text-red-500 text-sm">*</span>
                   <button
                     type="button"
                     aria-label="Help"
@@ -1644,7 +1644,7 @@ export default function MySchoolLearningAssessment() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                  {qLabel(19, '19. Do you have any special place to express yourself? Why is it necessary?')}
+                  {qLabel(19, '19. Do you have any special place to express yourself? Why is it necessary?')}<span className="text-red-500 text-sm">*</span>
                   <button
                     type="button"
                     aria-label="Help"
@@ -1671,7 +1671,7 @@ export default function MySchoolLearningAssessment() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                  {qLabel(20, '20. Does the school play an important role in your life related to learning? Write your opinion.')}
+                  {qLabel(20, '20. Does the school play an important role in your life related to learning? Write your opinion.')}<span className="text-red-500 text-sm">*</span>
                   <button
                     type="button"
                     aria-label="Help"
@@ -1698,7 +1698,7 @@ export default function MySchoolLearningAssessment() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                  {qLabel(21, '21. Do you like to discuss school activities and learning with your parents? What topics do you discuss with them?')}
+                  {qLabel(21, '21. Do you like to discuss school activities and learning with your parents? What topics do you discuss with them?')}<span className="text-red-500 text-sm">*</span>
                   <button
                     type="button"
                     aria-label="Help"
@@ -1770,7 +1770,7 @@ export default function MySchoolLearningAssessment() {
                       </h3>
                     )}
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      {questionText}
+                      {questionText}<span className="text-red-500 text-sm ml-1">*</span>
                     </label>
                     <Textarea
                       value={responses.section6[qKey]}

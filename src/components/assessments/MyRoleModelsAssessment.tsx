@@ -872,7 +872,7 @@ export default function MyRoleModelsAssessment() {
                     <div className="grid gap-4 md:grid-cols-2">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                          {q['rm_q1'] || '1. What is the name of your role model?'}
+                          {q['rm_q1'] || '1. What is the name of your role model?'}<span className="text-red-500 text-sm ml-1">*</span>
                           <button type="button" className="text-purple-600 hover:text-purple-700 ml-2" onClick={() => toggleHelp('rm_q1')}>💬</button>
                         </label>
                         {helpOpen['rm_q1'] && <div className="mb-2 p-3 rounded border bg-purple-50 border-purple-200 text-sm text-purple-800">{helpText['rm_help_q1']}</div>}
@@ -886,7 +886,7 @@ export default function MyRoleModelsAssessment() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                          {q['rm_q2'] || '2. Is the person a family member, relative, or someone you know?'}
+                          {q['rm_q2'] || '2. Is the person a family member, relative, or someone you know?'}<span className="text-red-500 text-sm ml-1">*</span>
                           <button type="button" className="text-purple-600 hover:text-purple-700 ml-2" onClick={() => toggleHelp('rm_q2')}>💬</button>
                         </label>
                         {helpOpen['rm_q2'] && <div className="mb-2 p-3 rounded border bg-purple-50 border-purple-200 text-sm text-purple-800">{helpText['rm_help_q2']}</div>}
@@ -900,7 +900,7 @@ export default function MyRoleModelsAssessment() {
                       </div>
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                          {q['rm_q3'] || '3. What qualities do you like in your role model? Why are they special to you?'}
+                          {q['rm_q3'] || '3. What qualities do you like in your role model? Why are they special to you?'}<span className="text-red-500 text-sm ml-1">*</span>
                           <button type="button" className="text-purple-600 hover:text-purple-700 ml-2" onClick={() => toggleHelp('rm_q3')}>💬</button>
                         </label>
                         {helpOpen['rm_q3'] && <div className="mb-2 p-3 rounded border bg-purple-50 border-purple-200 text-sm text-purple-800">{helpText['rm_help_q3']}</div>}
@@ -915,7 +915,7 @@ export default function MyRoleModelsAssessment() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                          {q['rm_q4'] || '4. What work or profession does the person do?'}
+                          {q['rm_q4'] || '4. What work or profession does the person do?'}<span className="text-red-500 text-sm ml-1">*</span>
                           <button type="button" className="text-purple-600 hover:text-purple-700 ml-2" onClick={() => toggleHelp('rm_q4')}>💬</button>
                         </label>
                         {helpOpen['rm_q4'] && <div className="mb-2 p-3 rounded border bg-purple-50 border-purple-200 text-sm text-purple-800">{helpText['rm_help_q4']}</div>}
@@ -929,7 +929,7 @@ export default function MyRoleModelsAssessment() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                          {q['rm_q5'] || '5. Which skill or talent of yours do you want to develop inspired by them?'}
+                          {q['rm_q5'] || '5. Which skill or talent of yours do you want to develop inspired by them?'}<span className="text-red-500 text-sm ml-1">*</span>
                           <button type="button" className="text-purple-600 hover:text-purple-700 ml-2" onClick={() => toggleHelp('rm_q5')}>💬</button>
                         </label>
                         {helpOpen['rm_q5'] && <div className="mb-2 p-3 rounded border bg-purple-50 border-purple-200 text-sm text-purple-800">{helpText['rm_help_q5']}</div>}
@@ -943,7 +943,7 @@ export default function MyRoleModelsAssessment() {
                       </div>
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                          {q['rm_q6'] || '6. Have you discussed your chosen career or job with your role model? What did you discuss?'}
+                          {q['rm_q6'] || '6. Have you discussed your chosen career or job with your role model? What did you discuss?'}<span className="text-red-500 text-sm ml-1">*</span>
                           <button type="button" className="text-purple-600 hover:text-purple-700 ml-2" onClick={() => toggleHelp('rm_q6')}>💬</button>
                         </label>
                         {helpOpen['rm_q6'] && <div className="mb-2 p-3 rounded border bg-purple-50 border-purple-200 text-sm text-purple-800">{helpText['rm_help_q6']}</div>}
@@ -959,7 +959,7 @@ export default function MyRoleModelsAssessment() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                        {q['rm_q7'] || '7. Have you taken advice or opinion from your role model about your dream plan?'}
+                        {q['rm_q7'] || '7. Have you taken advice or opinion from your role model about your dream plan?'}<span className="text-red-500 text-sm ml-1">*</span>
                         <button type="button" className="text-purple-600 hover:text-purple-700 ml-2" onClick={() => toggleHelp('rm_q7')}>💬</button>
                       </label>
                       {helpOpen['rm_q7'] && <div className="mb-2 p-3 rounded border bg-purple-50 border-purple-200 text-sm text-purple-800">{helpText['rm_help_q7']}</div>}
@@ -974,7 +974,7 @@ export default function MyRoleModelsAssessment() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                        {q['rm_q8'] || '8. What does your role model say about your dream job or career?'}
+                        {q['rm_q8'] || '8. What does your role model say about your dream job or career?'}<span className="text-red-500 text-sm ml-1">*</span>
                         <button type="button" className="text-purple-600 hover:text-purple-700 ml-2" onClick={() => toggleHelp('rm_q8')}>💬</button>
                       </label>
                       {helpOpen['rm_q8'] && <div className="mb-2 p-3 rounded border bg-purple-50 border-purple-200 text-sm text-purple-800">{helpText['rm_help_q8']}</div>}
@@ -989,7 +989,7 @@ export default function MyRoleModelsAssessment() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                        {q['rm_q9'] || '9. Has any role model helped you in choosing your dream career?'}
+                        {q['rm_q9'] || '9. Has any role model helped you in choosing your dream career?'}<span className="text-red-500 text-sm ml-1">*</span>
                         <button type="button" className="text-purple-600 hover:text-purple-700 ml-2" onClick={() => toggleHelp('rm_q9')}>💬</button>
                       </label>
                       {helpOpen['rm_q9'] && <div className="mb-2 p-3 rounded border bg-purple-50 border-purple-200 text-sm text-purple-800">{helpText['rm_help_q9']}</div>}
@@ -1004,7 +1004,7 @@ export default function MyRoleModelsAssessment() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                        {q['rm_q10'] || '10. If yes, what kind of help do you expect?'}
+                        {q['rm_q10'] || '10. If yes, what kind of help do you expect?'}<span className="text-red-500 text-sm ml-1">*</span>
                         <button type="button" className="text-purple-600 hover:text-purple-700 ml-2" onClick={() => toggleHelp('rm_q10')}>💬</button>
                       </label>
                       {helpOpen['rm_q10'] && <div className="mb-2 p-3 rounded border bg-purple-50 border-purple-200 text-sm text-purple-800">{helpText['rm_help_q10']}</div>}
@@ -1019,7 +1019,7 @@ export default function MyRoleModelsAssessment() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                        {q['rm_q11'] || '11. Apart from the above questions, is there anything else you would like to say?'}
+                        {q['rm_q11'] || '11. Apart from the above questions, is there anything else you would like to say?'}<span className="text-red-500 text-sm ml-1">*</span>
                         <button type="button" className="text-purple-600 hover:text-purple-700 ml-2" onClick={() => toggleHelp('rm_q11')}>💬</button>
                       </label>
                       {helpOpen['rm_q11'] && <div className="mb-2 p-3 rounded border bg-purple-50 border-purple-200 text-sm text-purple-800">{helpText['rm_help_q11']}</div>}
@@ -1049,7 +1049,7 @@ export default function MyRoleModelsAssessment() {
                   <div className="space-y-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                        {q['rm_q12'] || '12. Have you noticed any similarity or comparison between your personality and that of the above role models?'}
+                        {q['rm_q12'] || '12. Have you noticed any similarity or comparison between your personality and that of the above role models?'}<span className="text-red-500 text-sm ml-1">*</span>
                         <button type="button" className="text-purple-600 hover:text-purple-700 ml-2" onClick={() => toggleHelp('rm_q12')}>💬</button>
                       </label>
                       {helpOpen['rm_q12'] && <div className="mb-2 p-3 rounded border bg-purple-50 border-purple-200 text-sm text-purple-800">{helpText['rm_help_q12']}</div>}
@@ -1064,7 +1064,7 @@ export default function MyRoleModelsAssessment() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                        {q['rm_q13'] || '13. How do you try to adopt the qualities of your role model in your life?'}
+                        {q['rm_q13'] || '13. How do you try to adopt the qualities of your role model in your life?'}<span className="text-red-500 text-sm ml-1">*</span>
                         <button type="button" className="text-purple-600 hover:text-purple-700 ml-2" onClick={() => toggleHelp('rm_q13')}>💬</button>
                       </label>
                       {helpOpen['rm_q13'] && <div className="mb-2 p-3 rounded border bg-purple-50 border-purple-200 text-sm text-purple-800">{helpText['rm_help_q13']}</div>}
@@ -1095,7 +1095,7 @@ export default function MyRoleModelsAssessment() {
                     {summaryQuestions.map((sq) => (
                       <div key={sq.sequence_number}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          {sq.question_text || sq.text}
+                          {sq.question_text || sq.text}<span className="text-red-500 text-sm ml-1">*</span>
                         </label>
                         <Textarea
                           placeholder={lang === 'kn' ? 'ಇಲ್ಲಿ ಬರೆಯಿರಿ...' : lang === 'ta' ? 'இங்கே எழுதுங்கள்...' : lang === 'hi' ? 'यहां लिखें...' : 'Write here...'}

@@ -1146,7 +1146,7 @@ export default function MyHobbiesAssessment() {
                       <div key={q.id} className="space-y-3">
                         <div className="flex items-start justify-between gap-4">
                           <label className="text-base font-medium text-gray-800 leading-relaxed">
-                            {label}
+                            {label}<span className="text-red-500 text-sm ml-1">*</span>
                           </label>
                           {q.help_text && (
                             <Button

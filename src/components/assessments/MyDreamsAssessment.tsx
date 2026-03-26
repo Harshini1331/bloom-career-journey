@@ -965,7 +965,7 @@ export default function MyDreamsAssessment() {
                       {summaryQuestions.map((q) => (
                         <div key={q.id}>
                           <label className="block text-base font-medium text-gray-800 mb-2">
-                            {q.text}
+                            {q.text}<span className="text-red-500 text-sm ml-1">*</span>
                           </label>
                           <Textarea
                             value={responses[q.id] || ''}
@@ -1096,7 +1096,7 @@ export default function MyDreamsAssessment() {
                       return (
                         <div key={question.id}>
                           <label className="block text-base font-medium text-gray-800 mb-2 flex items-center gap-2">
-                            {label}
+                            {label}<span className="text-red-500 text-sm">*</span>
                             <button
                               type="button"
                               aria-label="Help"
