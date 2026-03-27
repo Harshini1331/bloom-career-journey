@@ -84,6 +84,7 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
   const [generatingKeys, setGeneratingKeys] = useState<Set<string>>(new Set());
   const [generatingDirection, setGeneratingDirection] = useState(false);
   const [studentName, setStudentName] = useState('');
+  const [cacheTimestamps, setCacheTimestamps] = useState<Record<string, string>>({});
 
   const fetchData = useCallback(async () => {
     if (!studentId) return;
@@ -136,8 +137,12 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
         .eq('student_id', studentId);
 
       const answerMap: Record<string, ProfileCardAnswers> = {};
+      const tsMap: Record<string, string> = {};
       if (cachedRows) {
         for (const row of cachedRows) {
+          if (row.generated_at) {
+            tsMap[row.assessment_type] = row.generated_at;
+          }
           if (row.assessment_type === 'career_direction') {
             const kw = row.keywords as any;
             if (typeof kw === 'object' && kw.direction) {
@@ -152,6 +157,7 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
         }
       }
       setAnswers(answerMap);
+      setCacheTimestamps(tsMap);
 
       // Fetch profile card question labels from content_translations
       const labelMap: Record<string, ProfileCardQuestionLabels> = {};
@@ -189,12 +195,21 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
     if (loading || readOnly) return;
     for (const mod of MODULES) {
       const summary = summaries[mod.key];
-      if (summary && summary.approval_status === 'approved' && !answers[mod.key]) {
-        regenerateAnswers(mod.key, summary);
+      if (!summary || summary.approval_status !== 'approved') continue;
+
+      const cachedAt = cacheTimestamps[mod.key];
+      const summaryUpdatedAt = summary.updated_at;
+
+      // Skip if cache exists and is newer than the summary
+      if (answers[mod.key] && cachedAt && summaryUpdatedAt && new Date(cachedAt) >= new Date(summaryUpdatedAt)) {
+        continue;
       }
+
+      // Regenerate: no cache, or summary was updated after cache
+      regenerateAnswers(mod.key, summary);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, summaries]);
+  }, [loading, summaries, cacheTimestamps]);
 
   const regenerateAnswers = async (assessmentType: string, summary: AssessmentSummary) => {
     if (generatingKeys.has(assessmentType)) return;
@@ -204,12 +219,14 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
       const text = Object.values(display).filter(v => typeof v === 'string' && v.trim()).join('\n');
       const result = await aiSummaryService.generateProfileCardKeywords(assessmentType, text, lang);
       if (result.success && result.keywords) {
+        const now = new Date().toISOString();
         setAnswers(prev => ({ ...prev, [assessmentType]: result.keywords! }));
+        setCacheTimestamps(prev => ({ ...prev, [assessmentType]: now }));
         const { error } = await supabase.from('profile_card_cache').upsert({
           student_id: studentId,
           assessment_type: assessmentType,
           keywords: result.keywords,
-          generated_at: new Date().toISOString(),
+          generated_at: now,
         }, { onConflict: 'student_id,assessment_type' });
         if (error) logger.error('Profile card cache upsert error:', error);
       }
@@ -225,10 +242,23 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
   const progressPercent = Math.round((completedCount / 6) * 100);
 
   useEffect(() => {
-    if (!allComplete || careerDirection || generatingDirection || loading || readOnly) return;
+    if (!allComplete || generatingDirection || loading || readOnly) return;
+
+    const dirCachedAt = cacheTimestamps['career_direction'];
+    const latestSummaryUpdate = MODULES
+      .map(m => summaries[m.key]?.updated_at)
+      .filter(Boolean)
+      .sort()
+      .pop();
+
+    // Skip if cached direction exists and is newer than the latest summary update
+    if (careerDirection && dirCachedAt && latestSummaryUpdate && new Date(dirCachedAt) >= new Date(latestSummaryUpdate)) {
+      return;
+    }
+
     generateDirection();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allComplete, careerDirection, loading]);
+  }, [allComplete, careerDirection, loading, cacheTimestamps]);
 
   const generateDirection = async () => {
     setGeneratingDirection(true);
@@ -240,12 +270,14 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
         dreamsAns, hobbiesAns, roleModelsAns, studentName, lang
       );
       if (result.success && result.direction) {
+        const now = new Date().toISOString();
         setCareerDirection(result.direction);
+        setCacheTimestamps(prev => ({ ...prev, career_direction: now }));
         const { error } = await supabase.from('profile_card_cache').upsert({
           student_id: studentId,
           assessment_type: 'career_direction',
           keywords: { direction: result.direction },
-          generated_at: new Date().toISOString(),
+          generated_at: now,
         }, { onConflict: 'student_id,assessment_type' });
         if (error) logger.error('Career direction cache upsert error:', error);
       }
