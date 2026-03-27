@@ -141,6 +141,7 @@ export default function MySchoolLearningAssessment() {
   const [searchParams] = useSearchParams();
   const viewParam = (searchParams.get('readonly') || searchParams.get('view') || '').toLowerCase();
   const readOnlyView = viewParam === '1' || viewParam === 'true';
+  const tabParam = searchParams.get('tab');
   const isReadOnly = isCompleted || readOnlyView;
   const [helpTranslations, setHelpTranslations] = useState<Record<string, string>>({});
 
@@ -235,6 +236,13 @@ export default function MySchoolLearningAssessment() {
       lang
     ).then(map => setOptionLabels(map)).catch(() => {});
   }, [lang]);
+
+  // Auto-select summary tab from URL param
+  useEffect(() => {
+    if (tabParam === 'summary') {
+      setCurrentSection('section6');
+    }
+  }, [tabParam]);
 
   const getHelpText = (id: number, fallback: string) => {
     const key = `question${id}`;

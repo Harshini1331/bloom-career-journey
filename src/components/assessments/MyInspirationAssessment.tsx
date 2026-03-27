@@ -34,7 +34,7 @@ import { AudioRecorder } from '@/components/ui/AudioRecorder';
 
 import { aiSummaryService } from '@/services/aiSummaryService';
 import { summaryDatabaseService } from '@/services/summaryDatabaseService';
-import { notificationService } from '@/services/notificationService';
+// notificationService import removed — AI summary notification flow disabled
 import { IndicKeyboard } from '@/components/ui/IndicKeyboard';
 
 interface InspirationVideo {
@@ -67,6 +67,7 @@ export default function MyInspirationAssessment() {
   const [searchParams] = useSearchParams();
   const viewParam = searchParams.get('readonly') || searchParams.get('view');
   const readOnlyView = viewParam === '1' || viewParam === 'true';
+  const tabParam = searchParams.get('tab');
   const { toast } = useToast();
   const [helpTexts, setHelpTexts] = useState<{ [key: string]: string }>({});
   const [questionTexts, setQuestionTexts] = useState<{ [key: string]: string }>({});
@@ -253,41 +254,7 @@ export default function MyInspirationAssessment() {
   const [audioResponsesMap, setAudioResponsesMap] = useState<Record<string, any>>({});
   const [audioAnswered, setAudioAnswered] = useState<Record<string, boolean>>({});
   const [transcribedPrefill, setTranscribedPrefill] = useState<Record<string, boolean>>({});
-  const [teacherUserId, setTeacherUserId] = useState<string | null>(null);
-  const resolveTeacherUserId = useCallback(async () => {
-    if (teacherUserId) return teacherUserId;
-    if (!userProfile?.id) return null;
-
-    try {
-      const { data, error } = await supabase
-        .from('students')
-        .select(`
-          id,
-          teacher_id,
-          teachers:teacher_id(user_id)
-        `)
-        .eq('user_id', userProfile.id)
-        .maybeSingle();
-
-      if (error) {
-        logger.error('Error resolving teacher user id:', error);
-        return null;
-      }
-
-      const resolvedTeacherUserId = (data as any)?.teachers?.user_id || null;
-      if (resolvedTeacherUserId) {
-        setTeacherUserId(resolvedTeacherUserId);
-      }
-      return resolvedTeacherUserId;
-    } catch (err) {
-      logger.error('Failed to resolve teacher user id:', err);
-      return null;
-    }
-  }, [teacherUserId, userProfile?.id]);
-
-  useEffect(() => {
-    resolveTeacherUserId();
-  }, [resolveTeacherUserId]);
+  // Teacher notification lookup removed — AI summary notification flow disabled
 
   const helpKey = (q: string) => `${getCurrentVideoKey()}_${q}`;
   const toggleHelp = (k: string) => setHelpOpen(prev => ({ ...prev, [k]: !prev[k] }));
@@ -443,6 +410,13 @@ export default function MyInspirationAssessment() {
       setVideoProgress(initialProgress);
     }
   }, [defaultVideos]);
+
+  // Auto-select summary tab from URL param
+  useEffect(() => {
+    if (tabParam === 'summary' && inspirationVideos.length > 0) {
+      setCurrentVideoIndex(inspirationVideos.length);
+    }
+  }, [tabParam, inspirationVideos]);
 
   // Load summary questions and title from database
   useEffect(() => {
@@ -1294,43 +1268,8 @@ export default function MyInspirationAssessment() {
       // Show success message for assessment submission
       toast({
         title: lang === 'kn' ? 'ಮೌಲ್ಯಮಾಪನ ಪೂರ್ಣ! ✨' : lang === 'ta' ? 'மதிப்பீடு முடிந்தது! ✨' : lang === 'hi' ? 'मूल्यांकन पूर्ण! ✨' : "Assessment Completed! ✨",
-        description: lang === 'kn' ? 'ನಿಮ್ಮ ಚಿಂತನ ಸಾರಾಂಶವನ್ನು ರಚಿಸಲಾಗುತ್ತಿದೆ...' : lang === 'ta' ? 'உங்கள் சிந்தனை சுருக்கம் உருவாக்கப்படுகிறது...' : lang === 'hi' ? 'आपका चिंतन सारांश तैयार हो रहा है...' : "Generating your reflection summary...",
+        description: lang === 'kn' ? 'ನಿಮ್ಮ ಉತ್ತರಗಳನ್ನು ಉಳಿಸಲಾಗಿದೆ.' : lang === 'ta' ? 'உங்கள் பதில்கள் சேமிக்கப்பட்டன.' : lang === 'hi' ? 'आपके उत्तर सहेजे गए।' : "Your responses have been saved.",
       });
-
-      // Notify student (self) and teacher of submission (best-effort)
-      try {
-        const studentNotifResult = await notificationService.create({
-          userId: userProfile.id,
-          type: 'system',
-          title: lang === 'kn' ? 'ಪ್ರೇರಣೆ ಸಲ್ಲಿಸಲಾಗಿದೆ' : lang === 'ta' ? 'உத்வேகம் சமர்ப்பிக்கப்பட்டது' : lang === 'hi' ? 'प्रेरणा जमा की गई' : 'Inspiration submitted',
-          message: lang === 'kn' ? 'ನಿಮ್ಮ ಪ್ರೇರಣೆ ಮೌಲ್ಯಮಾಪನವನ್ನು ಸಲ್ಲಿಸಲಾಗಿದೆ.' : lang === 'ta' ? 'உங்கள் உத்வேகம் மதிப்பீடு சமர்ப்பிக்கப்பட்டது.' : lang === 'hi' ? 'आपका प्रेरणा मूल्यांकन जमा किया गया है।' : 'Your Inspiration assessment has been submitted.',
-          link: '/student'
-        });
-        if (!studentNotifResult.success) {
-          logger.error('Failed to notify student:', studentNotifResult.error);
-        }
-
-        // find teacher for this student
-        const teacherUserId = await resolveTeacherUserId();
-        if (teacherUserId) {
-          const teacherNotifResult = await notificationService.create({
-            userId: teacherUserId,
-            type: 'assessment_submitted',
-            title: `${userProfile.full_name || 'Student'} submitted Inspiration`,
-            message: 'A new Inspiration assessment is ready to review.',
-            link: '/teacher#reviews'
-          });
-          if (!teacherNotifResult.success) {
-            logger.error('Failed to notify teacher:', teacherNotifResult.error);
-          } else {
-            logger.log('✅ Notification sent to teacher:', teacherUserId);
-          }
-        }
-      } catch (error) {
-        logger.error('Error sending notifications:', error);
-      }
-
-      // AI summary generation disabled — may re-enable later
 
       setIsCompleted(true);
       setTimeout(() => navigate('/student/things-interest-me?from=inspiration'), 2000);

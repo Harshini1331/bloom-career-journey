@@ -59,6 +59,7 @@ export default function MyDreamsAssessment() {
   const [isCompleted, setIsCompleted] = useState(false);
   const viewParam = (searchParams.get('readonly') || searchParams.get('view') || '').toLowerCase();
   const readOnlyView = viewParam === '1' || viewParam === 'true';
+  const tabParam = searchParams.get('tab');
   const isReadOnly = isCompleted || readOnlyView;
   const [currentSection, setCurrentSection] = useState<string>('section1');
   const [helpOpen, setHelpOpen] = useState<Record<string, boolean>>({});
@@ -318,6 +319,13 @@ export default function MyDreamsAssessment() {
     };
     loadQuestions();
   }, [lang]);
+
+  // Auto-select summary tab from URL param
+  useEffect(() => {
+    if (tabParam === 'summary' && dreamsQuestions.length > 0) {
+      setCurrentSection('Summary');
+    }
+  }, [tabParam, dreamsQuestions]);
 
   useEffect(() => {
     // Wait until both userProfile and questions are ready before loading saved responses

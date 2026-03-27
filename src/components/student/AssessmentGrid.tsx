@@ -86,7 +86,7 @@ export default function AssessmentGrid({ cards, resolvedLang, t, onStartAssessme
                                         className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition-colors"
                                     >
                                         <Eye className="h-3.5 w-3.5" />
-                                        {t('view_responses')}
+                                        {t('view_summary')}
                                     </button>
                                 </div>
                             )}

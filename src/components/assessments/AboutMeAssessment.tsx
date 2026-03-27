@@ -44,6 +44,7 @@ export default function AboutMeAssessment() {
   const { t, lang } = useLang();
   const [searchParams] = useSearchParams();
   const readOnlyView = ['1', 'true'].includes((searchParams.get('readonly') || searchParams.get('view') || '').toLowerCase());
+  const tabParam = searchParams.get('tab');
   const { toast } = useToast();
   const navigate = useNavigate();
   const [responses, setResponses] = useState<AboutMeResponses>({});
@@ -308,6 +309,13 @@ export default function AboutMeAssessment() {
 
     loadFields();
   }, [lang]);
+
+  // Auto-select summary tab from URL param
+  useEffect(() => {
+    if (tabParam === 'summary' && aboutMeFields.length > 0) {
+      setCurrentSection('Summary');
+    }
+  }, [tabParam, aboutMeFields]);
 
   // Load localized help text overrides from content_translations (about_me_help)
   const [dbTitle, setDbTitle] = useState<string>('');

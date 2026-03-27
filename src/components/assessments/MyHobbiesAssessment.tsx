@@ -68,6 +68,7 @@ export default function MyHobbiesAssessment() {
   const [searchParams] = useSearchParams();
   const viewParam = (searchParams.get('readonly') || searchParams.get('view') || '').toLowerCase();
   const readOnlyView = viewParam === '1' || viewParam === 'true';
+  const tabParam = searchParams.get('tab');
   const isReadOnly = isCompleted || readOnlyView;
 
   // Helper function to get student ID
@@ -254,6 +255,13 @@ export default function MyHobbiesAssessment() {
     };
     loadQuestions();
   }, [lang]);
+
+  // Auto-select summary tab from URL param
+  useEffect(() => {
+    if (tabParam === 'summary' && hobbiesQuestions.length > 0) {
+      setCurrentSection('summary');
+    }
+  }, [tabParam, hobbiesQuestions]);
 
   useEffect(() => {
     if (hobbiesQuestions.length > 0) {

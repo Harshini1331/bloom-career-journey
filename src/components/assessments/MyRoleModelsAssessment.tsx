@@ -63,6 +63,7 @@ export default function MyRoleModelsAssessment() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const readOnlyView = ['1', 'true'].includes((searchParams.get('readonly') || searchParams.get('view') || '').toLowerCase());
+  const tabParam = searchParams.get('tab');
   const isReadOnly = readOnlyView;
   const [responses, setResponses] = useState<RoleModelsAssessmentResponse>({
     roleModel1: {
@@ -233,6 +234,13 @@ export default function MyRoleModelsAssessment() {
     loadI18n();
     loadSummaryQuestions();
   }, [lang]);
+
+  // Auto-select summary tab from URL param
+  useEffect(() => {
+    if (tabParam === 'summary') {
+      setCurrentSection('summary');
+    }
+  }, [tabParam]);
 
   // Keep URL ?lang in sync without re-rendering
   useEffect(() => {
