@@ -85,41 +85,62 @@ export default function ImportStudentsDialog({ open, onOpenChange, classes, teac
     if (rows.length === 0) return;
     setImporting(true);
     const failed: string[] = [];
+    const reassigned: string[] = [];
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i];
       try {
         const isEmail = /@/.test(r.contact);
-        // 1) Create user directly in public.users (RLS allows teacher to insert students)
-        const { data: userRow, error: userErr } = await supabase
-          .from('users')
-          .insert({
-            full_name: r.full_name,
-            email: isEmail ? r.contact : null,
-            mobile: !isEmail ? r.contact : null,
-            role: 'student',
-            state_id: stateId,
-            password_hash: 'temporary123'
-          })
-          .select('id')
-          .single();
-        if (userErr || !userRow?.id) throw userErr || new Error('Could not create user');
 
-        // 2) Link student to teacher and class
+        // 1) Check if user already exists by email or mobile
+        let existingUser: any = null;
+        if (isEmail) {
+          const { data } = await supabase.from('users').select('id, full_name, email, mobile').eq('email', r.contact).maybeSingle();
+          existingUser = data || null;
+        } else {
+          const { data } = await supabase.from('users').select('id, full_name, email, mobile').eq('mobile', r.contact).maybeSingle();
+          existingUser = data || null;
+        }
+
+        let userData: any = existingUser;
+        if (!userData) {
+          // Create new user
+          const { data: userRow, error: userErr } = await supabase
+            .from('users')
+            .insert({
+              full_name: r.full_name,
+              email: isEmail ? r.contact : null,
+              mobile: !isEmail ? r.contact : null,
+              role: 'student',
+              state_id: stateId,
+              password_hash: 'temporary123'
+            })
+            .select('id')
+            .single();
+          if (userErr || !userRow?.id) throw userErr || new Error('Could not create user');
+          userData = userRow;
+        } else {
+          reassigned.push(`Row ${i+2}: ${r.full_name} already exists — reassigned to your class.`);
+        }
+
+        // 2) Upsert student record (update teacher_id if already exists)
         const { error: sErr } = await supabase
           .from('students')
-          .insert({ user_id: userRow.id, teacher_id: teacherId, class_id: r.class_id, enrollment_status: 'active' });
+          .upsert(
+            { user_id: userData.id, teacher_id: teacherId, class_id: r.class_id, enrollment_status: 'active' } as any,
+            { onConflict: 'user_id' as any }
+          );
         if (sErr) throw sErr;
 
-        // 3) Create auth credentials for custom login
+        // 3) Upsert auth credentials
         const { error: credErr } = await supabase
           .from('student_auth_credentials')
-          .insert({
-            user_id: userRow.id,
-            email: isEmail ? r.contact : null,
-            mobile: !isEmail ? r.contact : null,
+          .upsert({
+            user_id: userData.id,
+            email: isEmail ? r.contact : existingUser?.email || null,
+            mobile: !isEmail ? r.contact : existingUser?.mobile || null,
             password_hash: 'temporary123',
             is_active: true
-          });
+          } as any, { onConflict: 'user_id' as any });
         if (credErr) throw credErr;
       } catch (e: any) {
         failed.push(`Row ${i+2}: ${e?.message || e}`);
@@ -127,7 +148,10 @@ export default function ImportStudentsDialog({ open, onOpenChange, classes, teac
     }
     setImporting(false);
     if (failed.length > 0) {
-      setErrors(failed);
+      setErrors([...reassigned, ...failed]);
+    } else if (reassigned.length > 0) {
+      setErrors(reassigned);
+      onImported?.();
     } else {
       onOpenChange(false);
       onImported?.();
