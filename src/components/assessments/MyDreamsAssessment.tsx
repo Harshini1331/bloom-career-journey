@@ -1039,7 +1039,7 @@ export default function MyDreamsAssessment() {
                             </div>
                           )}
                           <Textarea
-                            placeholder={helpText}
+                            placeholder={lang === 'kn' ? 'ನಿಮ್ಮ ಉತ್ತರ ಬರೆಯಿರಿ...' : lang === 'ta' ? 'உங்கள் பதிலை எழுதுங்கள்...' : lang === 'hi' ? 'अपना उत्तर लिखें...' : 'Type your answer here...'}
                             value={questionValue}
                             onChange={(e) => handleResponseChange(question.id, e.target.value)}
                             readOnly={isReadOnly}

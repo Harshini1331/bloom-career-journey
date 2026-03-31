@@ -798,7 +798,7 @@ export default function MyRoleModelsAssessment() {
                         </label>
                         {helpOpen['rm_q1'] && <div className="mb-2 p-3 rounded border bg-purple-50 border-purple-200 text-sm text-purple-800">{helpText['rm_help_q1']}</div>}
                         <Input
-                          placeholder={helpText['rm_help_q1']}
+                          placeholder={lang === 'kn' ? 'ನಿಮ್ಮ ಉತ್ತರ ಬರೆಯಿರಿ...' : lang === 'ta' ? 'உங்கள் பதிலை எழுதுங்கள்...' : lang === 'hi' ? 'अपना उत्तर लिखें...' : 'Type your answer here...'}
                           value={responses[currentTab].name}
                           onChange={(e) => handleRoleModelChange(currentTab, 'name', e.target.value)}
                           disabled={isReadOnly}
@@ -812,7 +812,7 @@ export default function MyRoleModelsAssessment() {
                         </label>
                         {helpOpen['rm_q2'] && <div className="mb-2 p-3 rounded border bg-purple-50 border-purple-200 text-sm text-purple-800">{helpText['rm_help_q2']}</div>}
                         <Input
-                          placeholder={helpText['rm_help_q2']}
+                          placeholder={lang === 'kn' ? 'ನಿಮ್ಮ ಉತ್ತರ ಬರೆಯಿರಿ...' : lang === 'ta' ? 'உங்கள் பதிலை எழுதுங்கள்...' : lang === 'hi' ? 'अपना उत्तर लिखें...' : 'Type your answer here...'}
                           value={responses[currentTab].relationship}
                           onChange={(e) => handleRoleModelChange(currentTab, 'relationship', e.target.value)}
                           disabled={isReadOnly}
@@ -826,7 +826,7 @@ export default function MyRoleModelsAssessment() {
                         </label>
                         {helpOpen['rm_q3'] && <div className="mb-2 p-3 rounded border bg-purple-50 border-purple-200 text-sm text-purple-800">{helpText['rm_help_q3']}</div>}
                         <Textarea
-                          placeholder={helpText['rm_help_q3']}
+                          placeholder={lang === 'kn' ? 'ನಿಮ್ಮ ಉತ್ತರ ಬರೆಯಿರಿ...' : lang === 'ta' ? 'உங்கள் பதிலை எழுதுங்கள்...' : lang === 'hi' ? 'अपना उत्तर लिखें...' : 'Type your answer here...'}
                           value={responses[currentTab].admirationReasons}
                           onChange={(e) => handleRoleModelChange(currentTab, 'admirationReasons', e.target.value)}
                           disabled={isReadOnly}
@@ -841,7 +841,7 @@ export default function MyRoleModelsAssessment() {
                         </label>
                         {helpOpen['rm_q4'] && <div className="mb-2 p-3 rounded border bg-purple-50 border-purple-200 text-sm text-purple-800">{helpText['rm_help_q4']}</div>}
                         <Input
-                          placeholder={helpText['rm_help_q4']}
+                          placeholder={lang === 'kn' ? 'ನಿಮ್ಮ ಉತ್ತರ ಬರೆಯಿರಿ...' : lang === 'ta' ? 'உங்கள் பதிலை எழுதுங்கள்...' : lang === 'hi' ? 'अपना उत्तर लिखें...' : 'Type your answer here...'}
                           value={responses[currentTab].profession}
                           onChange={(e) => handleRoleModelChange(currentTab, 'profession', e.target.value)}
                           disabled={isReadOnly}
@@ -855,7 +855,7 @@ export default function MyRoleModelsAssessment() {
                         </label>
                         {helpOpen['rm_q5'] && <div className="mb-2 p-3 rounded border bg-purple-50 border-purple-200 text-sm text-purple-800">{helpText['rm_help_q5']}</div>}
                         <Input
-                          placeholder={helpText['rm_help_q5']}
+                          placeholder={lang === 'kn' ? 'ನಿಮ್ಮ ಉತ್ತರ ಬರೆಯಿರಿ...' : lang === 'ta' ? 'உங்கள் பதிலை எழுதுங்கள்...' : lang === 'hi' ? 'अपना उत्तर लिखें...' : 'Type your answer here...'}
                           value={responses[currentTab].desiredQualities}
                           onChange={(e) => handleRoleModelChange(currentTab, 'desiredQualities', e.target.value)}
                           disabled={isReadOnly}
@@ -869,7 +869,7 @@ export default function MyRoleModelsAssessment() {
                         </label>
                         {helpOpen['rm_q6'] && <div className="mb-2 p-3 rounded border bg-purple-50 border-purple-200 text-sm text-purple-800">{helpText['rm_help_q6']}</div>}
                         <Textarea
-                          placeholder={helpText['rm_help_q6']}
+                          placeholder={lang === 'kn' ? 'ನಿಮ್ಮ ಉತ್ತರ ಬರೆಯಿರಿ...' : lang === 'ta' ? 'உங்கள் பதிலை எழுதுங்கள்...' : lang === 'hi' ? 'अपना उत्तर लिखें...' : 'Type your answer here...'}
                           value={responses[currentTab].careerDiscussed}
                           onChange={(e) => handleRoleModelChange(currentTab, 'careerDiscussed', e.target.value)}
                           disabled={isReadOnly}
@@ -885,7 +885,7 @@ export default function MyRoleModelsAssessment() {
                       </label>
                       {helpOpen['rm_q7'] && <div className="mb-2 p-3 rounded border bg-purple-50 border-purple-200 text-sm text-purple-800">{helpText['rm_help_q7']}</div>}
                       <Textarea
-                        placeholder={helpText['rm_help_q7']}
+                        placeholder={lang === 'kn' ? 'ನಿಮ್ಮ ಉತ್ತರ ಬರೆಯಿರಿ...' : lang === 'ta' ? 'உங்கள் பதிலை எழுதுங்கள்...' : lang === 'hi' ? 'अपना उत्तर लिखें...' : 'Type your answer here...'}
                         value={responses[currentTab].opinion}
                         onChange={(e) => handleRoleModelChange(currentTab, 'opinion', e.target.value)}
                         disabled={isReadOnly}
@@ -900,7 +900,7 @@ export default function MyRoleModelsAssessment() {
                       </label>
                       {helpOpen['rm_q8'] && <div className="mb-2 p-3 rounded border bg-purple-50 border-purple-200 text-sm text-purple-800">{helpText['rm_help_q8']}</div>}
                       <Textarea
-                        placeholder={helpText['rm_help_q8']}
+                        placeholder={lang === 'kn' ? 'ನಿಮ್ಮ ಉತ್ತರ ಬರೆಯಿರಿ...' : lang === 'ta' ? 'உங்கள் பதிலை எழுதுங்கள்...' : lang === 'hi' ? 'अपना उत्तर लिखें...' : 'Type your answer here...'}
                         value={responses[currentTab].willingToHelp}
                         onChange={(e) => handleRoleModelChange(currentTab, 'willingToHelp', e.target.value)}
                         disabled={isReadOnly}
@@ -915,7 +915,7 @@ export default function MyRoleModelsAssessment() {
                       </label>
                       {helpOpen['rm_q9'] && <div className="mb-2 p-3 rounded border bg-purple-50 border-purple-200 text-sm text-purple-800">{helpText['rm_help_q9']}</div>}
                       <Textarea
-                        placeholder={helpText['rm_help_q9']}
+                        placeholder={lang === 'kn' ? 'ನಿಮ್ಮ ಉತ್ತರ ಬರೆಯಿರಿ...' : lang === 'ta' ? 'உங்கள் பதிலை எழுதுங்கள்...' : lang === 'hi' ? 'अपना उत्तर लिखें...' : 'Type your answer here...'}
                         value={responses[currentTab].helpLookingFor}
                         onChange={(e) => handleRoleModelChange(currentTab, 'helpLookingFor', e.target.value)}
                         disabled={isReadOnly}
@@ -930,7 +930,7 @@ export default function MyRoleModelsAssessment() {
                       </label>
                       {helpOpen['rm_q10'] && <div className="mb-2 p-3 rounded border bg-purple-50 border-purple-200 text-sm text-purple-800">{helpText['rm_help_q10']}</div>}
                       <Textarea
-                        placeholder={helpText['rm_help_q10']}
+                        placeholder={lang === 'kn' ? 'ನಿಮ್ಮ ಉತ್ತರ ಬರೆಯಿರಿ...' : lang === 'ta' ? 'உங்கள் பதிலை எழுதுங்கள்...' : lang === 'hi' ? 'अपना उत्तर लिखें...' : 'Type your answer here...'}
                         value={responses[currentTab].similarities}
                         onChange={(e) => handleRoleModelChange(currentTab, 'similarities', e.target.value)}
                         disabled={isReadOnly}
@@ -945,7 +945,7 @@ export default function MyRoleModelsAssessment() {
                       </label>
                       {helpOpen['rm_q11'] && <div className="mb-2 p-3 rounded border bg-purple-50 border-purple-200 text-sm text-purple-800">{helpText['rm_help_q11']}</div>}
                       <Textarea
-                        placeholder={helpText['rm_help_q11']}
+                        placeholder={lang === 'kn' ? 'ನಿಮ್ಮ ಉತ್ತರ ಬರೆಯಿರಿ...' : lang === 'ta' ? 'உங்கள் பதிலை எழுதுங்கள்...' : lang === 'hi' ? 'अपना उत्तर लिखें...' : 'Type your answer here...'}
                         value={responses[currentTab].incorporatePlan}
                         onChange={(e) => handleRoleModelChange(currentTab, 'incorporatePlan', e.target.value)}
                         disabled={isReadOnly}
@@ -975,7 +975,7 @@ export default function MyRoleModelsAssessment() {
                       </label>
                       {helpOpen['rm_q12'] && <div className="mb-2 p-3 rounded border bg-purple-50 border-purple-200 text-sm text-purple-800">{helpText['rm_help_q12']}</div>}
                       <Textarea
-                        placeholder={helpText['rm_help_q12']}
+                        placeholder={lang === 'kn' ? 'ನಿಮ್ಮ ಉತ್ತರ ಬರೆಯಿರಿ...' : lang === 'ta' ? 'உங்கள் பதிலை எழுதுங்கள்...' : lang === 'hi' ? 'अपना उत्तर लिखें...' : 'Type your answer here...'}
                         value={responses.question12}
                         onChange={(e) => handleGeneralQuestionChange('question12', e.target.value)}
                         disabled={isReadOnly}
@@ -990,7 +990,7 @@ export default function MyRoleModelsAssessment() {
                       </label>
                       {helpOpen['rm_q13'] && <div className="mb-2 p-3 rounded border bg-purple-50 border-purple-200 text-sm text-purple-800">{helpText['rm_help_q13']}</div>}
                       <Textarea
-                        placeholder={helpText['rm_help_q13']}
+                        placeholder={lang === 'kn' ? 'ನಿಮ್ಮ ಉತ್ತರ ಬರೆಯಿರಿ...' : lang === 'ta' ? 'உங்கள் பதிலை எழுதுங்கள்...' : lang === 'hi' ? 'अपना उत्तर लिखें...' : 'Type your answer here...'}
                         value={responses.question13}
                         onChange={(e) => handleGeneralQuestionChange('question13', e.target.value)}
                         disabled={isReadOnly}

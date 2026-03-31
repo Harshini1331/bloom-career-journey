@@ -964,10 +964,13 @@ function SectionTitle({ title, subtitle }: { title: string; subtitle?: string })
 }
 
 function Question({ label, help, value, onChange, area, helpKey, open, onToggle, readOnly }: { label: string; help: string; value: string; onChange: (v: string) => void; area?: boolean; helpKey: string; open: boolean; onToggle: () => void; readOnly?: boolean }) {
+  const { lang } = useLang();
+  const placeholder = lang === 'kn' ? 'ನಿಮ್ಮ ಉತ್ತರ ಬರೆಯಿರಿ...' : lang === 'ta' ? 'உங்கள் பதிலை எழுதுங்கள்...' : lang === 'hi' ? 'अपना उत्तर लिखें...' : 'Type your answer here...';
   return (
     <div>
       <label className="block text-base font-medium text-gray-800 mb-2 flex items-center gap-2">
         {label}
+        <span className="text-red-500 text-sm ml-1">*</span>
         <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700" onClick={onToggle}>💬</button>
       </label>
       {open && (
@@ -983,7 +986,7 @@ function Question({ label, help, value, onChange, area, helpKey, open, onToggle,
             if (open && v.trim().length > 0) onToggle();
           }}
           rows={4}
-          placeholder={help}
+          placeholder={placeholder}
         />
       ) : (
         <Input
@@ -994,7 +997,7 @@ function Question({ label, help, value, onChange, area, helpKey, open, onToggle,
             onChange(v);
             if (open && v.trim().length > 0) onToggle();
           }}
-          placeholder={help}
+          placeholder={placeholder}
         />
       )}
     </div>
@@ -1006,11 +1009,12 @@ function TripleInput({ label, help, values, onChange, helpKey, open, onToggle, r
   const { lang } = useLang();
   const p1 = lang === 'kn' ? 'ಉತ್ತರ 1' : lang === 'ta' ? 'பதில் 1' : lang === 'hi' ? 'उत्तर 1' : 'Answer 1';
   const p2 = lang === 'kn' ? 'ಉತ್ತರ 2' : lang === 'ta' ? 'பதில் 2' : lang === 'hi' ? 'उत्तर 2' : 'Answer 2';
-  const p3 = lang === 'kn' ? 'ಉತ್ತರ 3' : lang === 'ta' ? 'பதில் 3' : lang === 'hi' ? 'उत्तर 3' : 'Answer 3';
+  const p3 = lang === 'kn' ? 'ಉತ್ತರ 3' : lang === 'ta' ? 'பதில் 3' : lang === 'hi' ? 'उत्தर 3' : 'Answer 3';
   return (
     <div>
       <label className="block text-base font-medium text-gray-800 mb-2 flex items-center gap-2">
         {label}
+        <span className="text-red-500 text-sm ml-1">*</span>
         <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700" onClick={onToggle}>💬</button>
       </label>
       {open && (
@@ -1029,11 +1033,12 @@ function DoubleInput({ label, help, values, onChange, helpKey, open, onToggle, r
   const [a, b] = values;
   const { lang } = useLang();
   const p1 = lang === 'kn' ? 'ಉತ್ತರ 1' : lang === 'ta' ? 'பதில் 1' : lang === 'hi' ? 'उत्तर 1' : 'Answer 1';
-  const p2 = lang === 'kn' ? 'ಉತ್ತರ 2' : lang === 'ta' ? 'பதில் 2' : lang === 'hi' ? 'उत्तर 2' : 'Answer 2';
+  const p2 = lang === 'kn' ? 'ಉತ್ತர 2' : lang === 'ta' ? 'பதில் 2' : lang === 'hi' ? 'उत्तर 2' : 'Answer 2';
   return (
     <div>
       <label className="block text-base font-medium text-gray-800 mb-2 flex items-center gap-2">
         {label}
+        <span className="text-red-500 text-sm ml-1">*</span>
         <button type="button" aria-label="Help" className="text-blue-600 hover:text-blue-700" onClick={onToggle}>💬</button>
       </label>
       {open && (

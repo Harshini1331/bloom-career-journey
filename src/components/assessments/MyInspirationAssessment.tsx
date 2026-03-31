@@ -1736,7 +1736,7 @@ export default function MyInspirationAssessment() {
                           </div>
                         </div>
                         <Textarea
-                          placeholder={helpText}
+                          placeholder={lang === 'kn' ? 'ನಿಮ್ಮ ಉತ್ತರ ಬರೆಯಿರಿ...' : lang === 'ta' ? 'உங்கள் பதிலை எழுதுங்கள்...' : lang === 'hi' ? 'अपना उत्तर लिखें...' : 'Type your answer here...'}
                           value={questionValue}
                           onChange={(e) => handleResponseChange(getCurrentVideoKey(), questionKey, e.target.value)}
                           readOnly={readOnlyView}
