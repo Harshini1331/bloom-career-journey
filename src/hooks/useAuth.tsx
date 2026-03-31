@@ -789,8 +789,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: err };
       }
 
-      // Handle email/mobile logic
-      let finalEmail = email;
+      // Handle email/mobile logic — normalize email to lowercase
+      let finalEmail = email ? email.trim().toLowerCase() : email;
       let finalMobile = mobile;
 
       if (!email && mobile) {
@@ -808,7 +808,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: existingUserByEmail, error: emailCheckError } = await supabase
         .from('users')
         .select('id')
-        .eq('email', finalEmail)
+        .ilike('email', finalEmail!)
         .maybeSingle();
 
       if (emailCheckError) {

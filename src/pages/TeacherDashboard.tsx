@@ -183,7 +183,7 @@ export default function TeacherDashboard() {
       const isEmail = /@/.test(newStudent.contact);
       let existingUser: any = null;
       if (isEmail) {
-        const { data } = await supabase.from('users').select('id, full_name, email, mobile').eq('email', newStudent.contact).maybeSingle();
+        const { data } = await supabase.from('users').select('id, full_name, email, mobile').ilike('email', newStudent.contact.trim().toLowerCase()).maybeSingle();
         existingUser = data || null;
       } else {
         const { data } = await supabase.from('users').select('id, full_name, email, mobile').eq('mobile', newStudent.contact).maybeSingle();
@@ -203,7 +203,7 @@ export default function TeacherDashboard() {
       let userData: any = existingUser;
       if (!userData) {
         const insertRes = await supabase.from('users').insert({
-          full_name: newStudent.fullName, email: isEmail ? newStudent.contact : null,
+          full_name: newStudent.fullName, email: isEmail ? newStudent.contact.trim().toLowerCase() : null,
           mobile: !isEmail ? newStudent.contact : null, state_id: teacherData.state_id, role: 'student', password_hash: 'temporary123'
         }).select().single();
         if (insertRes.error) throw insertRes.error;

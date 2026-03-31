@@ -94,7 +94,7 @@ export default function ImportStudentsDialog({ open, onOpenChange, classes, teac
         // 1) Check if user already exists by email or mobile
         let existingUser: any = null;
         if (isEmail) {
-          const { data } = await supabase.from('users').select('id, full_name, email, mobile').eq('email', r.contact).maybeSingle();
+          const { data } = await supabase.from('users').select('id, full_name, email, mobile').ilike('email', r.contact.trim().toLowerCase()).maybeSingle();
           existingUser = data || null;
         } else {
           const { data } = await supabase.from('users').select('id, full_name, email, mobile').eq('mobile', r.contact).maybeSingle();
@@ -108,7 +108,7 @@ export default function ImportStudentsDialog({ open, onOpenChange, classes, teac
             .from('users')
             .insert({
               full_name: r.full_name,
-              email: isEmail ? r.contact : null,
+              email: isEmail ? r.contact.trim().toLowerCase() : null,
               mobile: !isEmail ? r.contact : null,
               role: 'student',
               state_id: stateId,
