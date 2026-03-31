@@ -26,7 +26,7 @@ interface AuthContextType {
     role: 'teacher' | 'student',
     stateId: string,
     classId?: string,
-    preferredLanguage?: 'en' | 'kn' | 'ta'
+    preferredLanguage?: 'en' | 'kn' | 'ta' | 'hi'
   ) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   userProfile: any;
@@ -777,7 +777,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     role: 'teacher' | 'student',
     stateId: string,
     classId?: string,
-    preferredLanguage: 'en' | 'kn' | 'ta' = 'en'
+    preferredLanguage: 'en' | 'kn' | 'ta' | 'hi' = 'en'
   ) => {
     try {
       logger.log('Starting signUp process:', { mobile, email, fullName, role, stateId, classId, preferredLanguage });
@@ -860,14 +860,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (authError) {
         logger.error('Supabase auth error:', authError);
-        const lang = preferredLanguage === 'kn' || preferredLanguage === 'ta' ? preferredLanguage : 'en';
+        const lang = preferredLanguage === 'kn' || preferredLanguage === 'ta' || preferredLanguage === 'hi' ? preferredLanguage : 'en';
         toast({
           title:
             lang === 'kn'
               ? 'ನೋಂದಣಿ ವಿಫಲವಾಗಿದೆ'
               : lang === 'ta'
                 ? 'பதிவு முடியவில்லை'
-                : 'Registration failed',
+                : lang === 'hi'
+                  ? 'पंजीकरण विफल'
+                  : 'Registration failed',
           description: authError.message,
           variant: 'destructive',
         });
