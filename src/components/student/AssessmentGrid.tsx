@@ -23,6 +23,7 @@ export interface AssessmentCardData {
     descriptionEn: string;
     descriptionKn: string;
     descriptionTa: string;
+    descriptionHi: string;
     assessmentStatus: AssessmentStatus;
     isCompleted: boolean;
     isUnlocked: boolean;
@@ -45,7 +46,8 @@ export default function AssessmentGrid({ cards, resolvedLang, t, onStartAssessme
                 const desc =
                     resolvedLang === 'kn' ? card.descriptionKn :
                         resolvedLang === 'ta' ? card.descriptionTa :
-                            card.descriptionEn;
+                            resolvedLang === 'hi' ? card.descriptionHi :
+                                card.descriptionEn;
 
                 return (
                     <Card
