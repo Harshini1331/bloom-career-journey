@@ -1795,7 +1795,9 @@ export default function MyInspirationAssessment() {
                 onClick={nextVideo}
                 className="border-blue-200 text-blue-700 hover:bg-blue-50"
               >
-                {lang === 'kn' ? 'ಮುಂದಿನ ವೀಡಿಯೊ' : lang === 'ta' ? 'அடுத்த வீடியோ' : lang === 'hi' ? 'अगला वीडियो →' : t('nextVideo')}
+                {currentVideoIndex === inspirationVideos.length - 1
+                  ? (lang === 'kn' ? 'ಸಾರಾಂಶ →' : lang === 'ta' ? 'சுருக்கம் →' : lang === 'hi' ? 'सारांश →' : 'Summary →')
+                  : (lang === 'kn' ? 'ಮುಂದಿನ ವೀಡಿಯೊ →' : lang === 'ta' ? 'அடுத்த வீடியோ →' : lang === 'hi' ? 'अगला वीडियो →' : t('nextVideo'))}
               </Button>
             ) : (
               <Button

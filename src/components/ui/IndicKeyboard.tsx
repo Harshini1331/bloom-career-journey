@@ -549,7 +549,7 @@ export function IndicKeyboard({ targetInputId, targetElement, onInput, lang = 'e
         setIsOpen(true);
       }}
       onClick={() => setIsOpen(true)}
-      className="fixed top-2 right-2 z-[100] shadow-lg bg-blue-50 hover:bg-blue-100 border-blue-300 animate-in fade-in slide-in-from-top-2 duration-300 h-8 px-2"
+      className="fixed top-[4.5rem] right-2 z-[100] shadow-lg bg-blue-50 hover:bg-blue-100 border-blue-300 animate-in fade-in slide-in-from-top-2 duration-300 h-8 px-2"
       aria-label={aria}
     >
       <Keyboard className="w-4 h-4 mr-1" />
