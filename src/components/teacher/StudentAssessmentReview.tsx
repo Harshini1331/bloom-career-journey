@@ -52,6 +52,7 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
   const [hobbiesQuestions, setHobbiesQuestions] = useState<any[]>([]);
   const [roleModelsQuestions, setRoleModelsQuestions] = useState<any[]>([]);
   const [hollandQuestions, setHollandQuestions] = useState<any[]>([]);
+  const [summaryQuestionsByType, setSummaryQuestionsByType] = useState<Record<string, Record<string, Record<string, string>>>>({});
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
 
   useEffect(() => {
@@ -63,7 +64,32 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
     fetchHobbiesQuestions();
     fetchRoleModelsQuestions();
     fetchHollandQuestions();
+    fetchSummaryQuestions();
   }, []);
+
+  const fetchSummaryQuestions = async () => {
+    const types = ['inspiration', 'about_me', 'dreams', 'school_learning', 'hobbies', 'role_models'];
+    const langs = ['en', 'kn', 'ta', 'hi'];
+    const result: Record<string, Record<string, Record<string, string>>> = {};
+    for (const type of types) {
+      result[type] = {};
+      for (const lang of langs) {
+        try {
+          const rpcName = `get_${type}_summary_questions_i18n`;
+          const { data } = await supabase.rpc(rpcName, { p_lang: lang });
+          const map: Record<string, string> = {};
+          if (Array.isArray(data)) {
+            data.forEach((row: any, i: number) => {
+              const key = `question${row.sequence_number || i + 1}`;
+              map[key] = row.question_text || row.translated_text || row.text || `Question ${i + 1}`;
+            });
+          }
+          result[type][lang] = map;
+        } catch { /* RPC may not exist for some types */ }
+      }
+    }
+    setSummaryQuestionsByType(result);
+  };
 
   const fetchInspirationQuestions = async () => {
     try {
@@ -103,7 +129,7 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
       textByLang.en = enMap;
 
       // Tamil and Kannada translations from i18n RPC
-      const langs: Array<'ta' | 'kn'> = ['ta', 'kn'];
+      const langs: Array<'ta' | 'kn' | 'hi'> = ['ta', 'kn', 'hi'];
       for (const lang of langs) {
         try {
           const { data: i18nData } = await supabase.rpc('get_dreams_questions_i18n', { p_lang: lang } as any);
@@ -134,7 +160,7 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
   const fetchAboutMeFields = async () => {
     try {
       logger.log('📥 Fetching About Me fields for all languages...');
-      const langs: Array<'en' | 'ta' | 'kn'> = ['en', 'ta', 'kn'];
+      const langs: Array<'en' | 'ta' | 'kn' | 'hi'> = ['en', 'ta', 'kn', 'hi'];
       const fieldsByLang: Record<string, any[]> = {};
 
       for (const lang of langs) {
@@ -212,7 +238,7 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
       });
       textByLang.en = enMap;
 
-      const langs: Array<'ta' | 'kn'> = ['ta', 'kn'];
+      const langs: Array<'ta' | 'kn' | 'hi'> = ['ta', 'kn', 'hi'];
       for (const lang of langs) {
         try {
           const { data: i18nData } = await supabase.rpc('get_school_learning_questions_i18n', { p_lang: lang } as any);
@@ -261,7 +287,7 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
       });
       textByLang.en = enMap;
 
-      const langs: Array<'ta' | 'kn'> = ['ta', 'kn'];
+      const langs: Array<'ta' | 'kn' | 'hi'> = ['ta', 'kn', 'hi'];
       for (const lang of langs) {
         try {
           const { data: i18nData } = await supabase.rpc('get_hobbies_questions_i18n', { p_lang: lang } as any);
@@ -313,7 +339,7 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
       });
       textByLang.en = enMap;
 
-      const langs: Array<'ta' | 'kn'> = ['ta', 'kn'];
+      const langs: Array<'ta' | 'kn' | 'hi'> = ['ta', 'kn', 'hi'];
       for (const lang of langs) {
         try {
           const { data: i18nData } = await supabase.rpc('get_role_models_questions_i18n', { p_lang: lang } as any);
@@ -569,10 +595,11 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
     }
   };
 
-  const detectLangKeyFromResponses = (responses: any): 'en' | 'ta' | 'kn' => {
+  const detectLangKeyFromResponses = (responses: any): 'en' | 'ta' | 'kn' | 'hi' => {
     const stack: any[] = [responses];
     const tamilRegex = /[\u0B80-\u0BFF]/;
     const kannadaRegex = /[\u0C80-\u0CFF]/;
+    const hindiRegex = /[\u0900-\u097F]/;
 
     while (stack.length) {
       const value = stack.pop();
@@ -580,6 +607,7 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
       if (typeof value === 'string') {
         if (tamilRegex.test(value)) return 'ta';
         if (kannadaRegex.test(value)) return 'kn';
+        if (hindiRegex.test(value)) return 'hi';
       } else if (Array.isArray(value)) {
         for (const v of value) stack.push(v);
       } else if (typeof value === 'object') {
@@ -611,9 +639,16 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
     }, 0);
   };
 
-  const renderSummaryTabSection = (summaryResponses: Record<string, any>) => {
+  const renderSummaryTabSection = (summaryResponses: Record<string, any>, assessmentType?: string) => {
     const entries = Object.entries(summaryResponses).filter(([_, v]) => typeof v === 'string' && v.trim());
     if (entries.length === 0) return null;
+
+    // Detect language from the summary answers themselves
+    const langKey = detectLangKeyFromResponses(summaryResponses);
+    const questionMap = assessmentType
+      ? (summaryQuestionsByType[assessmentType]?.[langKey] || summaryQuestionsByType[assessmentType]?.en || {})
+      : {};
+
     return (
       <div className="mt-6 border-t pt-4">
         <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
@@ -621,16 +656,22 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
           Summary Tab Responses
         </h4>
         <div className="space-y-3">
-          {entries.map(([key, value], index) => (
-            <div key={key} className="border-l-4 border-purple-400 pl-4">
-              <span className="text-xs font-semibold text-purple-600 bg-purple-50 px-2 py-1 rounded">
-                {key.replace(/question/, 'Q')}
-              </span>
-              <div className="mt-1 bg-white p-3 rounded border border-gray-200">
-                <p className="text-sm text-gray-600 whitespace-pre-wrap">{String(value)}</p>
+          {entries.map(([key, value], index) => {
+            const questionText = questionMap[key] || key.replace(/question/, 'Q');
+            return (
+              <div key={key} className="border-l-4 border-purple-400 pl-4">
+                <div className="flex items-start gap-2 mb-1">
+                  <span className="text-xs font-semibold text-purple-600 bg-purple-50 px-2 py-1 rounded shrink-0">
+                    Q{index + 1}
+                  </span>
+                  <p className="text-sm font-medium text-gray-700">{questionText}</p>
+                </div>
+                <div className="mt-1 ml-8 bg-white p-3 rounded border border-gray-200">
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{String(value)}</p>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     );
@@ -1095,7 +1136,7 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
       // Detect language of the student's answers so we can show questions in same language
       const langKey = detectLangKeyFromResponses(responses);
       const localizedFields =
-        (langKey === 'ta' || langKey === 'kn') && aboutMeFieldsByLang[langKey]?.length
+        langKey !== 'en' && aboutMeFieldsByLang[langKey]?.length
           ? aboutMeFieldsByLang[langKey]
           : aboutMeFields;
 
@@ -1648,7 +1689,7 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
       return (
         <div className="space-y-4">
           <div className="text-sm text-gray-500 italic">No structured renderer for this assessment type.</div>
-          {renderSummaryTabSection(summarySection)}
+          {renderSummaryTabSection(summarySection, assessment.assessment_type)}
         </div>
       );
     }
@@ -1850,7 +1891,22 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
                       {expandedAssessment === assessment.id && (
                         <div className="p-4 bg-white border-t">
                           {renderAssessmentResponses(assessment)}
-                          {assessment.responses?.summary && renderSummaryTabSection(assessment.responses.summary)}
+                          {assessment.responses?.summary && renderSummaryTabSection(assessment.responses.summary, assessment.assessment_type)}
+                          {/* Handle flat summary keys: summary_qN (dreams), summary_N (hobbies/role_models) */}
+                          {(() => {
+                            const r = assessment.responses;
+                            if (!r || r.summary) return null; // already handled above
+                            const flatSummary: Record<string, any> = {};
+                            Object.entries(r).forEach(([k, v]) => {
+                              if (/^summary_q?\d+$/.test(k) && typeof v === 'string' && v.trim()) {
+                                // Normalize key to questionN for lookup
+                                const num = k.replace(/^summary_q?/, '');
+                                flatSummary[`question${num}`] = v;
+                              }
+                            });
+                            if (Object.keys(flatSummary).length === 0) return null;
+                            return renderSummaryTabSection(flatSummary, assessment.assessment_type);
+                          })()}
                           <div className="mt-4 flex gap-2">
                             <Button
                               size="sm"
