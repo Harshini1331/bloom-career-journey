@@ -4,6 +4,7 @@ import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { GraduationCap, BookOpen, Users, Target, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import IlpFooter from '@/components/IlpFooter';
 import { useEffect } from 'react';
 
 const Index = () => {
@@ -77,9 +78,10 @@ const Index = () => {
               <div className="mx-auto w-20 h-20 bg-gradient-to-r from-primary to-accent rounded-full flex items-center justify-center mb-6">
                 <GraduationCap className="w-10 h-10 text-white" />
               </div>
-              <h1 className="text-3xl md:text-6xl font-bold text-foreground mb-4 md:mb-6">
-                {t('titleBrandA')}<span className="text-primary">{t('titleBrandB')}</span>
+              <h1 className="text-3xl md:text-6xl font-bold text-foreground mb-2 md:mb-3">
+                {t('titleBrandA')} <span className="text-primary">{t('titleBrandB')}</span>
               </h1>
+              <p className="text-sm md:text-base text-muted-foreground mb-4">an India Literacy Project initiative</p>
               <p className="text-lg md:text-xl text-muted-foreground mb-8 leading-relaxed px-4 md:px-0">{t('heroDesc')}</p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button asChild size="lg" className="text-lg px-8">
@@ -156,7 +158,7 @@ const Index = () => {
               Ready to Begin Your Journey?
             </h2>
             <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Join thousands of students and professionals who have discovered their path with CareerCompass
+              Join thousands of students and professionals who have discovered their path with Career Compass
             </p>
             <Button asChild size="lg" className="text-lg px-8">
               <a href="/auth">
@@ -168,18 +170,7 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-card border-t">
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <GraduationCap className="w-6 h-6 text-primary" />
-              <span className="text-lg font-semibold">CareerCompass</span>
-            </div>
-            <p className="text-sm text-muted-foreground">© {new Date().getFullYear()} CareerCompass by ILP. {t('footer')}</p>
-          </div>
-        </div>
-      </footer>
+      <IlpFooter />
     </div>
   );
 };

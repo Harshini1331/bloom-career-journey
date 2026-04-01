@@ -12,6 +12,7 @@ import { BookOpen, Users, GraduationCap } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { StateInfo, SchoolClass } from '@/integrations/supabase/types';
 import { useLocation } from 'react-router-dom';
+import IlpFooter from '@/components/IlpFooter';
 
 export default function AuthPage() {
   logger.log('AuthPage: Component rendering');
@@ -238,13 +239,15 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-primary/5 via-background to-accent/5">
+      <div className="flex-1 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="mx-auto w-12 h-12 md:w-16 md:h-16 bg-gradient-to-r from-primary to-accent rounded-full flex items-center justify-center mb-4">
             <GraduationCap className="w-6 h-6 md:w-8 md:h-8 text-white" />
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">CareerCompass</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Career Compass</h1>
+          <p className="text-xs text-muted-foreground mt-1">an India Literacy Project initiative</p>
           <p className="text-muted-foreground mt-2">Navigate your career journey</p>
         </div>
 
@@ -431,6 +434,8 @@ export default function AuthPage() {
           </CardContent>
         </Card>
       </div>
+      </div>
+      <IlpFooter />
     </div>
   );
 }

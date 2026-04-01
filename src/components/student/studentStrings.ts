@@ -2,7 +2,7 @@ export type StudentLang = 'en' | 'kn' | 'ta' | 'hi';
 
 const strings: Record<StudentLang, Record<string, string>> = {
     en: {
-        brand: 'CareerCompass',
+        brand: 'Career Compass',
         menu_profile: 'My Profile',
         menu_messages: 'Messages',
         menu_logout: 'Logout',
@@ -54,7 +54,7 @@ const strings: Record<StudentLang, Record<string, string>> = {
         roadmap_save_failed: 'Save failed',
     },
     kn: {
-        brand: 'CareerCompass',
+        brand: 'Career Compass',
         menu_profile: 'ನನ್ನ ಪ್ರೊಫೈಲ್',
         menu_settings: 'ಸೆಟ್ಟಿಂಗ್ಸ್',
         menu_logout: 'ಲಾಗ್ ಔಟ್',
@@ -107,7 +107,7 @@ const strings: Record<StudentLang, Record<string, string>> = {
         roadmap_save_failed: 'ಉಳಿಸುವಿಕೆ ವಿಫಲವಾಗಿದೆ',
     },
     ta: {
-        brand: 'CareerCompass',
+        brand: 'Career Compass',
         menu_profile: 'என் விவரம்',
         menu_messages: 'செய்திகள்',
         menu_settings: 'அமைப்புகள்',
@@ -160,7 +160,7 @@ const strings: Record<StudentLang, Record<string, string>> = {
         roadmap_save_failed: 'சேமிப்பு தோல்வியடைந்தது',
     },
     hi: {
-        brand: 'CareerCompass',
+        brand: 'Career Compass',
         menu_profile: 'मेरी प्रोफ़ाइल',
         menu_messages: 'संदेश',
         menu_logout: 'लॉग आउट',

@@ -22,6 +22,7 @@ import LanguageSelectionDialog from '@/components/LanguageSelectionDialog';
 // Sub-components
 import { useStudentStrings, StudentLang } from '@/components/student/studentStrings';
 import StudentDashboardHeader from '@/components/student/StudentDashboardHeader';
+import IlpFooter from '@/components/IlpFooter';
 import AssessmentGrid, { AssessmentCardData, SummaryState } from '@/components/student/AssessmentGrid';
 import CareerChatSection from '@/components/student/CareerChatSection';
 
@@ -478,6 +479,7 @@ export default function StudentDashboard() {
       <ProfileDialog open={isProfileOpen} onOpenChange={setIsProfileOpen} />
       {/* SummaryViewDialog removed from student flow — AI summary disabled */}
       <LanguageSelectionDialog open={langPromptOpen} onOpenChange={setLangPromptOpen} />
+      <IlpFooter />
     </div>
   );
 }

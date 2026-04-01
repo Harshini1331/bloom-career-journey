@@ -28,6 +28,7 @@ import ChatBubble from '@/components/chat/ChatBubble';
 import ContactIlpDialog from '@/components/ContactIlpDialog';
 import ProfileDialog from '@/components/ProfileDialog';
 import ImportStudentsDialog from '@/components/ImportStudentsDialog';
+import IlpFooter from '@/components/IlpFooter';
 
 interface StudentStats {
   totalStudents: number;
@@ -599,6 +600,7 @@ export default function TeacherDashboard() {
         enrolling={enrolling} classes={classes} userId={user?.id}
         onSearch={handleSearchExisting} onEnroll={handleEnrollExisting}
       />
+      <IlpFooter />
     </div>
   );
 }

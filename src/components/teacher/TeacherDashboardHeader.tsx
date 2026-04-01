@@ -41,7 +41,10 @@ export default function TeacherDashboardHeader({
                         <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-emerald-600 rounded-lg flex items-center justify-center">
                             <GraduationCap className="w-6 h-6 text-white" />
                         </div>
-                        <h1 className="text-xl font-bold text-gray-800">{t('brand')}</h1>
+                        <div>
+                            <h1 className="text-xl font-bold text-gray-800 leading-tight">{t('brand')}</h1>
+                            <p className="text-[10px] text-gray-500 leading-tight hidden sm:block">an India Literacy Project initiative</p>
+                        </div>
                     </div>
 
                     {/* Notifications + Profile */}
