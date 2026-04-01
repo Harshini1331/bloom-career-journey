@@ -41,6 +41,7 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
   const [loadingAssessments, setLoadingAssessments] = useState(false);
   const [expandedAssessment, setExpandedAssessment] = useState<string | null>(null);
   const [inspirationQuestions, setInspirationQuestions] = useState<any[]>([]);
+  const [inspirationQuestionTextByLang, setInspirationQuestionTextByLang] = useState<Record<string, Record<number, string>>>({});
   const [dreamsQuestions, setDreamsQuestions] = useState<any[]>([]);
   const [aboutMeFields, setAboutMeFields] = useState<any[]>([]);
   const [aboutMeFieldsByLang, setAboutMeFieldsByLang] = useState<Record<string, any[]>>({});
@@ -93,6 +94,7 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
 
   const fetchInspirationQuestions = async () => {
     try {
+      // Load English base questions
       const { data, error } = await supabase.rpc('get_inspiration_questions');
       if (error) {
         logger.error('Error fetching inspiration questions:', error);
@@ -100,6 +102,25 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
       }
       logger.log('✅ Loaded inspiration questions:', data);
       setInspirationQuestions(data || []);
+
+      // Load translated question text for all languages
+      const textByLang: Record<string, Record<number, string>> = {};
+      const langs: Array<'ta' | 'kn' | 'hi'> = ['ta', 'kn', 'hi'];
+      for (const lang of langs) {
+        try {
+          const { data: i18nData } = await supabase.rpc('get_inspiration_questions_i18n', { p_lang: lang } as any);
+          const langMap: Record<number, string> = {};
+          if (Array.isArray(i18nData)) {
+            i18nData.forEach((row: any) => {
+              if (row?.sequence_number != null && row.question_text) {
+                langMap[row.sequence_number] = row.question_text;
+              }
+            });
+          }
+          textByLang[lang] = langMap;
+        } catch { }
+      }
+      setInspirationQuestionTextByLang(textByLang);
     } catch (error) {
       logger.error('Error loading inspiration questions:', error);
     }
@@ -688,6 +709,8 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
     // Check if it's the Inspiration assessment (has video structure)
     if (assessment.assessment_type === 'inspiration' && responses) {
       // Inspiration assessment has structure: { video1: {...}, video2: {...}, ... }
+      const inspirationLangKey = detectLangKeyFromResponses(responses);
+      const inspirationLangMap = inspirationQuestionTextByLang[inspirationLangKey] || {};
       const videoKeys = Object.keys(responses).filter(key => key.startsWith('video'));
 
       logger.log('🎥 Video keys found:', videoKeys);
@@ -746,9 +769,9 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
                     return questionNumbers.map((questionNum) => {
                       const questionKey = `question${questionNum}`;
 
-                      // Get the actual question text from database
+                      // Get the actual question text — prefer student's language
                       const questionData = inspirationQuestions[questionNum - 1];
-                      const questionText = questionData?.question_text || questionData?.help_text || `Question ${questionNum}`;
+                      const questionText = inspirationLangMap[questionNum] || questionData?.question_text || questionData?.help_text || `Question ${questionNum}`;
 
                       // Get the answer from database - check videoData directly
                       // The student saves data as: question1, question2, etc.
@@ -904,7 +927,7 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
                                 Q{questionNum}
                               </span>
                               <p className="text-sm font-medium text-gray-700 flex-1">
-                                {questionKey.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim()}
+                                Question {questionNum}
                               </p>
                             </div>
 
@@ -1030,7 +1053,7 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
                                 Q{questionNum}
                               </span>
                               <p className="text-sm font-medium text-gray-700 flex-1">
-                                {questionKey.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim()}
+                                Question {questionNum}
                               </p>
                             </div>
 
@@ -1174,7 +1197,7 @@ export default function StudentAssessmentReview({ onReviewUpdate }: StudentAsses
                       Q{index + 1}
                     </span>
                     <p className="text-sm font-medium text-gray-700 flex-1">
-                      {key.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim()}
+                      Question {index + 1}
                     </p>
                   </div>
 
