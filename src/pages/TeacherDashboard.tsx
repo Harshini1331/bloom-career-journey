@@ -60,7 +60,8 @@ export default function TeacherDashboard() {
   // ── Add Student state ─────────────────────────────────────────────
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
   const [isAddExistingOpen, setIsAddExistingOpen] = useState(false);
-  const [newStudent, setNewStudent] = useState({ fullName: '', contact: '', grade: '', stateId: '' });
+  const teacherLang = userProfile?.preferred_language || 'en';
+  const [newStudent, setNewStudent] = useState({ fullName: '', contact: '', grade: '', stateId: '', preferredLanguage: teacherLang });
   const [states, setStates] = useState<StateInfo[]>([]);
   const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [loadingStates, setLoadingStates] = useState(false);
@@ -205,7 +206,8 @@ export default function TeacherDashboard() {
       if (!userData) {
         const insertRes = await supabase.from('users').insert({
           full_name: newStudent.fullName, email: isEmail ? newStudent.contact.trim().toLowerCase() : null,
-          mobile: !isEmail ? newStudent.contact : null, state_id: teacherData.state_id, role: 'student', password_hash: 'temporary123'
+          mobile: !isEmail ? newStudent.contact : null, state_id: teacherData.state_id, role: 'student', password_hash: 'temporary123',
+          preferred_language: newStudent.preferredLanguage || teacherLang || 'en'
         }).select().single();
         if (insertRes.error) throw insertRes.error;
         userData = insertRes.data;
@@ -224,7 +226,7 @@ export default function TeacherDashboard() {
 
       toast({ title: "Student Added! ✨", description: `${newStudent.fullName} has been successfully enrolled${classId ? ` to Class ${newStudent.grade}` : ''}. Login: ${newStudent.contact}, Password: temporary123` });
       setIsAddStudentOpen(false);
-      setNewStudent({ fullName: '', contact: '', grade: '', stateId: '' });
+      setNewStudent({ fullName: '', contact: '', grade: '', stateId: '', preferredLanguage: teacherLang });
       loadStudents();
     } catch (error: any) {
       logger.error('Error adding student:', error);

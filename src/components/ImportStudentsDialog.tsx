@@ -1,8 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+
+const LANG_LABELS: Record<string, string> = { en: 'English', kn: 'ಕನ್ನಡ', ta: 'தமிழ்', hi: 'हिन्दी' };
 
 type Props = {
   open: boolean;
@@ -30,6 +34,7 @@ export default function ImportStudentsDialog({ open, onOpenChange, classes, teac
   const [rows, setRows] = useState<Array<Record<string, string>>>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
+  const [selectedLang, setSelectedLang] = useState(userProfile?.preferred_language || 'en');
 
   const classMap = useMemo(() => {
     const pairs: Array<[string, string]> = [];
@@ -112,7 +117,8 @@ export default function ImportStudentsDialog({ open, onOpenChange, classes, teac
               mobile: !isEmail ? r.contact : null,
               role: 'student',
               state_id: stateId,
-              password_hash: 'temporary123'
+              password_hash: 'temporary123',
+              preferred_language: selectedLang
             })
             .select('id')
             .single();
@@ -175,6 +181,19 @@ export default function ImportStudentsDialog({ open, onOpenChange, classes, teac
           <div className="text-xs text-gray-500">
             Example (CSV):
             <pre className="bg-gray-50 border rounded p-2 mt-1 whitespace-pre-wrap">{`full_name,contact,class_name\nAsha Kumar,asha@example.com,Class 8\nRavi M,+919876543210,Class 9`}</pre>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-sm">Preferred Language for all students</Label>
+            <Select value={selectedLang} onValueChange={setSelectedLang}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(LANG_LABELS).map(([code, label]) => (
+                  <SelectItem key={code} value={code}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           {rows.length > 0 && (
             <div className="text-sm text-gray-700">Ready to import: {rows.length} rows</div>

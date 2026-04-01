@@ -818,6 +818,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (existingUserByEmail) {
         logger.log('Email already exists:', finalEmail);
+        // Check if this user was pre-created by a teacher
+        const { data: teacherCreated } = await supabase
+          .from('student_auth_credentials')
+          .select('user_id')
+          .eq('user_id', existingUserByEmail.id)
+          .maybeSingle();
+        if (teacherCreated) {
+          const msgs: Record<string, string> = {
+            en: 'Your teacher has already created your account. Please sign in with your email/mobile and the password provided by your teacher.',
+            kn: 'ನಿಮ್ಮ ಶಿಕ್ಷಕರು ಈಗಾಗಲೇ ನಿಮ್ಮ ಖಾತೆಯನ್ನು ರಚಿಸಿದ್ದಾರೆ. ದಯವಿಟ್ಟು ನಿಮ್ಮ ಇಮೇಲ್/ಮೊಬೈಲ್ ಮತ್ತು ನಿಮ್ಮ ಶಿಕ್ಷಕರು ನೀಡಿದ ಪಾಸ್‌ವರ್ಡ್‌ನೊಂದಿಗೆ ಸೈನ್ ಇನ್ ಮಾಡಿ.',
+            ta: 'உங்கள் ஆசிரியர் ஏற்கனவே உங்கள் கணக்கை உருவாக்கியுள்ளார். தயவுசெய்து உங்கள் மின்னஞ்சல்/மொபைல் மற்றும் உங்கள் ஆசிரியர் வழங்கிய கடவுச்சொல்லுடன் உள்நுழையவும்.',
+            hi: 'आपके शिक्षक ने पहले ही आपका खाता बना दिया है। कृपया अपने ईमेल/मोबाइल और अपने शिक्षक द्वारा दिए गए पासवर्ड से साइन इन करें।',
+          };
+          return { error: { message: msgs[preferredLanguage] || msgs.en } };
+        }
         return { error: { message: 'Email address already registered' } };
       }
 
@@ -837,6 +852,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (existingUserByMobile) {
           logger.log('Mobile already exists:', finalMobile);
+          const { data: teacherCreatedMobile } = await supabase
+            .from('student_auth_credentials')
+            .select('user_id')
+            .eq('user_id', existingUserByMobile.id)
+            .maybeSingle();
+          if (teacherCreatedMobile) {
+            const msgs: Record<string, string> = {
+              en: 'Your teacher has already created your account. Please sign in with your email/mobile and the password provided by your teacher.',
+              kn: 'ನಿಮ್ಮ ಶಿಕ್ಷಕರು ಈಗಾಗಲೇ ನಿಮ್ಮ ಖಾತೆಯನ್ನು ರಚಿಸಿದ್ದಾರೆ. ದಯವಿಟ್ಟು ನಿಮ್ಮ ಇಮೇಲ್/ಮೊಬೈಲ್ ಮತ್ತು ನಿಮ್ಮ ಶಿಕ್ಷಕರು ನೀಡಿದ ಪಾಸ್‌ವರ್ಡ್‌ನೊಂದಿಗೆ ಸೈನ್ ಇನ್ ಮಾಡಿ.',
+              ta: 'உங்கள் ஆசிரியர் ஏற்கனவே உங்கள் கணக்கை உருவாக்கியுள்ளார். தயவுசெய்து உங்கள் மின்னஞ்சல்/மொபைல் மற்றும் உங்கள் ஆசிரியர் வழங்கிய கடவுச்சொல்லுடன் உள்நுழையவும்.',
+              hi: 'आपके शिक्षक ने पहले ही आपका खाता बना दिया है। कृपया अपने ईमेल/मोबाइल और अपने शिक्षक द्वारा दिए गए पासवर्ड से साइन इन करें।',
+            };
+            return { error: { message: msgs[preferredLanguage] || msgs.en } };
+          }
           return { error: { message: 'Mobile number already registered' } };
         }
       }

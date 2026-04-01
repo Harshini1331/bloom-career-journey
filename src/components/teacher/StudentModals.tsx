@@ -41,11 +41,13 @@ function getStatusColor(status: string) {
 }
 
 // ─── Add Student Modal ──────────────────────────────────────────────
+const LANG_LABELS: Record<string, string> = { en: 'English', kn: 'ಕನ್ನಡ', ta: 'தமிழ்', hi: 'हिन्दी' };
+
 interface AddStudentModalProps {
     open: boolean;
     onOpenChange: (v: boolean) => void;
-    newStudent: { fullName: string; contact: string; grade: string; stateId?: string };
-    setNewStudent: React.Dispatch<React.SetStateAction<{ fullName: string; contact: string; grade: string; stateId?: string }>>;
+    newStudent: { fullName: string; contact: string; grade: string; stateId?: string; preferredLanguage?: string };
+    setNewStudent: React.Dispatch<React.SetStateAction<{ fullName: string; contact: string; grade: string; stateId?: string; preferredLanguage?: string }>>;
     onSubmit: () => void;
 }
 
@@ -94,6 +96,19 @@ export function AddStudentModal({ open, onOpenChange, newStudent, setNewStudent,
                                         <SelectItem value="10">Grade 10</SelectItem>
                                         <SelectItem value="11">Grade 11</SelectItem>
                                         <SelectItem value="12">Grade 12</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="language">Preferred Language</Label>
+                                <Select value={newStudent.preferredLanguage || 'en'} onValueChange={(value) => setNewStudent(prev => ({ ...prev, preferredLanguage: value }))}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select Language" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {Object.entries(LANG_LABELS).map(([code, label]) => (
+                                            <SelectItem key={code} value={code}>{label}</SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -354,6 +369,7 @@ export function AddExistingStudentModal({
                                     <tr className="border-b border-gray-200">
                                         <th className="text-left py-2 px-3">Name</th>
                                         <th className="text-left py-2 px-3">Mobile / Email</th>
+                                        <th className="text-left py-2 px-3">Language</th>
                                         <th className="text-left py-2 px-3">Current Class</th>
                                         <th className="text-left py-2 px-3">Mentor</th>
                                         <th className="text-left py-2 px-3">Action</th>
@@ -369,6 +385,7 @@ export function AddExistingStudentModal({
                                             <tr key={row.student_user_id} className="border-b border-gray-100">
                                                 <td className="py-2 px-3">{row.full_name}</td>
                                                 <td className="py-2 px-3">{row.mobile || row.email}</td>
+                                                <td className="py-2 px-3">{LANG_LABELS[row.preferred_language] || row.preferred_language || '—'}</td>
                                                 <td className="py-2 px-3">{row.current_class || '—'}</td>
                                                 <td className="py-2 px-3">
                                                     <Badge variant={isDefault ? "secondary" : "outline"} className="text-[10px]">
