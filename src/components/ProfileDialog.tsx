@@ -140,23 +140,20 @@ export default function ProfileDialog({ open, onOpenChange }: Props) {
           throw new Error(`Failed to upload profile picture: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`);
         }
       }
-      // update users row
+      // update users row via RPC (works for both Supabase-auth and custom-auth students)
       const updateData = {
-        full_name: fullName,
-        gender: gender || null,
-        school: school || null,
-        profile_picture_url: avatarUrl,
-        career_goals: isTeacher ? (userProfile as any).career_goals || null : goal || null,
-        preferred_language: selectedLang,
+        p_user_id: userProfile.id,
+        p_full_name: fullName,
+        p_gender: gender || null,
+        p_school: school || null,
+        p_profile_picture_url: avatarUrl,
+        p_career_goals: isTeacher ? (userProfile as any).career_goals || null : goal || null,
+        p_preferred_language: selectedLang,
       };
 
       logger.log('🔄 Updating user profile with data:', updateData);
 
-      const { data: updateResult, error } = await supabase
-        .from('users')
-        .update(updateData)
-        .eq('id', userProfile.id)
-        .select();
+      const { data: updateResult, error } = await supabase.rpc('update_user_profile', updateData as any);
 
       if (error) {
         logger.error('❌ Database update error:', error);

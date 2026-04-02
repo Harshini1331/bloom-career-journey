@@ -12,12 +12,14 @@ import { BookOpen, Users, GraduationCap } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { StateInfo, SchoolClass } from '@/integrations/supabase/types';
 import { useLocation } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 import IlpFooter from '@/components/IlpFooter';
 
 export default function AuthPage() {
   logger.log('AuthPage: Component rendering');
 
   const { user, userProfile, signIn, signUp } = useAuth();
+  const { toast } = useToast();
   const location = useLocation();
   // Auth page always displays in English (registration and login must be in English)
   const lang = 'en' as const;
@@ -197,6 +199,7 @@ export default function AuthPage() {
     setLoading(false);
     if (error) {
       logger.error('Sign in error:', error);
+      toast({ title: 'Sign In Failed', description: error.message || 'Invalid email or password. Please try again.', variant: 'destructive' });
     }
   };
 
@@ -235,6 +238,7 @@ export default function AuthPage() {
     setLoading(false);
     if (error) {
       logger.error('Sign up error:', error);
+      toast({ title: 'Sign Up Failed', description: error.message || 'Could not create account. Please try again.', variant: 'destructive' });
     }
   };
 
@@ -247,7 +251,7 @@ export default function AuthPage() {
             <GraduationCap className="w-6 h-6 md:w-8 md:h-8 text-white" />
           </div>
           <h1 className="text-2xl md:text-3xl font-bold text-foreground">Career Compass</h1>
-          <p className="text-xs text-muted-foreground mt-1">an India Literacy Project initiative</p>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">an <span className="font-semibold">India Literacy Project</span> initiative</p>
           <p className="text-muted-foreground mt-2">Navigate your career journey</p>
         </div>
 
