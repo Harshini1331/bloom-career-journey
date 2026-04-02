@@ -30,7 +30,7 @@ interface CareerGuidanceResponse {
   question3: string;
   question4: string;
   question5: string;
-  question6: boolean;
+  question6: boolean | null;
   question7: string;
 }
 
@@ -48,12 +48,13 @@ export default function CareerGuidanceToolsAssessment() {
     question3: '',
     question4: '',
     question5: '',
-    question6: false,
+    question6: null,
     question7: ''
   });
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
   const [helpOpen, setHelpOpen] = useState<Record<string, boolean>>({});
   const toggleHelp = (k: string) => setHelpOpen(prev => ({ ...prev, [k]: !prev[k] }));
 
@@ -180,6 +181,7 @@ export default function CareerGuidanceToolsAssessment() {
   }, [questions, userProfile]);
 
   const handleResponseChange = (questionKey: keyof CareerGuidanceResponse, value: string | boolean) => {
+    setIsDirty(true);
     setResponses(prev => ({
       ...prev,
       [questionKey]: value
@@ -195,7 +197,7 @@ export default function CareerGuidanceToolsAssessment() {
       const questionKey = `question${index + 1}` as keyof CareerGuidanceResponse;
       const response = responses[questionKey];
       if (q.question_type === 'checkbox') {
-        if (typeof response === 'boolean') answeredQuestions++;
+        if (response === true || response === false) answeredQuestions++;
       } else {
         if (typeof response === 'string' && response.trim() !== '') answeredQuestions++;
       }
@@ -210,7 +212,7 @@ export default function CareerGuidanceToolsAssessment() {
       const questionKey = `question${index + 1}` as keyof CareerGuidanceResponse;
       const response = responses[questionKey];
       if (q.question_type === 'checkbox') {
-        return typeof response === 'boolean';
+        return response === true || response === false;
       } else {
         return typeof response === 'string' && response.trim() !== '';
       }
@@ -300,7 +302,7 @@ export default function CareerGuidanceToolsAssessment() {
 
   // Auto-save drafts when answers change (debounced)
   useEffect(() => {
-    if (loading || isCompleted || questions.length === 0) return;
+    if (loading || isCompleted || questions.length === 0 || !isDirty) return;
     const timer = setTimeout(async () => {
       try {
         if (!userProfile?.id) return;
@@ -343,7 +345,7 @@ export default function CareerGuidanceToolsAssessment() {
       } catch { }
     }, 800);
     return () => clearTimeout(timer);
-  }, [responses, loading, isCompleted, userProfile, questions]);
+  }, [responses, loading, isCompleted, userProfile, questions, isDirty]);
 
   if (loading) {
     const loadingText =
@@ -463,6 +465,7 @@ After your teacher guides you through the career chart, career guidance workbook
                     <label className="block text-base font-medium text-gray-800 mb-2 flex items-center gap-2">
                       <span className="font-semibold">{index + 1}.</span>
                       {question.question_text}
+                      <span className="text-red-500 ml-1">*</span>
                       <button
                         type="button"
                         aria-label="Help"
@@ -504,7 +507,7 @@ After your teacher guides you through the career chart, career guidance workbook
                             type="radio"
                             name={questionKey}
                             id={`${questionKey}-yes`}
-                            checked={typeof response === 'boolean' && response === true}
+                            checked={response === true}
                             onChange={() => handleResponseChange(questionKey, true)}
                             disabled={isCompleted}
                             className="w-4 h-4 text-purple-600 border-purple-300 focus:ring-purple-500"
@@ -516,7 +519,7 @@ After your teacher guides you through the career chart, career guidance workbook
                             type="radio"
                             name={questionKey}
                             id={`${questionKey}-no`}
-                            checked={typeof response === 'boolean' && response === false}
+                            checked={response === false}
                             onChange={() => handleResponseChange(questionKey, false)}
                             disabled={isCompleted}
                             className="w-4 h-4 text-purple-600 border-purple-300 focus:ring-purple-500"

@@ -245,7 +245,7 @@ export default function StudentDashboard() {
     try {
       const { data, error } = await supabase.from('assessment_responses').select('*')
         .eq('student_id', studentId).eq('assessment_type', 'career_guidance_tools').eq('assessment_title', 'Exploring Career Guidance Tools')
-        .order('updated_at', { ascending: false }).limit(1).maybeSingle();
+        .not('completed_at', 'is', null).order('updated_at', { ascending: false }).limit(1).maybeSingle();
       if (data && !error) setCareerGuidanceToolsProgress(data);
     } catch { }
   };
