@@ -9,7 +9,7 @@
 | Role | Description |
 |------|-------------|
 | **Students** | Rural students (grades 8–12) completing self-assessment modules, recording voice responses, and building a career portfolio |
-| **Teachers** | Counsellors/mentors who review AI-generated student summaries, approve/reject/edit them, manage student groups, and provide feedback |
+| **Teachers** | Counsellors/mentors who review AI-generated student summaries, approve/reject/edit them, manage student groups, view student career roadmaps/interests, and provide feedback |
 | **Admins** | Platform administrators managing users, schools/states, assessment content, and system configuration |
 
 ### Regional/Language Context
@@ -60,7 +60,7 @@ bloom-career-journey/
 │   ├── main.tsx                   # Entry point, initializes speech services
 │   ├── components/
 │   │   ├── assessments/           # 8 assessment components + DB variants + SummaryViewDialog
-│   │   ├── teacher/               # Teacher dashboard sub-components (6 files: Header, StatsCards, StudentsTab, StudentModals, AnalyticsTab, teacherStrings)
+│   │   ├── teacher/               # Teacher dashboard sub-components (5 files: Header, StatsCards, StudentsTab, StudentModals, teacherStrings)
 │   │   ├── student/               # Student dashboard sub-components (5 files: Header, AssessmentGrid, ProgressSection (unused), CareerChatSection, studentStrings)
 │   │   ├── chat/                  # Chat UI components
 │   │   ├── ui/                    # 53 shadcn/ui components
@@ -68,7 +68,7 @@ bloom-career-journey/
 │   │   ├── HollandCodeTest.tsx    # Psychometric test component
 │   │   ├── ChatbotDialog.tsx      # AI chatbot ("Vidya Saathi")
 │   │   ├── NotificationBell.tsx   # Notification dropdown
-│   │   ├── ProfileDialog.tsx      # User profile editor
+│   │   ├── ProfileDialog.tsx      # User profile editor (includes language change)
 │   │   ├── LanguageSelectionDialog.tsx  # Language picker (en/kn/ta/hi)
 │   │   ├── ImportStudentsDialog.tsx     # Bulk student import
 │   │   └── ResourceManager.tsx    # Counselling resource manager
@@ -80,9 +80,11 @@ bloom-career-journey/
 │   │   ├── AdminDashboard.tsx     # Admin panel
 │   │   ├── HollandTest.tsx        # Standalone Holland test page
 │   │   ├── CareersExplore.tsx     # Career exploration page
-│   │   ├── ProfileCardPage.tsx    # My Career Compass — profile card with question-driven answers from DB
+│   │   ├── ProfileCardPage.tsx    # My Career Compass — profile card with approval workflow
 │   │   ├── CareerRoadmapPage.tsx  # Career Roadmap — milestone-based career tracker
 │   │   ├── ThingsInterestMePage.tsx # Things that Interest Me — editable interests table
+│   │   ├── TeacherStudentRoadmapPage.tsx  # Teacher read-only view of student's career roadmap
+│   │   ├── TeacherStudentInterestsPage.tsx # Teacher read-only view of student's interests
 │   │   └── StudentSummary.tsx     # Teacher view of a student's summaries
 │   ├── services/
 │   │   ├── aiSummaryService.ts       # AI summary generation + profile card keyword extraction
@@ -203,7 +205,7 @@ Each assessment has a companion `*DB.tsx` component for DB operations. Responses
 - `aiChatService.ts` + `ChatbotDialog.tsx`; empathetic career guidance persona; same Gemini cascade fallback as summaries
 
 ### My Compass Feature
-- **Profile Card** (`/student/profile-card`): 6 module cards — always visible, never locked. Each card shows profile card questions (from `content_translations` with `resource_type: profile_card_{type}`) with 2-3 word AI-generated answers when complete, or blank labels with "Complete this module" nudge when incomplete. 7th "My Career Direction" card synthesizes all 6. Answers cached in `profile_card_cache` as JSON objects `{question1: "answer", ...}`. Clicking a card deep-links to `/student?assessment={type}&tab=summary` which auto-opens the `SummaryViewDialog`. Teachers view read-only at `/teacher/student-profile-card/:studentId`. Hindi support included in all UI strings.
+- **Profile Card** (`/student/profile-card`): 6 module cards — always visible, never locked. Each card shows profile card questions (from `content_translations` with `resource_type: profile_card_{type}`) with 2-3 word AI-generated answers when complete, or blank labels with "Complete this module" nudge when incomplete. 7th "My Career Direction" card synthesizes all 6. Answers cached in `profile_card_cache` as JSON objects `{question1: "answer", ...}`. **Teacher approval workflow**: keywords hidden from student until teacher approves; rejected cards show teacher feedback; keywords reset to `pending` when student updates responses. Teachers review/approve/reject at `/teacher/student-profile-card/:studentId`. Hindi support included in all UI strings.
 - **Profile Card Questions**: Stored in `content_translations` with `resource_type: profile_card_{assessment_type}` (e.g. `profile_card_inspiration`). Keys: `title`, `question1`, `question2`, etc. All 4 languages. Source: Google Sheet tab "Profile Card Questions - Grade". Holland Code section deferred.
 - **Things that Interest Me** (`/student/things-interest-me`): Editable 4-column table (Subject, Lesson/Chapter, Why Factors, Compatible Career) where students list things they're interested in. Accessible from compass menu in student dashboard header. Post-assessment completion redirects here with `?from={assessment_type}` to encourage reflection. Auto-saves with 1s debounce. Fully translated in all 4 languages (en/kn/ta/hi). IndicKeyboard enabled for non-English users. Backed by `things_that_interest_me` table with RLS.
 - **Career Roadmap** (`/student/career-roadmap`): 7 milestone rows × 4 columns (Milestone + Plan A/B/C). Top 3 rows editable (beginning/end of 9th, beginning of 10th), bottom 4 locked. Autosave with 1s debounce to `career_roadmap` table. Midterm roadmap trigger moved from module 4 to module 5.
@@ -309,16 +311,16 @@ students + teachers ──→ chat_channels ──1:N──→ chat_messages
 
 ## 6. Database Migrations
 
-See `supabase/migrations/` for full history (150+ files, Jan 2025 – Mar 2026).
+See `supabase/migrations/` for full history (150+ files, Jan 2025 – Apr 2026).
 
 ### Recent Migrations (last 5)
 | Date | Migration | What It Does |
 |------|-----------|--------------|
+| 2026-04-01 | `enable_rls_public_tables` | Enables RLS on 18 public content/question tables (assessment_questions, content_translations, etc.) with read-only policies for authenticated users |
 | 2026-03-31 | `fix_summary_rpc_key_mismatch` | Recreates all 6 summary question RPCs to use `'summary_question' || N` key prefix (was `'question' || N`), fixing i18n fallback to English |
 | 2026-03-31 | `users_email_case_insensitive_unique` | Normalizes existing emails to lowercase, adds `UNIQUE INDEX users_email_lower_unique ON users (LOWER(email))` |
 | 2026-03-26 | `dreams_summary_questions_i18n` | Creates `dreams_summary_questions` table, inserts 4 questions × 4 languages into `content_translations` |
 | 2026-03-25 | `inspiration_videos_lang_and_hindi` | Adds `lang` column to `inspiration_sources`, inserts 3 videos × 4 languages (en/kn/ta/hi), recreates `get_inspiration_videos(p_lang)` RPC with language filter |
-| 2026-03-24 | `things_that_interest_me` | Creates `things_that_interest_me` table with RLS policies |
 
 ### Notable Schema Notes
 - **Schools → States**: Renamed organizational unit to "state"
@@ -330,6 +332,7 @@ See `supabase/migrations/` for full history (150+ files, Jan 2025 – Mar 2026).
 - **inspiration_sources lang (Mar 2026)**: `lang` column added; `get_inspiration_videos(p_lang)` RPC replaces parameterless version; 3 videos per language (en/kn/ta/hi)
 - **users email unique index (Mar 2026)**: `UNIQUE INDEX users_email_lower_unique ON users (LOWER(email))` prevents case-insensitive email duplicates. All emails normalized to lowercase on insert.
 - **summary RPC key fix (Mar 2026)**: All 6 `get_*_summary_questions_i18n` RPCs updated to look up `'summary_question' || N` (was `'question' || N`) matching keys set by clean_slate + fix_content_key_formats migrations
+- **RLS on public tables (Apr 2026)**: 18 content/question tables have RLS enabled with authenticated read-only policies. All `SECURITY DEFINER` RPCs continue to bypass RLS.
 
 ---
 
@@ -397,7 +400,7 @@ Frontend → Supabase directly (queries, RPCs, storage). AI/ML services are dire
 ### Frontend
 - **`ProtectedRoute.tsx`**: checks auth + role match; redirects to `/auth` or role dashboard
 - Role-based redirects: admin → `/admin`, teacher → `/teacher`, student → `/student`
-- Compass routes: `/student/profile-card`, `/student/career-roadmap`, `/student/things-interest-me`, `/teacher/student-profile-card/:studentId`
+- Compass routes: `/student/profile-card`, `/student/career-roadmap`, `/student/things-interest-me`, `/teacher/student-profile-card/:studentId`, `/teacher/student-roadmap/:studentId`, `/teacher/student-interests/:studentId`
 
 ### Backend (RLS)
 - Students: read/write own data only
@@ -481,7 +484,7 @@ Frontend → Supabase directly (queries, RPCs, storage). AI/ML services are dire
 > [!NOTE]
 > **sync-questions**: `scripts/sync_questions.ts` and Google Sheets automation pending implementation.
 
-### Completed Work (Mar 2026 Sessions)
+### Completed Work (Mar–Apr 2026 Sessions)
 | Phase | Description | Status |
 |-------|-------------|--------|
 | **0A** | Fix corrupted `question1` in School Learning summary questions | ✅ |
@@ -540,4 +543,11 @@ Frontend → Supabase directly (queries, RPCs, storage). AI/ML services are dire
 | **9H** | Teacher review: Hindi language detection in `detectLangKeyFromResponses` (U+0900-097F), Hindi translations loaded for all question fetch functions | ✅ |
 | **9I** | Teacher review: `renderSummaryTabSection` shows actual translated summary question text instead of raw "Q1"/"Q2" labels. Handles flat summary keys (`summary_qN`, `summary_N`) for Dreams/Hobbies/Role Models | ✅ |
 | **9J** | Teacher review: Inspiration questions translated via `get_inspiration_questions_i18n(p_lang)`, Dreams/About Me fallback branches show "Question N" instead of raw key names | ✅ |
+| **10A** | Teacher dashboard: Performance column → Language column, actions menu with View Career Roadmap / View Things That Interest Me / Review Profile Card | ✅ |
+| **10B** | New pages: `TeacherStudentRoadmapPage` (read-only roadmap view), `TeacherStudentInterestsPage` (read-only interests view) | ✅ |
+| **10C** | Profile card approval workflow: pending/approved/rejected states, keywords hidden until teacher approves, keywords reset to pending on student response update | ✅ |
+| **10D** | Student can change preferred language from ProfileDialog | ✅ |
+| **10E** | Mobile button layout fix: safe-area padding, prevent text wrapping and bottom cut-off | ✅ |
+| **10F** | Analytics tab removed from teacher dashboard | ✅ |
+| **10G** | RLS enabled on 18 public content/question tables with authenticated read-only policies | ✅ |
 | **2–3** | Google Sheets sync automation | ⏸️ Paused — sheet restructuring in progress |
