@@ -157,7 +157,7 @@ export default function TeacherDashboard() {
       if (!teacherData) { logger.warn('Could not load teacher profile'); setLoading(false); return; }
 
       const { data, error } = await supabase
-        .from('students').select(`*, user:users(full_name, email, mobile), class:classes(name)`)
+        .from('students').select(`*, user:users(full_name, email, mobile, preferred_language), class:classes(name)`)
         .eq('teacher_id', teacherData.id).order('created_at', { ascending: false });
       if (error) throw error;
       setStudents(data || []);

@@ -5,14 +5,16 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLang } from '@/hooks/useLang';
 import { supabase } from '@/integrations/supabase/client';
 import { aiSummaryService } from '@/services/aiSummaryService';
-import { getDisplaySummary, AssessmentSummary } from '@/types/assessmentSummary';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import {
   ArrowLeft, Loader2, Play, User, Star,
-  BookOpen, Heart, Users, Compass
+  BookOpen, Heart, Users, Compass, CheckCircle, XCircle, Clock
 } from 'lucide-react';
 import { useStudentStrings } from '@/components/student/studentStrings';
+import { useToast } from '@/hooks/use-toast';
 
 type ModuleConfig = {
   key: string;
@@ -76,13 +78,19 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
   const lang = (currentLang || 'en') as 'en' | 'kn' | 'ta' | 'hi';
   const { t } = useStudentStrings(lang);
 
-  const [summaries, setSummaries] = useState<Record<string, AssessmentSummary | null>>({});
+  const [completedModules, setCompletedModules] = useState<Record<string, { responses: any; updated_at: string } | null>>({});
   const [answers, setAnswers] = useState<Record<string, ProfileCardAnswers>>({});
   const [questionLabels, setQuestionLabels] = useState<Record<string, ProfileCardQuestionLabels>>({});
   const [careerDirection, setCareerDirection] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [generatingKeys, setGeneratingKeys] = useState<Set<string>>(new Set());
   const [generatingDirection, setGeneratingDirection] = useState(false);
+  const [approvalStatus, setApprovalStatus] = useState<Record<string, string>>({});
+  const [rejectionReasons, setRejectionReasons] = useState<Record<string, string>>({});
+  const [rejectingModule, setRejectingModule] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [savingApproval, setSavingApproval] = useState(false);
+  const { toast } = useToast();
   const [studentName, setStudentName] = useState('');
   const [cacheTimestamps, setCacheTimestamps] = useState<Record<string, string>>({});
 
@@ -102,11 +110,11 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
         if (profile) setStudentName(profile.full_name || '');
       }
 
-      const summaryMap: Record<string, AssessmentSummary | null> = {};
+      const responseMap: Record<string, { responses: any; updated_at: string } | null> = {};
       for (const mod of MODULES) {
         const { data: resp } = await supabase
           .from('assessment_responses')
-          .select('id')
+          .select('responses, updated_at')
           .eq('student_id', studentId)
           .eq('assessment_type', mod.assessmentType)
           .not('completed_at', 'is', null)
@@ -114,34 +122,30 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
           .limit(1)
           .maybeSingle();
 
-        if (resp) {
-          const { data: summary } = await supabase
-            .from('assessment_summaries')
-            .select('*')
-            .eq('assessment_response_id', resp.id)
-            .eq('approval_status', 'approved')
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          summaryMap[mod.key] = summary as AssessmentSummary | null;
-        } else {
-          summaryMap[mod.key] = null;
-        }
+        responseMap[mod.key] = resp ? { responses: resp.responses, updated_at: resp.updated_at } : null;
       }
-      setSummaries(summaryMap);
+      setCompletedModules(responseMap);
 
       // Fetch cached profile card answers
       const { data: cachedRows } = await supabase
         .from('profile_card_cache')
-        .select('assessment_type, keywords, generated_at')
+        .select('assessment_type, keywords, generated_at, approval_status, rejection_reason')
         .eq('student_id', studentId);
 
       const answerMap: Record<string, ProfileCardAnswers> = {};
       const tsMap: Record<string, string> = {};
+      const statusMap: Record<string, string> = {};
+      const reasonMap: Record<string, string> = {};
       if (cachedRows) {
         for (const row of cachedRows) {
           if (row.generated_at) {
             tsMap[row.assessment_type] = row.generated_at;
+          }
+          if ((row as any).approval_status) {
+            statusMap[row.assessment_type] = (row as any).approval_status;
+          }
+          if ((row as any).rejection_reason) {
+            reasonMap[row.assessment_type] = (row as any).rejection_reason;
           }
           if (row.assessment_type === 'career_direction') {
             const kw = row.keywords as any;
@@ -158,6 +162,8 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
       }
       setAnswers(answerMap);
       setCacheTimestamps(tsMap);
+      setApprovalStatus(statusMap);
+      setRejectionReasons(reasonMap);
 
       // Fetch profile card question labels from content_translations
       const labelMap: Record<string, ProfileCardQuestionLabels> = {};
@@ -194,29 +200,42 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
   useEffect(() => {
     if (loading || readOnly) return;
     for (const mod of MODULES) {
-      const summary = summaries[mod.key];
-      if (!summary || summary.approval_status !== 'approved') continue;
+      const completed = completedModules[mod.key];
+      if (!completed) continue;
 
       const cachedAt = cacheTimestamps[mod.key];
-      const summaryUpdatedAt = summary.updated_at;
+      const responseUpdatedAt = completed.updated_at;
 
-      // Skip if cache exists and is newer than the summary
-      if (answers[mod.key] && cachedAt && summaryUpdatedAt && new Date(cachedAt) >= new Date(summaryUpdatedAt)) {
+      // Skip if cache exists and is newer than the response update
+      if (answers[mod.key] && cachedAt && responseUpdatedAt && new Date(cachedAt) >= new Date(responseUpdatedAt)) {
         continue;
       }
 
-      // Regenerate: no cache, or summary was updated after cache
-      regenerateAnswers(mod.key, summary);
+      // Regenerate: no cache, or response was updated after cache
+      regenerateAnswers(mod.key, completed.responses);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, summaries, cacheTimestamps]);
+  }, [loading, completedModules, cacheTimestamps]);
 
-  const regenerateAnswers = async (assessmentType: string, summary: AssessmentSummary) => {
+  const flattenResponses = (responses: any): string => {
+    if (!responses || typeof responses !== 'object') return '';
+    const parts: string[] = [];
+    const extract = (obj: any) => {
+      for (const val of Object.values(obj)) {
+        if (typeof val === 'string' && val.trim()) parts.push(val.trim());
+        else if (typeof val === 'object' && val !== null) extract(val);
+      }
+    };
+    extract(responses);
+    return parts.join('\n');
+  };
+
+  const regenerateAnswers = async (assessmentType: string, responses: any) => {
     if (generatingKeys.has(assessmentType)) return;
     setGeneratingKeys(prev => new Set(prev).add(assessmentType));
     try {
-      const display = getDisplaySummary(summary);
-      const text = Object.values(display).filter(v => typeof v === 'string' && v.trim()).join('\n');
+      const text = flattenResponses(responses);
+      if (!text) return;
       const result = await aiSummaryService.generateProfileCardKeywords(assessmentType, text, lang);
       if (result.success && result.keywords) {
         const now = new Date().toISOString();
@@ -227,8 +246,13 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
           assessment_type: assessmentType,
           keywords: result.keywords,
           generated_at: now,
-        }, { onConflict: 'student_id,assessment_type' });
+          approval_status: 'pending',
+          approved_by: null,
+          approved_at: null,
+          rejection_reason: null,
+        } as any, { onConflict: 'student_id,assessment_type' });
         if (error) logger.error('Profile card cache upsert error:', error);
+        setApprovalStatus(prev => ({ ...prev, [assessmentType]: 'pending' }));
       }
     } catch (err) {
       logger.error('Profile card answer generation failed for', assessmentType, err);
@@ -237,7 +261,7 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
     }
   };
 
-  const completedCount = MODULES.filter(m => summaries[m.key]?.approval_status === 'approved').length;
+  const completedCount = MODULES.filter(m => !!completedModules[m.key]).length;
   const allComplete = completedCount === 6;
   const progressPercent = Math.round((completedCount / 6) * 100);
 
@@ -245,14 +269,14 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
     if (!allComplete || generatingDirection || loading || readOnly) return;
 
     const dirCachedAt = cacheTimestamps['career_direction'];
-    const latestSummaryUpdate = MODULES
-      .map(m => summaries[m.key]?.updated_at)
+    const latestResponseUpdate = MODULES
+      .map(m => completedModules[m.key]?.updated_at)
       .filter(Boolean)
       .sort()
       .pop();
 
-    // Skip if cached direction exists and is newer than the latest summary update
-    if (careerDirection && dirCachedAt && latestSummaryUpdate && new Date(dirCachedAt) >= new Date(latestSummaryUpdate)) {
+    // Skip if cached direction exists and is newer than the latest response update
+    if (careerDirection && dirCachedAt && latestResponseUpdate && new Date(dirCachedAt) >= new Date(latestResponseUpdate)) {
       return;
     }
 
@@ -285,6 +309,65 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
       logger.error('Career direction generation failed:', err);
     } finally {
       setGeneratingDirection(false);
+    }
+  };
+
+  const handleApproveAll = async () => {
+    if (!readOnly || !user?.id) return;
+    setSavingApproval(true);
+    try {
+      for (const mod of MODULES) {
+        if (answers[mod.key] && approvalStatus[mod.key] !== 'approved') {
+          await supabase.from('profile_card_cache').update({
+            approval_status: 'approved',
+            approved_by: user.id,
+            approved_at: new Date().toISOString(),
+            rejection_reason: null,
+          } as any).eq('student_id', studentId).eq('assessment_type', mod.assessmentType);
+        }
+      }
+      // Also approve career_direction if it exists
+      if (careerDirection) {
+        await supabase.from('profile_card_cache').update({
+          approval_status: 'approved',
+          approved_by: user.id,
+          approved_at: new Date().toISOString(),
+          rejection_reason: null,
+        } as any).eq('student_id', studentId).eq('assessment_type', 'career_direction');
+      }
+      const newStatus: Record<string, string> = {};
+      for (const mod of MODULES) {
+        if (answers[mod.key]) newStatus[mod.key] = 'approved';
+      }
+      if (careerDirection) newStatus['career_direction'] = 'approved';
+      setApprovalStatus(prev => ({ ...prev, ...newStatus }));
+      toast({ title: 'All modules approved' });
+    } catch (err) {
+      toast({ title: 'Approval failed', variant: 'destructive' });
+    } finally {
+      setSavingApproval(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!rejectingModule || !user?.id) return;
+    setSavingApproval(true);
+    try {
+      await supabase.from('profile_card_cache').update({
+        approval_status: 'rejected',
+        approved_by: user.id,
+        approved_at: new Date().toISOString(),
+        rejection_reason: rejectReason || 'Changes requested',
+      } as any).eq('student_id', studentId).eq('assessment_type', rejectingModule);
+      setApprovalStatus(prev => ({ ...prev, [rejectingModule!]: 'rejected' }));
+      setRejectionReasons(prev => ({ ...prev, [rejectingModule!]: rejectReason || 'Changes requested' }));
+      setRejectingModule(null);
+      setRejectReason('');
+      toast({ title: 'Module rejected — student notified' });
+    } catch (err) {
+      toast({ title: 'Rejection failed', variant: 'destructive' });
+    } finally {
+      setSavingApproval(false);
     }
   };
 
@@ -333,33 +416,59 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {MODULES.map(mod => {
-            const summary = summaries[mod.key];
-            const isComplete = summary?.approval_status === 'approved';
+            const isComplete = !!completedModules[mod.key];
             const ans = answers[mod.key];
             const labels = questionLabels[mod.key] || [];
             const isGenerating = generatingKeys.has(mod.key);
             const IconComp = mod.icon;
+            const status = approvalStatus[mod.key] || 'pending';
+            const reason = rejectionReasons[mod.key];
+            // Student view: show answers only if approved (or if readOnly teacher view)
+            const showAnswers = readOnly || status === 'approved';
 
             return (
               <Card
                 key={mod.key}
-                className="rounded-xl shadow-md hover:shadow-lg border border-gray-100 bg-white transition-all duration-200 overflow-hidden cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:outline-none"
-                role="button"
-                tabIndex={0}
-                onClick={() => navigate(`/student?assessment=${mod.assessmentType}&tab=summary`)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/student?assessment=${mod.assessmentType}&tab=summary`); } }}
+                className={`rounded-xl shadow-md hover:shadow-lg border bg-white transition-all duration-200 overflow-hidden ${!readOnly ? 'cursor-pointer' : ''} focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:outline-none ${status === 'rejected' ? 'border-red-200' : 'border-gray-100'}`}
+                role={!readOnly ? 'button' : undefined}
+                tabIndex={!readOnly ? 0 : undefined}
+                onClick={!readOnly ? () => navigate(`/student?assessment=${mod.assessmentType}&tab=summary`) : undefined}
+                onKeyDown={!readOnly ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/student?assessment=${mod.assessmentType}&tab=summary`); } } : undefined}
               >
                 {/* Colored top strip */}
                 <div className={`h-1 ${mod.stripColor}`} />
                 <CardContent className="p-6">
-                  {/* Icon + Title */}
-                  <div className={`flex items-center gap-2.5 mb-3 ${mod.titleColor}`}>
-                    <IconComp className="h-5 w-5" />
-                    <h3 className="font-semibold text-base">{t(mod.titleKey)}</h3>
+                  {/* Icon + Title + Status badge */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className={`flex items-center gap-2.5 ${mod.titleColor}`}>
+                      <IconComp className="h-5 w-5" />
+                      <h3 className="font-semibold text-base">{t(mod.titleKey)}</h3>
+                    </div>
+                    {isComplete && ans && (
+                      status === 'approved' ? (
+                        <Badge className="bg-green-100 text-green-700 text-[10px]"><CheckCircle className="h-3 w-3 mr-1" />Approved</Badge>
+                      ) : status === 'rejected' ? (
+                        <Badge className="bg-red-100 text-red-700 text-[10px]"><XCircle className="h-3 w-3 mr-1" />Changes Requested</Badge>
+                      ) : (
+                        <Badge className="bg-yellow-100 text-yellow-700 text-[10px]"><Clock className="h-3 w-3 mr-1" />Pending Review</Badge>
+                      )
+                    )}
                   </div>
 
                   {/* Divider */}
                   <div className="border-t border-gray-100 mb-3" />
+
+                  {/* Rejection reason (student view) */}
+                  {!readOnly && status === 'rejected' && reason && (
+                    <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+                      <strong>Teacher feedback:</strong> {reason}
+                    </div>
+                  )}
+
+                  {/* Student pending message */}
+                  {!readOnly && isComplete && ans && status === 'pending' && (
+                    <p className="text-xs text-yellow-600 italic mb-3">Your profile card is being reviewed by your teacher.</p>
+                  )}
 
                   {/* Content: question label → answer */}
                   {isComplete ? (
@@ -369,16 +478,27 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
                         <span>{t('generating_keywords')}</span>
                       </div>
                     ) : ans && labels.length > 0 ? (
-                      <dl className="space-y-2.5">
-                        {labels.map(({ key, label }) => (
-                          <div key={key}>
-                            <dt className="text-xs text-gray-400 leading-snug">{label}</dt>
-                            <dd className="text-sm font-medium text-gray-700 mt-0.5">
-                              {ans[key] || '—'}
-                            </dd>
-                          </div>
-                        ))}
-                      </dl>
+                      showAnswers ? (
+                        <dl className="space-y-2.5">
+                          {labels.map(({ key, label }) => (
+                            <div key={key}>
+                              <dt className="text-xs text-gray-400 leading-snug">{label}</dt>
+                              <dd className="text-sm font-medium text-gray-700 mt-0.5">
+                                {ans[key] || '—'}
+                              </dd>
+                            </div>
+                          ))}
+                        </dl>
+                      ) : (
+                        <dl className="space-y-2.5">
+                          {labels.map(({ key, label }) => (
+                            <div key={key}>
+                              <dt className="text-xs text-gray-400 leading-snug">{label}</dt>
+                              <dd className="text-sm text-gray-300 mt-0.5">—</dd>
+                            </div>
+                          ))}
+                        </dl>
+                      )
                     ) : (
                       <p className="text-sm text-gray-400 italic">{t('generating_keywords')}</p>
                     )
@@ -398,6 +518,20 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
                         {t('complete_module_nudge')}
                       </p>
                     </>
+                  )}
+
+                  {/* Teacher: per-module reject button */}
+                  {readOnly && isComplete && ans && status !== 'rejected' && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-red-600 border-red-200 hover:bg-red-50 text-xs"
+                        onClick={(e) => { e.stopPropagation(); setRejectingModule(mod.assessmentType); }}
+                      >
+                        <XCircle className="h-3 w-3 mr-1" /> Request Changes
+                      </Button>
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -443,6 +577,43 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
             </CardContent>
           </Card>
         </div>
+
+        {/* Teacher: Approve All button */}
+        {readOnly && (
+          <div className="mt-6 flex justify-center gap-3">
+            <Button
+              className="bg-green-600 hover:bg-green-700 text-white px-8"
+              onClick={handleApproveAll}
+              disabled={savingApproval}
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              {savingApproval ? 'Approving...' : 'Approve All Modules'}
+            </Button>
+          </div>
+        )}
+
+        {/* Rejection reason dialog (inline) */}
+        {rejectingModule && (
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setRejectingModule(null)}>
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Request Changes</h3>
+              <p className="text-sm text-gray-600 mb-4">Provide feedback for the student on what to improve.</p>
+              <Textarea
+                value={rejectReason}
+                onChange={e => setRejectReason(e.target.value)}
+                placeholder="e.g. Please provide more specific answers..."
+                rows={3}
+                className="mb-4"
+              />
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => { setRejectingModule(null); setRejectReason(''); }}>Cancel</Button>
+                <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={handleReject} disabled={savingApproval}>
+                  {savingApproval ? 'Submitting...' : 'Submit Feedback'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

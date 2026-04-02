@@ -28,6 +28,9 @@ import {
     MoreHorizontal,
     Activity,
     FileText,
+    Map,
+    Heart,
+    User,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -54,6 +57,7 @@ export interface Student {
         full_name: string;
         email: string;
         mobile?: string;
+        preferred_language?: string;
     };
     class?: {
         name: string;
@@ -218,7 +222,7 @@ export default function StudentsTab({
                                         <th className="text-left py-3 px-4 font-medium text-gray-700">Student</th>
                                         <th className="text-left py-3 px-4 font-medium text-gray-700">Grade</th>
                                         <th className="text-left py-3 px-4 font-medium text-gray-700">Status</th>
-                                        <th className="text-left py-3 px-4 font-medium text-gray-700">Performance</th>
+                                        <th className="text-left py-3 px-4 font-medium text-gray-700">Language</th>
                                         <th className="text-left py-3 px-4 font-medium text-gray-700">Enrolled</th>
                                         <th className="text-left py-3 px-4 font-medium text-gray-700">Actions</th>
                                     </tr>
@@ -249,8 +253,11 @@ export default function StudentsTab({
                                                 </Badge>
                                             </td>
                                             <td className="py-4 px-4">
-                                                <span className={getPerformanceColor(student.academic_performance)}>
-                                                    {student.academic_performance || 'Not set'}
+                                                <span className="text-sm text-gray-700">
+                                                    {student.user?.preferred_language === 'kn' ? 'ಕನ್ನಡ'
+                                                        : student.user?.preferred_language === 'ta' ? 'தமிழ்'
+                                                        : student.user?.preferred_language === 'hi' ? 'हिन्दी'
+                                                        : 'English'}
                                                 </span>
                                             </td>
                                             <td className="py-4 px-4">
@@ -277,6 +284,18 @@ export default function StudentsTab({
                                                             <DropdownMenuItem onClick={() => onViewProgress(student)}>
                                                                 <Activity className="w-4 h-4 mr-2" />
                                                                 View Progress
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => navigate(`/teacher/student-profile-card/${student.id}`)}>
+                                                                <User className="w-4 h-4 mr-2" />
+                                                                Review Profile Card
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => navigate(`/teacher/student-roadmap/${student.id}`)}>
+                                                                <Map className="w-4 h-4 mr-2" />
+                                                                View Career Roadmap
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => navigate(`/teacher/student-interests/${student.id}`)}>
+                                                                <Heart className="w-4 h-4 mr-2" />
+                                                                View Interests
                                                             </DropdownMenuItem>
                                                             <DropdownMenuItem
                                                                 className="text-red-600"

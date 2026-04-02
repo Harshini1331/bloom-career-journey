@@ -48,7 +48,7 @@ import {
   getSummaryStatusLabel
 } from '@/types/assessmentSummary';
 import { summaryDatabaseService } from '@/services/summaryDatabaseService';
-import { notificationService } from '@/services/notificationService';
+// notificationService import removed — approval notification disabled
 import { aiSummaryService } from '@/services/aiSummaryService';
 import { supabase } from '@/integrations/supabase/client';
 import { parseDreamEntries, parseHobbiesEntries, parseTalentsEntries, parseSchoolLearningEntries } from '../../utils/summaryParsers';
@@ -387,98 +387,7 @@ export default function SummaryApprovalCard({
           title: "Summary Approved! ✅",
           description: `${studentName}'s reflection summary is now visible to them.`
         });
-        // Notify student (best-effort)
-        try {
-          // Get assessment type for dynamic notification
-          let assessmentTypeToUse = assessmentType;
-          if (!assessmentTypeToUse) {
-            const { data: assessmentResponse } = await supabase
-              .from('assessment_responses')
-              .select('assessment_type')
-              .eq('id', summary.assessment_response_id)
-              .maybeSingle();
-            assessmentTypeToUse = assessmentResponse?.assessment_type || 'inspiration';
-          }
-
-          // Get assessment title based on type
-          const assessmentTitles: Record<string, { en: string; kn: string; ta?: string; hi?: string }> = {
-            'inspiration': { en: 'My Inspiration', kn: 'ನನ್ನ ಪ್ರೇರಣೆ', ta: 'என் உத்வேகம்', hi: 'मेरी प्रेरणा' },
-            'about_me': { en: 'About Me', kn: 'ನನ್ನ ಬಗ್ಗೆ', ta: 'என்னைப் பற்றி', hi: 'मेरे बारे में' },
-            'dreams': { en: 'My Dreams', kn: 'ನನ್ನ ಕನಸುಗಳು', ta: 'என் கனவுகள்', hi: 'मेरे सपने' },
-            'school_learning': { en: 'My School, My Learning and I', kn: 'ನನ್ನ ಶಾಲೆ, ನನ್ನ ಕಲಿಕೆ ಮತ್ತು ನಾನು', ta: 'என் பள்ளி, என் கற்றல் மற்றும் நான்', hi: 'मेरा स्कूल, मेरी पढ़ाई और मैं' },
-            'hobbies': { en: 'My Talents and Hobbies', kn: 'ನನ್ನ ಪ್ರತಿಭೆಗಳು ಮತ್ತು ಹವ್ಯಾಸಗಳು', ta: 'என் திறமைகள் மற்றும் பொழுதுபோக்குகள்', hi: 'मेरी प्रतिभाएँ और शौक' },
-            'role_models': { en: 'My Role Models', kn: 'ನನ್ನ ಆದರ್ಶ ವ್ಯಕ್ತಿ ಯಾರು?', ta: 'என் முன்மாதிரி நபர்', hi: 'मेरे आदर्श' }
-          };
-
-          const titleMap = assessmentTitles[assessmentTypeToUse] || { en: 'Assessment', kn: 'ಮೌಲ್ಯಮಾಪನ', ta: 'மதிப்பீடு', hi: 'मूल्यांकन' };
-
-          let targetStudentUserId = summary.student_user_id;
-
-          if (!targetStudentUserId) {
-            const { data: studentLookup, error: studentLookupError } = await supabase
-              .from('assessment_responses')
-              .select('students:student_id(user_id)')
-              .eq('id', summary.assessment_response_id)
-              .maybeSingle();
-
-            if (studentLookupError) {
-              logger.error('Failed to resolve student user id for notification:', studentLookupError);
-            }
-
-            targetStudentUserId = (studentLookup as any)?.students?.user_id || null;
-          }
-
-          if (!targetStudentUserId) {
-            logger.warn('Unable to send approval notification: student_user_id is missing');
-          } else {
-            // Fetch student's preferred language for localized notification
-            let studentLang: 'en' | 'kn' | 'ta' | 'hi' = 'en';
-            try {
-              const { data: userLangData } = await supabase
-                .from('users')
-                .select('preferred_language')
-                .eq('id', targetStudentUserId)
-                .maybeSingle();
-              if (userLangData?.preferred_language && ['en', 'kn', 'ta', 'hi'].includes(userLangData.preferred_language)) {
-                studentLang = userLangData.preferred_language as 'en' | 'kn' | 'ta' | 'hi';
-              }
-            } catch (langErr) {
-              logger.error('Failed to fetch student language for notification:', langErr);
-            }
-
-            const localizedAssessmentTitle = (titleMap as any)[studentLang] || titleMap.en;
-
-            const notifTitleMap: Record<string, string> = {
-              en: `${localizedAssessmentTitle} summary approved`,
-              kn: `${localizedAssessmentTitle} ಸಾರಾಂಶ ಅನುಮೋದಿಸಲಾಗಿದೆ`,
-              ta: `${localizedAssessmentTitle} சுருக்கம் ஒப்புதல் அளிக்கப்பட்டது`,
-              hi: `${localizedAssessmentTitle} सारांश स्वीकृत`
-            };
-
-            const notifMessageMap: Record<string, string> = {
-              en: 'Your mentor approved your AI summary. Tap to view.',
-              kn: 'ನಿಮ್ಮ ಮಾರ್ಗದರ್ಶಕರು ನಿಮ್ಮ AI ಸಾರಾಂಶವನ್ನು ಅನುಮೋದಿಸಿದ್ದಾರೆ. ವೀಕ್ಷಿಸಲು ಟ್ಯಾಪ್ ಮಾಡಿ.',
-              ta: 'உங்கள் வழிகாட்டி உங்கள் AI சுருக்கத்தை அங்கீகரித்தார். பார்க்க தட்டவும்.',
-              hi: 'आपके मार्गदर्शक ने आपके AI सारांश को स्वीकृत किया। देखने के लिए टैप करें।'
-            };
-
-            const notifResult = await notificationService.create({
-              userId: targetStudentUserId,
-              type: 'summary_approved',
-              title: notifTitleMap[studentLang] || notifTitleMap.en,
-              message: notifMessageMap[studentLang] || notifMessageMap.en,
-              link: '/student'
-            });
-
-            if (!notifResult.success) {
-              logger.error('Failed to create notification:', notifResult.error);
-            } else {
-              logger.log('✅ Notification sent to student:', targetStudentUserId);
-            }
-          }
-        } catch (error) {
-          logger.error('Error creating notification:', error);
-        }
+        // Student approval notification disabled — AI summary flow removed from student side
         setIsEditing(false);
         onSummaryUpdated?.();
       } else {

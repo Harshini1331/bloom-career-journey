@@ -15,6 +15,8 @@ import NotFound from './pages/NotFound';
 import ProfileCardPage from './pages/ProfileCardPage';
 import CareerRoadmapPage from './pages/CareerRoadmapPage';
 import ThingsInterestMePage from './pages/ThingsInterestMePage';
+import TeacherStudentRoadmapPage from './pages/TeacherStudentRoadmapPage';
+import TeacherStudentInterestsPage from './pages/TeacherStudentInterestsPage';
 import MyInspirationAssessment from './components/assessments/MyInspirationAssessment';
 import MyDreamsAssessment from './components/assessments/MyDreamsAssessment';
 import MySchoolLearningAssessment from './components/assessments/MySchoolLearningAssessment';
@@ -334,7 +336,23 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              
+              <Route
+                path="/teacher/student-roadmap/:studentId"
+                element={
+                  <ProtectedRoute allowedRoles={['teacher']}>
+                    <TeacherStudentRoadmapPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/teacher/student-interests/:studentId"
+                element={
+                  <ProtectedRoute allowedRoles={['teacher']}>
+                    <TeacherStudentInterestsPage />
+                  </ProtectedRoute>
+                }
+              />
+
               {/* Catch-all route for 404 */}
               <Route path="*" element={<NotFound />} />
             </Routes>
