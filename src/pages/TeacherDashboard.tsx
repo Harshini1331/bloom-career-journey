@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { StateInfo, SchoolClass } from '@/integrations/supabase/types';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, Activity, BookOpen, BarChart3 } from 'lucide-react';
+import { Users, Activity, BookOpen } from 'lucide-react';
 
 // Sub-components
 import { useTeacherStrings, TeacherLang } from '@/components/teacher/teacherStrings';
@@ -20,7 +20,7 @@ import {
   AssessmentAnswersModal,
   AddExistingStudentModal,
 } from '@/components/teacher/StudentModals';
-import AnalyticsTab from '@/components/teacher/AnalyticsTab';
+// AnalyticsTab import removed — placeholder, not functional yet
 import AssessmentResponsesView from '@/components/teacher/AssessmentResponsesView';
 import ResourcesSection from '@/components/teacher/ResourcesSection';
 import ChatbotDialog from '@/components/ChatbotDialog';
@@ -523,9 +523,7 @@ export default function TeacherDashboard() {
             <TabsTrigger value="resources" className="flex items-center space-x-2 py-2">
               <BookOpen className="w-4 h-4" /><span>{t('resourcesTab')}</span>
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center space-x-2 py-2">
-              <BarChart3 className="w-4 h-4" /><span>{t('analyticsTab')}</span>
-            </TabsTrigger>
+            {/* Analytics tab hidden — placeholder, not functional yet */}
           </TabsList>
 
           <TabsContent value="students" className="space-y-6">
@@ -558,9 +556,7 @@ export default function TeacherDashboard() {
             <ResourcesSection />
           </TabsContent>
 
-          <TabsContent value="analytics" className="space-y-6">
-            <AnalyticsTab />
-          </TabsContent>
+          {/* Analytics content hidden — placeholder, not functional yet */}
         </Tabs>
       </div>
 
