@@ -28,11 +28,13 @@ export default function TeacherStudentInterestsPage() {
         .eq('id', studentId).maybeSingle();
       setStudentName((student as any)?.users?.full_name || 'Student');
 
-      // Fetch interests
+      // Fetch interests — things_that_interest_me.student_id references users.id, not students.id
+      const userId = (student as any)?.user_id;
+      if (!userId) { setLoading(false); return; }
       const { data } = await supabase
         .from('things_that_interest_me' as any)
         .select('subject, lesson_chapter, why_factors, compatible_career')
-        .eq('student_id', studentId)
+        .eq('student_id', userId)
         .order('created_at', { ascending: true });
       setRows((data as any[]) || []);
       setLoading(false);

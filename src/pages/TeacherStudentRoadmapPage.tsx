@@ -48,11 +48,13 @@ export default function TeacherStudentRoadmapPage() {
         .eq('id', studentId).maybeSingle();
       setStudentName((student as any)?.users?.full_name || 'Student');
 
-      // Fetch roadmap
+      // Fetch roadmap — career_roadmap.student_id references users.id, not students.id
+      const userId = (student as any)?.user_id;
+      if (!userId) { setLoading(false); return; }
       const { data } = await supabase
         .from('career_roadmap')
         .select('milestone, plan_a, plan_b, plan_c')
-        .eq('student_id', studentId);
+        .eq('student_id', userId);
       if (data) {
         setRows(prev => {
           const next = { ...prev };
