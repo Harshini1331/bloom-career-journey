@@ -395,20 +395,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []); // Remove isCustomAuth dependency to prevent recreation
 
-  const fetchUserProfile = async (userId: string, userOverride?: AuthUser) => {
+  const fetchUserProfile = async (userId: string, userOverride?: AuthUser, forceRefresh?: boolean) => {
     try {
-      logger.log('🔍 Fetching user profile for:', userId);
+      logger.log('🔍 Fetching user profile for:', userId, forceRefresh ? '(force refresh)' : '');
 
-      // If we're already fetching this profile, don't fetch again
-      if (fetchingProfileRef.current === userId) {
-        logger.log('⏭️ Already fetching profile for this user, skipping duplicate fetch');
-        return;
-      }
+      if (!forceRefresh) {
+        // If we're already fetching this profile, don't fetch again
+        if (fetchingProfileRef.current === userId) {
+          logger.log('⏭️ Already fetching profile for this user, skipping duplicate fetch');
+          return;
+        }
 
-      // If we already have a profile for this user, don't fetch again
-      if (userProfile && userProfile.id === userId) {
-        logger.log('✅ Profile already exists for this user, skipping refetch');
-        return;
+        // If we already have a profile for this user, don't fetch again
+        if (userProfile && userProfile.id === userId) {
+          logger.log('✅ Profile already exists for this user, skipping refetch');
+          return;
+        }
       }
 
       // Mark that we're fetching this profile
@@ -1170,8 +1172,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user?.id) {
       logger.log('🔄 Refreshing user profile from database...');
       try {
-        // Use the same fetchUserProfile function to ensure consistency
-        await fetchUserProfile(user.id);
+        // Force refresh to bypass the "already exists" guard
+        await fetchUserProfile(user.id, undefined, true);
         logger.log('✅ User profile refreshed successfully');
       } catch (error) {
         logger.error('Error refreshing user profile:', error);

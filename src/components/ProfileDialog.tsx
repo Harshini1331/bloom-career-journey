@@ -205,6 +205,10 @@ export default function ProfileDialog({ open, onOpenChange }: Props) {
         description: lang === 'kn' ? "ನಿಮ್ಮ ಪ್ರೊಫೈಲ್ ಯಶಸ್ವಿಯಾಗಿ ನವೀಕರಿಸಲಾಗಿದೆ." : lang === 'ta' ? "உங்கள் சுயவிவரம் மாற்றப்பட்டது." : lang === 'hi' ? "आपकी प्रोफ़ाइल सफलतापूर्वक अपडेट हो गई।" : "Your profile has been updated successfully.",
       });
 
+      // Refresh user profile so userProfile.preferred_language is up-to-date
+      // (must happen before setLang so derivedLang in LangProvider doesn't revert it)
+      await refreshUserProfile();
+
       // Sync language context immediately if changed
       if (selectedLang !== lang) {
         setLang(selectedLang);
@@ -216,12 +220,6 @@ export default function ProfileDialog({ open, onOpenChange }: Props) {
         };
         toast({ title: (langNames[selectedLang] || langNames.en)[selectedLang] || 'Language updated' });
       }
-
-      // Small delay to ensure database update is complete
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Refresh user profile to show updated data
-      await refreshUserProfile();
 
       onOpenChange(false);
     } catch (err: any) {
