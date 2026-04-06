@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { GraduationCap } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { StateInfo } from '@/integrations/supabase/types';
-import { Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import IlpFooter from '@/components/IlpFooter';
 
@@ -42,10 +41,12 @@ export default function AuthPage() {
 
   const [signInForm, setSignInForm] = useState({ phone: '', password: '' });
   const [signUpForm, setSignUpForm] = useState({
+    role: 'teacher' as 'teacher' | 'student',
     phone: '',
     password: '',
     fullName: '',
     stateId: '',
+    grade: '',
     preferredLanguage: 'en' as 'en' | 'kn' | 'ta' | 'hi'
   });
   const [loading, setLoading] = useState(false);
@@ -145,6 +146,42 @@ export default function AuthPage() {
       return;
     }
 
+    if (signUpForm.role === 'student') {
+      if (!signUpForm.grade) {
+        toast({ title: 'Sign Up Failed', description: 'Please select your grade.', variant: 'destructive' });
+        setLoading(false);
+        return;
+      }
+
+      // Student self-registration via create-student-self-register Edge Function
+      const { data, error } = await supabase.functions.invoke('create-student-self-register', {
+        body: {
+          fullName: signUpForm.fullName,
+          phone: signUpForm.phone,
+          password: signUpForm.password,
+          grade: signUpForm.grade,
+          stateId: signUpForm.stateId,
+          preferredLanguage: signUpForm.preferredLanguage,
+        },
+      });
+
+      if (error || data?.error) {
+        const msg = data?.error || error?.message || 'Could not create account. Please try again.';
+        logger.error('Student sign up error:', msg);
+        toast({ title: 'Sign Up Failed', description: msg, variant: 'destructive' });
+        setLoading(false);
+        return;
+      }
+
+      // Sign in immediately after successful registration
+      const { error: signInError } = await signIn(signUpForm.phone, signUpForm.password);
+      setLoading(false);
+      if (signInError) {
+        toast({ title: 'Account created', description: 'Please sign in with your mobile number and password.', variant: 'default' });
+      }
+      return;
+    }
+
     // Teacher self-registration via create-teacher Edge Function
     const { data, error } = await supabase.functions.invoke('create-teacher', {
       body: {
@@ -233,6 +270,24 @@ export default function AuthPage() {
 
               <TabsContent value="signup">
                 <form onSubmit={handleSignUp} className="space-y-4">
+                  {/* Role toggle */}
+                  <div className="flex rounded-lg border overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setSignUpForm({ ...signUpForm, role: 'teacher', grade: '' })}
+                      className={`flex-1 py-2 text-sm font-medium transition-colors ${signUpForm.role === 'teacher' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+                    >
+                      I am a Teacher
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSignUpForm({ ...signUpForm, role: 'student' })}
+                      className={`flex-1 py-2 text-sm font-medium transition-colors ${signUpForm.role === 'student' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+                    >
+                      I am a Student
+                    </button>
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="signup-name">{t('fullName')}</Label>
                     <Input
@@ -300,6 +355,26 @@ export default function AuthPage() {
                     </Select>
                   </div>
 
+                  {/* Grade picker — students only */}
+                  {signUpForm.role === 'student' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="grade">Grade *</Label>
+                      <Select
+                        value={signUpForm.grade}
+                        onValueChange={(value) => setSignUpForm({ ...signUpForm, grade: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select your grade" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {['8', '9', '10', '11', '12'].map((g) => (
+                            <SelectItem key={g} value={g}>Class {g}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
                   {/* Preferred Language */}
                   <div className="space-y-2">
                     <Label htmlFor="preferred-language">{t('preferredLanguage')}</Label>
@@ -322,11 +397,6 @@ export default function AuthPage() {
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading ? 'Creating Account...' : t('createAccount')}
                   </Button>
-
-                  <div className="flex items-start gap-2 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
-                    <Info className="mt-0.5 h-4 w-4 shrink-0" />
-                    <span>Student accounts are created by your teacher. Please ask your teacher to add you to the platform.</span>
-                  </div>
                 </form>
               </TabsContent>
             </Tabs>
