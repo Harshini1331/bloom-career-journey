@@ -4,6 +4,33 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, Heart } from 'lucide-react';
 
+const COLUMN_STRINGS: Record<string, { col_subject: string; col_lesson: string; col_why: string; col_career: string }> = {
+  en: {
+    col_subject: 'Subject',
+    col_lesson: 'Lesson / Chapter',
+    col_why: 'Why or What factors led you to like this lesson/chapter?',
+    col_career: 'A compatible career',
+  },
+  kn: {
+    col_subject: 'ವಿಷಯ',
+    col_lesson: 'ಪಾಠ / ಅಧ್ಯಾಯ',
+    col_why: 'ಈ ಪಾಠ/ಅಧ್ಯಾಯವನ್ನು ಇಷ್ಟಪಡಲು ಯಾವ ಅಂಶಗಳು ಕಾರಣ?',
+    col_career: 'ಹೊಂದಿಕೆಯಾಗುವ ವೃತ್ತಿ',
+  },
+  ta: {
+    col_subject: 'பாடம்',
+    col_lesson: 'பாடம் / அத்தியாயம்',
+    col_why: 'இந்த பாடம்/அத்தியாயத்தை ஏன் விரும்புகிறீர்கள்?',
+    col_career: 'பொருத்தமான தொழில்',
+  },
+  hi: {
+    col_subject: 'विषय',
+    col_lesson: 'पाठ / अध्याय',
+    col_why: 'इस पाठ/अध्याय को पसंद करने के क्या कारण हैं?',
+    col_career: 'एक उपयुक्त करियर',
+  },
+};
+
 interface InterestRow {
   subject: string;
   lesson_chapter: string;
@@ -17,6 +44,7 @@ export default function TeacherStudentInterestsPage() {
   const [rows, setRows] = useState<InterestRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [studentName, setStudentName] = useState('');
+  const [studentLang, setStudentLang] = useState<string>('en');
 
   useEffect(() => {
     if (!studentId) return;
@@ -24,9 +52,10 @@ export default function TeacherStudentInterestsPage() {
       setLoading(true);
       // Fetch student name
       const { data: student } = await supabase
-        .from('students').select('user_id, users:user_id(full_name)')
+        .from('students').select('user_id, users:user_id(full_name, preferred_language)')
         .eq('id', studentId).maybeSingle();
       setStudentName((student as any)?.users?.full_name || 'Student');
+      setStudentLang((student as any)?.users?.preferred_language || 'en');
 
       // Fetch interests — things_that_interest_me.student_id references users.id, not students.id
       const userId = (student as any)?.user_id;
@@ -78,10 +107,10 @@ export default function TeacherStudentInterestsPage() {
               <thead>
                 <tr className="bg-gray-800 text-white">
                   <th className="text-left px-6 py-4 font-semibold rounded-tl-xl">#</th>
-                  <th className="text-left px-6 py-4 font-semibold">Subject</th>
-                  <th className="text-left px-6 py-4 font-semibold">Lesson / Chapter</th>
-                  <th className="text-left px-6 py-4 font-semibold">Why Factors</th>
-                  <th className="text-left px-6 py-4 font-semibold rounded-tr-xl">Compatible Career</th>
+                  <th className="text-left px-6 py-4 font-semibold">{(COLUMN_STRINGS[studentLang] || COLUMN_STRINGS['en']).col_subject}</th>
+                  <th className="text-left px-6 py-4 font-semibold">{(COLUMN_STRINGS[studentLang] || COLUMN_STRINGS['en']).col_lesson}</th>
+                  <th className="text-left px-6 py-4 font-semibold">{(COLUMN_STRINGS[studentLang] || COLUMN_STRINGS['en']).col_why}</th>
+                  <th className="text-left px-6 py-4 font-semibold rounded-tr-xl">{(COLUMN_STRINGS[studentLang] || COLUMN_STRINGS['en']).col_career}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
