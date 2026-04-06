@@ -23,6 +23,7 @@ interface CreatedResult {
   fullName: string
   phone: string
   userId: string
+  tempPassword: string // TEMP: remove in PR 2b when OTP activation is implemented
 }
 
 interface ErrorResult {
@@ -208,7 +209,7 @@ Deno.serve(async (req) => {
         )
         if (credError) throw new Error(`student_auth_credentials upsert: ${credError.message}`)
 
-        created.push({ fullName, phone, userId: authUserId })
+        created.push({ fullName, phone, userId: authUserId, tempPassword: password }) // TEMP: remove in PR 2b when OTP activation is implemented
       } catch (dbError: unknown) {
         // Rollback: delete the auth user we just created
         await supabaseAdmin.auth.admin.deleteUser(authUserId)

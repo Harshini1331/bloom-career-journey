@@ -131,6 +131,10 @@ export default function ImportStudentsDialog({ open, onOpenChange, classes, teac
       const messages: string[] = [];
       if (result.created?.length > 0) {
         messages.push(`${result.created.length} student(s) imported successfully.`);
+        // TEMP: remove in PR 2b when OTP activation is implemented
+        for (const s of result.created) {
+          messages.push(`${s.fullName} (${s.phone}) — temp password: ${s.tempPassword}`);
+        }
       }
       if (result.errors?.length > 0) {
         for (const err of result.errors) {
