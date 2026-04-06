@@ -1,4 +1,4 @@
-﻿import { logger } from '@/lib/logger';
+import { logger } from '@/lib/logger';
 import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -8,85 +8,65 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BookOpen, Users, GraduationCap } from 'lucide-react';
+import { GraduationCap } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { StateInfo, SchoolClass } from '@/integrations/supabase/types';
-import { useLocation } from 'react-router-dom';
+import { StateInfo } from '@/integrations/supabase/types';
+import { Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import IlpFooter from '@/components/IlpFooter';
+
+function isValidE164(phone: string): boolean {
+  return /^\+\d{10,15}$/.test(phone)
+}
 
 export default function AuthPage() {
   logger.log('AuthPage: Component rendering');
 
-  const { user, userProfile, signIn, signUp } = useAuth();
+  const { user, userProfile, signIn } = useAuth();
   const { toast } = useToast();
-  const location = useLocation();
-  // Auth page always displays in English (registration and login must be in English)
-  const lang = 'en' as const;
 
-  // Auth page always displays in English - strings simplified to single language
   const strings: Record<string, string> = {
     welcome: 'Welcome',
     signInTab: 'Sign In',
     signUpTab: 'Sign Up',
-    emailOrMobile: 'Email or Mobile Number',
+    mobileNumber: 'Mobile Number',
     password: 'Password',
     signInBtn: 'Sign In',
     fullName: 'Full Name',
-    emailOrMobile2: 'Email Address / Mobile Number',
     createPassword: 'Create a password',
-    role: 'Role',
     state: 'State *',
-    class: 'Class *',
     createAccount: 'Create Account',
-    student: 'Student',
-    teacher: 'Teacher',
     preferredLanguage: 'Preferred language',
   };
   const t = (k: string) => strings[k] || k;
-  const [signInForm, setSignInForm] = useState({ identifier: '', password: '' });
+
+  const [signInForm, setSignInForm] = useState({ phone: '', password: '' });
   const [signUpForm, setSignUpForm] = useState({
-    identifier: '',
+    phone: '',
     password: '',
     fullName: '',
-    role: 'student' as 'teacher' | 'student',
     stateId: '',
-    classId: '',
     preferredLanguage: 'en' as 'en' | 'kn' | 'ta' | 'hi'
   });
   const [loading, setLoading] = useState(false);
   const [states, setStates] = useState<StateInfo[]>([]);
-  const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [loadingStates, setLoadingStates] = useState(false);
 
-  // Load states on component mount
   useEffect(() => {
     logger.log('AuthPage: useEffect triggered, calling loadStates');
     loadStates();
   }, []);
 
-  // Load classes when state is selected
-  useEffect(() => {
-    if (signUpForm.stateId) {
-      loadClasses(signUpForm.stateId);
-    } else {
-      setClasses([]);
-    }
-  }, [signUpForm.stateId]);
-
-  // Load states from database
   const loadStates = async () => {
     logger.log('Loading states...');
     setLoadingStates(true);
     try {
-      // Attempt 1: Full query with organization data
       let { data, error } = await supabase
         .from('states')
         .select('id, state_name, state_code, org_id, orgs(name)')
         .order('state_name');
       if (error) {
         logger.warn('Full state query failed, retrying with basic fields:', error);
-        // Attempt 2: Basic fields only
         const retry = await supabase
           .from('states')
           .select('id, state_name, org_id, orgs(name)')
@@ -96,8 +76,6 @@ export default function AuthPage() {
       }
       if (error) {
         logger.error('State query failed after retry:', error);
-        logger.log('🔄 States table may not exist, using fallback data');
-        // As a final fallback, populate a comprehensive list so the page works
         setStates([
           { state_id: 'fallback-1', state_name: 'ILP-Tamil Nadu', state_code: 'ILP-TN', org_name: 'ILP Foundation' },
           { state_id: 'fallback-2', state_name: 'ILP-Telangana', state_code: 'ILP-TG', org_name: 'ILP Foundation' },
@@ -106,9 +84,7 @@ export default function AuthPage() {
         ]);
         return;
       }
-      logger.log('Raw states data received:', data);
       const rawStates = (data || []).filter((s: any) => s && s.id && s.state_name);
-      logger.log('Filtered states:', rawStates);
       const uniqueStates = Array.from(new Map(rawStates.map((s: any) => [s.id, s])).values());
       const statesData = uniqueStates.map((state: any) => ({
         state_id: String(state.id),
@@ -116,7 +92,6 @@ export default function AuthPage() {
         state_code: String((state as any).state_code || ''),
         org_name: String((state as any).orgs?.name || '')
       }));
-      logger.log('Final states data:', statesData);
       setStates(statesData);
     } catch (error) {
       logger.error('Error loading states:', error);
@@ -126,61 +101,12 @@ export default function AuthPage() {
     }
   };
 
-  // Load classes for selected state
-  const loadClasses = async (stateId: string) => {
-    try {
-      logger.log('Loading classes for state:', stateId);
-
-      // Check if it's a fallback state
-      if (stateId.startsWith('fallback-')) {
-        logger.log('🔄 Using fallback classes for fallback state');
-        const fallbackClasses = [
-          { class_id: 'fallback-class-1', class_name: 'Class 8' },
-          { class_id: 'fallback-class-2', class_name: 'Class 9' },
-          { class_id: 'fallback-class-3', class_name: 'Class 10' },
-          { class_id: 'fallback-class-4', class_name: 'Class 11' },
-          { class_id: 'fallback-class-5', class_name: 'Class 12' },
-        ];
-        setClasses(fallbackClasses);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('classes')
-        .select('id, name')
-        .eq('state_id', stateId)
-        .order('name');
-
-      if (error) {
-        logger.error('Error loading classes:', error);
-        setClasses([]);
-        return;
-      }
-
-      logger.log('Classes data received:', data);
-      const rawClasses = (data || []).filter((r: any) => r && r.id && r.name);
-      const uniqueClasses = Array.from(new Map(rawClasses.map((r: any) => [r.id, r])).values());
-      const classesData = uniqueClasses.map((row: any) => ({
-        class_id: String(row.id),
-        class_name: String(row.name),
-      }));
-
-      logger.log('Processed classes data:', classesData);
-      setClasses(classesData);
-    } catch (error) {
-      logger.error('Error loading classes:', error);
-      setClasses([]);
-    }
-  };
-
-  // Redirect if already authenticated
   useEffect(() => {
     if (user && userProfile) {
       logger.log('AuthPage: User and profile available, redirecting...', {
         role: userProfile.role,
         userId: user.id
       });
-      // This effect will trigger a re-render with Navigate component
     }
   }, [user, userProfile]);
 
@@ -195,11 +121,11 @@ export default function AuthPage() {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await signIn(signInForm.identifier, signInForm.password);
+    const { error } = await signIn(signInForm.phone, signInForm.password);
     setLoading(false);
     if (error) {
       logger.error('Sign in error:', error);
-      toast({ title: 'Sign In Failed', description: error.message || 'Invalid email or password. Please try again.', variant: 'destructive' });
+      toast({ title: 'Sign In Failed', description: error.message || 'Invalid mobile number or password. Please try again.', variant: 'destructive' });
     }
   };
 
@@ -207,40 +133,48 @@ export default function AuthPage() {
     e.preventDefault();
     setLoading(true);
 
-    // Validate required fields based on role
     if (!signUpForm.stateId) {
-      logger.error('State selection is required');
+      toast({ title: 'Sign Up Failed', description: 'Please select your state.', variant: 'destructive' });
       setLoading(false);
       return;
     }
 
-    if (signUpForm.role === 'student' && !signUpForm.classId) {
-      logger.error('Class selection is required for students');
+    if (!isValidE164(signUpForm.phone)) {
+      toast({ title: 'Sign Up Failed', description: 'Phone must be in E.164 format (e.g. +919876543210)', variant: 'destructive' });
       setLoading(false);
       return;
     }
 
-    // Determine if identifier is email or mobile
-    const isEmail = signUpForm.identifier.includes('@');
-    const email = isEmail ? signUpForm.identifier : null;
-    const mobile = !isEmail ? signUpForm.identifier : null;
+    // Teacher self-registration via create-teacher Edge Function
+    const { data, error } = await supabase.functions.invoke('create-teacher', {
+      body: {
+        fullName: signUpForm.fullName,
+        phone: signUpForm.phone,
+        password: signUpForm.password,
+        stateId: signUpForm.stateId,
+        preferredLanguage: signUpForm.preferredLanguage,
+      },
+    });
 
-    const { error } = await signUp(
-      mobile,
-      email,
-      signUpForm.password,
-      signUpForm.fullName,
-      signUpForm.role,
-      signUpForm.stateId,
-      signUpForm.classId,
-      signUpForm.preferredLanguage
-    );
+    if (error || data?.error) {
+      const msg = data?.error || error?.message || 'Could not create account. Please try again.';
+      logger.error('Teacher sign up error:', msg);
+      toast({ title: 'Sign Up Failed', description: msg, variant: 'destructive' });
+      setLoading(false);
+      return;
+    }
+
+    // Sign in immediately after successful registration
+    const { error: signInError } = await signIn(signUpForm.phone, signUpForm.password);
     setLoading(false);
-    if (error) {
-      logger.error('Sign up error:', error);
-      toast({ title: 'Sign Up Failed', description: error.message || 'Could not create account. Please try again.', variant: 'destructive' });
+    if (signInError) {
+      toast({ title: 'Account created', description: 'Please sign in with your mobile number and password.', variant: 'default' });
     }
   };
+
+  const phoneError = signUpForm.phone && !isValidE164(signUpForm.phone)
+    ? 'Phone must be in E.164 format (e.g. +919876543210)'
+    : '';
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-primary/5 via-background to-accent/5">
@@ -270,13 +204,13 @@ export default function AuthPage() {
               <TabsContent value="signin">
                 <form onSubmit={handleSignIn} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signin-identifier">{t('emailOrMobile')}</Label>
+                    <Label htmlFor="signin-phone">{t('mobileNumber')}</Label>
                     <Input
-                      id="signin-identifier"
-                      type="text"
-                      placeholder="Enter your email or mobile number"
-                      value={signInForm.identifier}
-                      onChange={(e) => setSignInForm({ ...signInForm, identifier: e.target.value })}
+                      id="signin-phone"
+                      type="tel"
+                      placeholder="+91XXXXXXXXXX"
+                      value={signInForm.phone}
+                      onChange={(e) => setSignInForm({ ...signInForm, phone: e.target.value })}
                       required
                     />
                   </div>
@@ -311,15 +245,17 @@ export default function AuthPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-identifier">{t('emailOrMobile2')}</Label>
+                    <Label htmlFor="signup-phone">{t('mobileNumber')}</Label>
                     <Input
-                      id="signup-identifier"
-                      type="text"
-                      placeholder="Enter your email address or mobile number"
-                      value={signUpForm.identifier}
-                      onChange={(e) => setSignUpForm({ ...signUpForm, identifier: e.target.value })}
+                      id="signup-phone"
+                      type="tel"
+                      placeholder="+91XXXXXXXXXX"
+                      value={signUpForm.phone}
+                      onChange={(e) => setSignUpForm({ ...signUpForm, phone: e.target.value })}
+                      className={phoneError ? 'border-red-400' : ''}
                       required
                     />
+                    {phoneError && <p className="text-xs text-red-500">{phoneError}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-password">{t('password')}</Label>
@@ -332,35 +268,12 @@ export default function AuthPage() {
                       required
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="role">{t('role')}</Label>
-                    <Select value={signUpForm.role} onValueChange={(value: 'teacher' | 'student') => setSignUpForm({ ...signUpForm, role: value, classId: '', stateId: '' })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="student">
-                          <div className="flex items-center gap-2">
-                            <BookOpen className="w-4 h-4" />
-                            {t('student')}
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="teacher">
-                          <div className="flex items-center gap-2">
-                            <Users className="w-4 h-4" />
-                            {t('teacher')}
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
                   {/* State Selection */}
                   <div className="space-y-2">
                     <Label htmlFor="state">{t('state')}</Label>
                     <Select
                       value={signUpForm.stateId}
-                      onValueChange={(value) => setSignUpForm({ ...signUpForm, stateId: value, classId: '' })}
+                      onValueChange={(value) => setSignUpForm({ ...signUpForm, stateId: value })}
                       disabled={loadingStates}
                     >
                       <SelectTrigger>
@@ -387,29 +300,6 @@ export default function AuthPage() {
                     </Select>
                   </div>
 
-                  {/* Class Selection - Only for Students */}
-                  {signUpForm.role === 'student' && (
-                    <div className="space-y-2">
-                      <Label htmlFor="class">{t('class')}</Label>
-                      <Select
-                        value={signUpForm.classId}
-                        onValueChange={(value) => setSignUpForm({ ...signUpForm, classId: value })}
-                        disabled={!signUpForm.stateId || classes.length === 0}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder={!signUpForm.stateId ? "Select state first" : classes.length === 0 ? "No classes available" : "Select your class"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {classes.map((classItem) => (
-                            <SelectItem key={classItem.class_id} value={classItem.class_id}>
-                              {classItem.class_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-
                   {/* Preferred Language */}
                   <div className="space-y-2">
                     <Label htmlFor="preferred-language">{t('preferredLanguage')}</Label>
@@ -432,6 +322,11 @@ export default function AuthPage() {
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading ? 'Creating Account...' : t('createAccount')}
                   </Button>
+
+                  <div className="flex items-start gap-2 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+                    <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>Student accounts are created by your teacher. Please ask your teacher to add you to the platform.</span>
+                  </div>
                 </form>
               </TabsContent>
             </Tabs>

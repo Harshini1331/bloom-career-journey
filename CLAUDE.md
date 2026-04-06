@@ -444,6 +444,8 @@ Frontend → Supabase directly (queries, RPCs, storage). AI/ML services are dire
 
 ## 12. Current Implementation Status
 
+**Last verified build:** 2026-04-05
+
 ### Assessment Module Status
 | Assessment | UI | DB Save | AI Summary | Teacher Approval | Fully Wired |
 |------------|:--:|:-------:|:----------:|:----------------:|:-----------:|
@@ -484,8 +486,11 @@ Frontend → Supabase directly (queries, RPCs, storage). AI/ML services are dire
 > [!NOTE]
 > **sync-questions**: `scripts/sync_questions.ts` and Google Sheets automation pending implementation.
 
-> [!CAUTION]
-> **Custom auth migration (Phase 2, pre-production)**: Teacher-created students currently use a mock session (`custom-auth-token`) that is never passed to `supabase.auth.setSession()`. This means `auth.uid()` returns NULL in RLS context for these students. All data access for custom-auth students bypasses RLS. Before scaling to production, migrate teacher-created students to real Supabase Auth using server-side `createUser` so `auth.uid()` works correctly and RLS protects their data properly.
+> [!NOTE]
+> **Phone-only auth (PR 2a, Apr 2026)**: Custom auth flow (mock session, `authenticate_student` RPC for email, `@internal.app` email generation, `customAuth` localStorage) has been removed. All sign-in now uses `supabase.auth.signInWithPassword({ phone, password })`. Teacher self-registration uses the `create-teacher` Edge Function. Student creation remains teacher-driven via `create-student` Edge Function. The `student_auth_credentials` table and `authenticate_student` RPC (phone-only) are kept temporarily for the 30 legacy NO students — to be removed after the backfill script runs.
+
+> [!NOTE]
+> **Legacy NO students**: 30 students created before PR 1 (create-student Edge Function) still use `student_auth_credentials` for authentication via the `authenticate_student` RPC (phone-only). A backfill script must be run to migrate them to real Supabase Auth accounts, after which `student_auth_credentials` and `authenticate_student` can be deleted.
 
 ### Completed Work (Mar–Apr 2026 Sessions)
 | Phase | Description | Status |
@@ -558,4 +563,5 @@ Frontend → Supabase directly (queries, RPCs, storage). AI/ML services are dire
 | **11C** | Fix teacher career roadmap empty: `TeacherStudentRoadmapPage` was querying `career_roadmap` with `students.id` but `career_roadmap.student_id` references `users.id`. Fix: use `student.user_id` instead of URL param `studentId` | ✅ |
 | **11D** | Fix teacher interests empty: same `student_id` mismatch in `TeacherStudentInterestsPage`. Fix: use `student.user_id` for `things_that_interest_me` query | ✅ |
 | **11E** | Fix logout not working for custom-auth students: `supabase.auth.signOut()` fails for custom-auth (no real session), gating state clearing inside success branch meant localStorage/React state never cleared. Fix: moved all state clearing outside success gate — runs unconditionally. `supabase.auth.signOut()` now best-effort only. Removed duplicate success toast from `signOut()` | ✅ |
+| **PR 2a** | Phone-only auth migration: `create-teacher` Edge Function, `signIn` via `signInWithPassword({ phone })`, remove custom auth path + mock sessions + `@internal.app` emails, `authenticate_student` RPC phone-only, `search_students` RPC email branch removed + mobile partial match, all email display → mobile across 5 files | ✅ |
 | **2–3** | Google Sheets sync automation | ⏸�� Paused — sheet restructuring in progress |

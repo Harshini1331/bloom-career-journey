@@ -100,7 +100,7 @@ export default function TeacherDashboard() {
     if (searchTerm) {
       filtered = filtered.filter(student =>
         student.user?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.user?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        student.user?.mobile?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         student.parent_guardian_name?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }

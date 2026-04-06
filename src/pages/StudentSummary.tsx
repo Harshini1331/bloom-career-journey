@@ -64,7 +64,7 @@ export default function StudentSummary() {
 
   const [loading, setLoading] = useState(true);
   const [studentName, setStudentName] = useState<string>('');
-  const [studentEmail, setStudentEmail] = useState<string>('');
+  const [studentMobile, setStudentMobile] = useState<string>('');
   const [className, setClassName] = useState<string>('');
   const [records, setRecords] = useState<AssessmentRecord[]>([]);
 
@@ -87,12 +87,12 @@ export default function StudentSummary() {
         // student basics
         const { data: student, error: sErr } = await supabase
           .from('students')
-          .select('id, users:users(full_name, email), classes:classes(name)')
+          .select('id, users:users(full_name, mobile), classes:classes(name)')
           .eq('id', id)
           .single();
         if (!sErr && student) {
           setStudentName((student as any).users?.full_name || 'Student');
-          setStudentEmail((student as any).users?.email || '');
+          setStudentMobile((student as any).users?.mobile || '');
           setClassName((student as any).classes?.name || '');
         }
 
@@ -140,7 +140,7 @@ export default function StudentSummary() {
         <Card className="border shadow-sm print:border-none print:shadow-none">
           <CardHeader>
             <CardTitle className="text-lg">{studentName}</CardTitle>
-            <CardDescription>Class: {className || '—'} {studentEmail ? `• ${studentEmail}` : ''}</CardDescription>
+            <CardDescription>Class: {className || '—'} {studentMobile ? `• ${studentMobile}` : ''}</CardDescription>
           </CardHeader>
         </Card>
 

@@ -30,7 +30,7 @@ export default function ProfileDialog({ open, onOpenChange }: Props) {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [password, setPassword] = useState('');
   const [saving, setSaving] = useState(false);
-  const [meta, setMeta] = useState<{ email?: string | null; mobile?: string | null; state?: string; className?: string; teacherName?: string }>();
+  const [meta, setMeta] = useState<{ mobile?: string | null; state?: string; className?: string; teacherName?: string }>();
 
   useEffect(() => {
     if (!userProfile?.id) return;
@@ -59,7 +59,6 @@ export default function ProfileDialog({ open, onOpenChange }: Props) {
           .eq('id', userProfile.id)
           .maybeSingle();
         setMeta({
-          email: (userProfile as any).email || null,
           mobile: (userProfile as any).mobile || null,
           state:
             studentRes.data?.classes?.states?.state_name ||
@@ -75,7 +74,7 @@ export default function ProfileDialog({ open, onOpenChange }: Props) {
     })();
   }, [userProfile?.id, userProfile?.full_name, userProfile?.gender, userProfile?.school, userProfile?.career_goals, userProfile?.profile_picture_url]);
 
-  const contactLabel = useMemo(() => meta?.email || meta?.mobile || '', [meta]);
+  const contactLabel = useMemo(() => meta?.mobile || '', [meta]);
 
   // Refresh profile data when dialog opens
   useEffect(() => {

@@ -130,7 +130,7 @@ export default function StudentsTab({
                             <div className="relative flex-1">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                                 <Input
-                                    placeholder="Search students by name, email, or parent..."
+                                    placeholder="Search students by name, mobile, or parent..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     className="pl-10"
@@ -228,7 +228,7 @@ export default function StudentsTab({
                                             <td className="py-4 px-4">
                                                 <div>
                                                     <p className="font-medium text-gray-900">{student.user?.full_name}</p>
-                                                    <p className="text-sm text-gray-500">{student.user?.email}</p>
+                                                    <p className="text-sm text-gray-500">{student.user?.mobile}</p>
                                                     <div className="mt-1">
                                                         <Badge variant="outline">
                                                             {studentReviewMap[student.id]?.reviewed || 0}/{studentReviewMap[student.id]?.total || 0} {t('reviewedLabel')}

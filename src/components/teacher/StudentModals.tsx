@@ -171,10 +171,6 @@ export function StudentDetailsModal({ open, onOpenChange, selectedStudent, activ
                             <div className="font-medium">{selectedStudent?.user?.mobile || '—'}</div>
                         </div>
                         <div>
-                            <div className="text-gray-500">Email</div>
-                            <div className="font-medium">{selectedStudent?.user?.email || '—'}</div>
-                        </div>
-                        <div>
                             <div className="text-gray-500">Class</div>
                             <div className="font-medium">{selectedStudent?.class?.name || '—'}</div>
                         </div>
@@ -360,12 +356,12 @@ export function AddExistingStudentModal({
                 <DialogHeader>
                     <DialogTitle className="text-2xl text-gray-800">Add Existing Student</DialogTitle>
                     <DialogDescription>
-                        Search by mobile, email, or name and enroll the student into your class.
+                        Search by mobile or name and enroll the student into your class.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-2">
                     <div className="flex gap-2">
-                        <Input placeholder="Enter student mobile / email / name" value={existingQuery} onChange={(e) => setExistingQuery(e.target.value)} />
+                        <Input placeholder="Enter student mobile / name" value={existingQuery} onChange={(e) => setExistingQuery(e.target.value)} />
                         <Button onClick={onSearch}>
                             <Search className="w-4 h-4 mr-2" /> Search
                         </Button>
@@ -379,7 +375,7 @@ export function AddExistingStudentModal({
                                 <thead>
                                     <tr className="border-b border-gray-200">
                                         <th className="text-left py-2 px-3">Name</th>
-                                        <th className="text-left py-2 px-3">Mobile / Email</th>
+                                        <th className="text-left py-2 px-3">Mobile</th>
                                         <th className="text-left py-2 px-3">Language</th>
                                         <th className="text-left py-2 px-3">Current Class</th>
                                         <th className="text-left py-2 px-3">Mentor</th>
@@ -395,7 +391,7 @@ export function AddExistingStudentModal({
                                         return (
                                             <tr key={row.student_user_id} className="border-b border-gray-100">
                                                 <td className="py-2 px-3">{row.full_name}</td>
-                                                <td className="py-2 px-3">{row.mobile || row.email}</td>
+                                                <td className="py-2 px-3">{row.mobile}</td>
                                                 <td className="py-2 px-3">{LANG_LABELS[row.preferred_language] || row.preferred_language || '—'}</td>
                                                 <td className="py-2 px-3">{row.current_class || '—'}</td>
                                                 <td className="py-2 px-3">
