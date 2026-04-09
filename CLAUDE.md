@@ -495,6 +495,9 @@ Frontend → Supabase directly (queries, RPCs, storage). AI/ML services are dire
 > [!NOTE]
 > **Legacy NO students**: 30 students created before PR 1 (create-student Edge Function) still use `student_auth_credentials` for authentication via the `authenticate_student` RPC (phone-only). A backfill script must be run to migrate them to real Supabase Auth accounts, after which `student_auth_credentials` and `authenticate_student` can be deleted.
 
+> [!NOTE]
+> **PR 2b SMS hook blocked**: `send-sms-hook` Edge Function is built and ready. Blocked on: (1) MSG91 Auth Key, Flow ID, and Sender ID credentials, (2) DLT sender ID + OTP template approval, (3) Supabase Pro plan (free plan 2s timeout may be too tight for MSG91 round-trip). Once unblocked: `supabase functions deploy send-sms-hook --no-verify-jwt`, configure hook in Auth → Hooks dashboard, set Twilio placeholder in Auth → Providers → Phone, run `supabase secrets set` for all 4 MSG91 variables.
+
 ### Completed Work (Mar–Apr 2026 Sessions)
 | Phase | Description | Status |
 |-------|-------------|--------|
@@ -572,4 +575,5 @@ Frontend → Supabase directly (queries, RPCs, storage). AI/ML services are dire
 | **PR 2b-reg** | Re-enable student self-registration: new `create-student-self-register` Edge Function (`supabase/functions/create-student-self-register/index.ts`) — `auth.admin.createUser({ phone_confirm: true })`, inserts into `users` + `students` (`teacher_id: null`, `enrollment_status: pending`), no `student_auth_credentials` entry. `AuthPage.tsx`: role toggle (“I am a Teacher” / “I am a Student”), grade picker (static Class 8–12), student path calls new Edge Function then auto-signs in | ✅ |
 | **12A** | `TeacherStudentResponsesPage` (`/teacher/student-responses/:studentId`): 8-tab read-only view of all assessment responses. Generic `ResponseViewer` for inspiration/about_me/dreams/school_learning/career_guidance_tools (booleans → Yes/No). Custom renderers for hobbies (hobby cards), role_models (role model cards), personality/Holland Code (code + RIASEC score bars, raw answers hidden). “View Responses” added to student actions menu in StudentsTab after “Review Profile Card”. Student responses always display in the student's own language — no transformation applied. | ✅ |
 | **12B** | Fix Hindi detection in `SummaryApprovalCard.detectLangKeyFromSummary()`: added Devanagari range `/[\u0900-\u097F]/` check before English fallback. Return type widened to `'en' \| 'ta' \| 'kn' \| 'hi'`. Hindi summaries now load `questions.hi` template block. | ✅ |
+| **PR 2b-sms** | `send-sms-hook` Edge Function built — MSG91 Flow API integration, Standard Webhooks HMAC-SHA256 signature verification, placeholder fallback (returns 200 silently when `MSG91_AUTH_KEY` not set). Awaiting MSG91 credentials + DLT approval to go live. | ✅ |
 | **2–3** | Google Sheets sync automation | ⏸�� Paused — sheet restructuring in progress |
