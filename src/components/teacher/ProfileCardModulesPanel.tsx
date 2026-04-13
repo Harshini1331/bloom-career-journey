@@ -1,0 +1,357 @@
+import React, { useState, useEffect } from 'react';
+import { logger } from '@/lib/logger';
+import { supabase } from '@/integrations/supabase/client';
+import { aiSummaryService } from '@/services/aiSummaryService';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Loader2, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
+interface ProfileCardModulesPanelProps {
+  studentId: string;    // students.id — used to fetch assessment_responses
+  cacheUserId: string;  // users.id — used for profile_card_cache queries + notifications
+  teacherUserId: string; // teacher's users.id — for approved_by field
+}
+
+const PROFILE_CARD_MODULES = [
+  { key: 'inspiration',     label: 'My Inspiration' },
+  { key: 'about_me',        label: 'About Me' },
+  { key: 'dreams',          label: 'My Dreams' },
+  { key: 'school_learning', label: 'School & Learning' },
+  { key: 'hobbies',         label: 'Talents & Hobbies' },
+  { key: 'role_models',     label: 'My Role Models' },
+] as const;
+
+type ModuleKey = typeof PROFILE_CARD_MODULES[number]['key'];
+
+type CacheRow = {
+  keywords: Record<string, string> | null;
+  approval_status: string;
+  rejection_reason: string | null;
+};
+
+type QuestionLabel = { key: string; label: string };
+
+export default function ProfileCardModulesPanel({
+  studentId,
+  cacheUserId,
+  teacherUserId,
+}: ProfileCardModulesPanelProps) {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [cacheRows, setCacheRows] = useState<Partial<Record<ModuleKey, CacheRow>>>({});
+  const [questionLabels, setQuestionLabels] = useState<Partial<Record<ModuleKey, QuestionLabel[]>>>({});
+  const [rejectingModule, setRejectingModule] = useState<ModuleKey | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [savingApproval, setSavingApproval] = useState(false);
+
+  useEffect(() => {
+    if (!cacheUserId) return;
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cacheUserId]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // 1. Fetch profile_card_cache rows for this student
+      const { data: cacheData } = await supabase
+        .from('profile_card_cache')
+        .select('assessment_type, keywords, approval_status, rejection_reason')
+        .eq('student_id', cacheUserId);
+
+      const rowMap: Partial<Record<ModuleKey, CacheRow>> = {};
+      for (const row of (cacheData || [])) {
+        const key = row.assessment_type as ModuleKey;
+        const kw = row.keywords as any;
+        rowMap[key] = {
+          keywords: (kw && typeof kw === 'object' && !Array.isArray(kw) && kw.question1)
+            ? kw as Record<string, string>
+            : null,
+          approval_status: (row as any).approval_status || 'pending',
+          rejection_reason: (row as any).rejection_reason || null,
+        };
+      }
+      setCacheRows(rowMap);
+
+      // 2. Fetch question labels from content_translations (en only)
+      const resourceTypes = PROFILE_CARD_MODULES.map(m => `profile_card_${m.key}`);
+      const { data: labelRows } = await supabase
+        .from('content_translations')
+        .select('resource_type, resource_key, text')
+        .in('resource_type', resourceTypes)
+        .eq('lang', 'en');
+
+      const labelMap: Partial<Record<ModuleKey, QuestionLabel[]>> = {};
+      for (const row of (labelRows || [])) {
+        if (!/^question\d+$/.test(row.resource_key)) continue;
+        const assessmentType = row.resource_type.replace('profile_card_', '') as ModuleKey;
+        if (!labelMap[assessmentType]) labelMap[assessmentType] = [];
+        labelMap[assessmentType]!.push({ key: row.resource_key, label: row.text });
+      }
+      for (const key of Object.keys(labelMap) as ModuleKey[]) {
+        labelMap[key]!.sort((a, b) => {
+          const aNum = parseInt(a.key.replace('question', '')) || 0;
+          const bNum = parseInt(b.key.replace('question', '')) || 0;
+          return aNum - bNum;
+        });
+      }
+      setQuestionLabels(labelMap);
+    } catch (err) {
+      logger.error('ProfileCardModulesPanel fetch error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApprove = async (assessmentType: ModuleKey) => {
+    if (!teacherUserId) return;
+    setSavingApproval(true);
+    try {
+      const { error } = await supabase
+        .from('profile_card_cache')
+        .update({
+          approval_status: 'approved',
+          approved_by: teacherUserId,
+          approved_at: new Date().toISOString(),
+          rejection_reason: null,
+        } as any)
+        .eq('student_id', cacheUserId)
+        .eq('assessment_type', assessmentType);
+      if (error) throw error;
+
+      setCacheRows(prev => ({
+        ...prev,
+        [assessmentType]: { ...prev[assessmentType]!, approval_status: 'approved' },
+      }));
+      toast({ title: 'Module approved' });
+
+      // Fire-and-forget: notify the student
+      supabase.rpc('create_notification_secure', {
+        p_user_id: cacheUserId,
+        p_type: 'profile_card_approved',
+        p_title: 'Profile card module approved',
+        p_message: 'Your teacher has approved a module in your Career Compass.',
+        p_link: '/student/profile-card',
+      }).then(({ error: notifError }) => {
+        if (notifError) logger.error('Profile card approval notification error:', notifError);
+      });
+    } catch (err) {
+      toast({ title: 'Approval failed', variant: 'destructive' });
+    } finally {
+      setSavingApproval(false);
+    }
+  };
+
+  const handleRequestChanges = async () => {
+    if (!rejectingModule || !teacherUserId) return;
+    setSavingApproval(true);
+    const moduleBeingRejected = rejectingModule;
+    try {
+      const feedback = rejectReason.trim() || 'Changes requested';
+
+      const { error } = await supabase
+        .from('profile_card_cache')
+        .update({
+          approval_status: 'rejected',
+          approved_by: teacherUserId,
+          approved_at: new Date().toISOString(),
+          rejection_reason: feedback,
+        } as any)
+        .eq('student_id', cacheUserId)
+        .eq('assessment_type', moduleBeingRejected);
+      if (error) throw error;
+
+      setCacheRows(prev => ({
+        ...prev,
+        [moduleBeingRejected]: {
+          ...prev[moduleBeingRejected]!,
+          approval_status: 'rejected',
+          rejection_reason: feedback,
+        },
+      }));
+      setRejectingModule(null);
+      setRejectReason('');
+      toast({ title: 'Feedback submitted — student will be asked to revise' });
+
+      // Fire-and-forget: fetch responses and regenerate keywords
+      supabase
+        .from('assessment_responses')
+        .select('responses')
+        .eq('student_id', studentId)
+        .eq('assessment_type', moduleBeingRejected)
+        .not('completed_at', 'is', null)
+        .order('completed_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+        .then(({ data: respData }) => {
+          if (respData?.responses) {
+            aiSummaryService.generateAndCacheProfileCardKeywords(
+              moduleBeingRejected,
+              respData.responses,
+              cacheUserId,
+              'en'
+            );
+          }
+        });
+    } catch (err) {
+      toast({ title: 'Failed to submit feedback', variant: 'destructive' });
+    } finally {
+      setSavingApproval(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 py-6 text-gray-500">
+        <Loader2 className="h-5 w-5 animate-spin" />
+        <span className="text-sm">Loading profile card data...</span>
+      </div>
+    );
+  }
+
+  const hasAnyData = PROFILE_CARD_MODULES.some(m => !!cacheRows[m.key]);
+
+  if (!hasAnyData) {
+    return (
+      <p className="text-sm text-gray-400 italic py-4">
+        No profile card data yet — student needs to complete assessments first.
+      </p>
+    );
+  }
+
+  return (
+    <>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {PROFILE_CARD_MODULES.map(mod => {
+          const row = cacheRows[mod.key];
+          const labels = questionLabels[mod.key] || [];
+          const status = row?.approval_status || 'pending';
+          const keywords = row?.keywords;
+
+          return (
+            <Card
+              key={mod.key}
+              className={`border shadow-sm ${status === 'rejected' ? 'border-red-200' : 'border-gray-200'}`}
+            >
+              <CardContent className="p-4">
+                {/* Module name + status badge */}
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-sm text-gray-800">{mod.label}</h3>
+                  {row ? (
+                    status === 'approved' ? (
+                      <Badge className="bg-green-100 text-green-700 text-[10px]">
+                        <CheckCircle className="h-3 w-3 mr-1" />Approved
+                      </Badge>
+                    ) : status === 'rejected' ? (
+                      <Badge className="bg-red-100 text-red-700 text-[10px]">
+                        <XCircle className="h-3 w-3 mr-1" />Changes Requested
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-yellow-100 text-yellow-700 text-[10px]">
+                        <Clock className="h-3 w-3 mr-1" />Pending Review
+                      </Badge>
+                    )
+                  ) : (
+                    <Badge className="bg-gray-100 text-gray-500 text-[10px]">Not started</Badge>
+                  )}
+                </div>
+
+                <div className="border-t border-gray-100 mb-3" />
+
+                {/* Keywords or placeholder */}
+                {row ? (
+                  keywords && labels.length > 0 ? (
+                    <dl className="space-y-2 mb-3">
+                      {labels.map(({ key, label }) => (
+                        <div key={key}>
+                          <dt className="text-xs text-gray-400 leading-snug">{label}</dt>
+                          <dd className="text-sm font-medium text-gray-700 mt-0.5">
+                            {keywords[key] || '—'}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  ) : (
+                    <p className="text-xs text-gray-400 italic mb-3">Keywords not yet generated.</p>
+                  )
+                ) : (
+                  <p className="text-xs text-gray-400 italic mb-3">Assessment not completed.</p>
+                )}
+
+                {/* Approve / Request Changes — only if cache row exists */}
+                {row && (
+                  <div className="flex gap-2 pt-2 border-t border-gray-100">
+                    {status !== 'approved' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-green-600 border-green-200 hover:bg-green-50 text-xs"
+                        onClick={() => handleApprove(mod.key)}
+                        disabled={savingApproval}
+                      >
+                        <CheckCircle className="h-3 w-3 mr-1" />Approve
+                      </Button>
+                    )}
+                    {status !== 'rejected' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-red-600 border-red-200 hover:bg-red-50 text-xs"
+                        onClick={() => setRejectingModule(mod.key)}
+                      >
+                        <XCircle className="h-3 w-3 mr-1" />Request Changes
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Inline rejection reason dialog */}
+      {rejectingModule && (
+        <div
+          className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+          onClick={() => { setRejectingModule(null); setRejectReason(''); }}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl max-w-md w-full p-6"
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Request Changes</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Provide feedback for the student on what to improve.
+            </p>
+            <Textarea
+              value={rejectReason}
+              onChange={e => setRejectReason(e.target.value)}
+              placeholder="e.g. Please provide more specific answers..."
+              rows={3}
+              className="mb-4"
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => { setRejectingModule(null); setRejectReason(''); }}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="bg-red-600 hover:bg-red-700 text-white"
+                onClick={handleRequestChanges}
+                disabled={savingApproval}
+              >
+                {savingApproval ? 'Submitting...' : 'Submit Feedback'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
