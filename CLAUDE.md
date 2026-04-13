@@ -398,6 +398,9 @@ students + teachers → chat_channels →1:N→ chat_messages
 > [!NOTE]
 > **Phone-only auth (PR 2a)**: Custom auth (mock session, `@internal.app` emails, `customAuth` localStorage) removed. All sign-in via `signInWithPassword({ phone, password })`. Teacher self-register via `create-teacher` Edge Function. `student_auth_credentials` + `authenticate_student` kept for legacy NO students only.
 
+> [!NOTE]
+> **Profile card rejection audit trail**: Teacher feedback is consumed by Gemini during auto-regeneration but not persisted to DB after regen (`rejection_reason` set to `null` on upsert). No history of prior feedback rounds stored. Max 3 rejection rounds per module enforced client-side only (`rejectionCounts` state — resets on page reload).
+
 ### Completed Work (Mar–Apr 2026)
 | Phase | Description |
 |-------|-------------|

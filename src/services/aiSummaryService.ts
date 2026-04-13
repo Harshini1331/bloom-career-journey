@@ -2128,7 +2128,8 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
     assessmentType: string,
     summaryText: string,
     lang: string = 'en',
-    assessmentResponses?: string
+    assessmentResponses?: string,
+    teacherFeedback?: string
   ): Promise<{ success: boolean; keywords?: Record<string, string>; error?: string }> {
     if (!this.isConfigured()) {
       return { success: false, error: 'Gemini API key is not configured' };
@@ -2161,11 +2162,11 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
       qRows?.splice(0, qRows.length, ...enRows);
       if (!qRows || qRows.length === 0) {
         // Direct assignment for when qRows was null
-        return this.generateProfileCardKeywordsWithQuestions(assessmentType, summaryText, lang, enRows, assessmentResponses);
+        return this.generateProfileCardKeywordsWithQuestions(assessmentType, summaryText, lang, enRows, assessmentResponses, teacherFeedback);
       }
     }
 
-    return this.generateProfileCardKeywordsWithQuestions(assessmentType, summaryText, lang, qRows, assessmentResponses);
+    return this.generateProfileCardKeywordsWithQuestions(assessmentType, summaryText, lang, qRows, assessmentResponses, teacherFeedback);
   }
 
   private async generateProfileCardKeywordsWithQuestions(
@@ -2173,7 +2174,8 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
     summaryText: string,
     lang: string,
     qRows: { resource_key: string; text: string }[],
-    assessmentResponses?: string
+    assessmentResponses?: string,
+    teacherFeedback?: string
   ): Promise<{ success: boolean; keywords?: Record<string, string>; error?: string }> {
     // Sort questions by key
     const sortedQuestions = qRows
@@ -2223,8 +2225,8 @@ This overrides all other language instructions. Do NOT mirror the student's inpu
     });
 
     const contextBlock = assessmentResponses
-      ? `\nAssessment Responses:\n${assessmentResponses}\n\nAssessment Summary:\n${summaryText}`
-      : `\nAssessment Summary:\n${summaryText}`;
+      ? `\nAssessment Responses:\n${assessmentResponses}\n\nAssessment Summary:\n${summaryText}${teacherFeedback ? `\n\nTeacher Feedback (incorporate this into revised answers — the previous keywords did not meet the teacher's expectations):\n${teacherFeedback}` : ''}`
+      : `\nAssessment Summary:\n${summaryText}${teacherFeedback ? `\n\nTeacher Feedback (incorporate this into revised answers — the previous keywords did not meet the teacher's expectations):\n${teacherFeedback}` : ''}`;
 
     const prompt = `${BASE_SYSTEM_PROMPT}
 

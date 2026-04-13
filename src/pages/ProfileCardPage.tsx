@@ -94,6 +94,8 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
   const [rejectingModule, setRejectingModule] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [savingApproval, setSavingApproval] = useState(false);
+  const [regeneratingModules, setRegeneratingModules] = useState<Set<string>>(new Set());
+  const [rejectionCounts, setRejectionCounts] = useState<Record<string, number>>({});
   const { toast } = useToast();
   const [studentName, setStudentName] = useState('');
   const [cacheTimestamps, setCacheTimestamps] = useState<Record<string, string>>({});
@@ -239,13 +241,13 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
     return parts.join('\n');
   };
 
-  const regenerateAnswers = async (assessmentType: string, responses: any) => {
+  const regenerateAnswers = async (assessmentType: string, responses: any, teacherFeedback?: string) => {
     if (generatingKeys.has(assessmentType)) return;
     setGeneratingKeys(prev => new Set(prev).add(assessmentType));
     try {
       const text = flattenResponses(responses);
       if (!text) return;
-      const result = await aiSummaryService.generateProfileCardKeywords(assessmentType, text, lang);
+      const result = await aiSummaryService.generateProfileCardKeywords(assessmentType, text, lang, undefined, teacherFeedback);
       if (result.success && result.keywords) {
         const now = new Date().toISOString();
         setAnswers(prev => ({ ...prev, [assessmentType]: result.keywords! }));
@@ -258,7 +260,7 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
           approval_status: 'pending',
           approved_by: null,
           approved_at: null,
-          rejection_reason: null,
+          rejection_reason: null, // teacher feedback consumed by AI prompt, not persisted to DB
         } as any, { onConflict: 'student_id,assessment_type' });
         if (error) logger.error('Profile card cache upsert error:', error);
         setApprovalStatus(prev => ({ ...prev, [assessmentType]: 'pending' }));
@@ -362,17 +364,37 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
     if (!rejectingModule || !user?.id) return;
     setSavingApproval(true);
     try {
+      const feedback = rejectReason || 'Changes requested';
+      const moduleBeingRejected = rejectingModule;
+
       await supabase.from('profile_card_cache').update({
         approval_status: 'rejected',
         approved_by: user.id,
         approved_at: new Date().toISOString(),
-        rejection_reason: rejectReason || 'Changes requested',
-      } as any).eq('student_id', cacheUserId).eq('assessment_type', rejectingModule);
-      setApprovalStatus(prev => ({ ...prev, [rejectingModule!]: 'rejected' }));
-      setRejectionReasons(prev => ({ ...prev, [rejectingModule!]: rejectReason || 'Changes requested' }));
+        rejection_reason: feedback,
+      } as any).eq('student_id', cacheUserId).eq('assessment_type', moduleBeingRejected);
+
+      setApprovalStatus(prev => ({ ...prev, [moduleBeingRejected]: 'rejected' }));
+      setRejectionReasons(prev => ({ ...prev, [moduleBeingRejected]: feedback }));
       setRejectingModule(null);
       setRejectReason('');
-      toast({ title: 'Module rejected — student notified' });
+
+      const currentCount = rejectionCounts[moduleBeingRejected] || 0;
+      if (currentCount >= 3) {
+        toast({ title: 'Maximum feedback rounds reached — please approve or discuss with student directly' });
+        return;
+      }
+
+      setRejectionCounts(prev => ({ ...prev, [moduleBeingRejected]: currentCount + 1 }));
+      toast({ title: 'Feedback submitted — regenerating keywords with your input...' });
+
+      const responses = completedModules[moduleBeingRejected]?.responses;
+      if (responses) {
+        setRegeneratingModules(prev => new Set(prev).add(moduleBeingRejected));
+        regenerateAnswers(moduleBeingRejected, responses, feedback).finally(() => {
+          setRegeneratingModules(prev => { const s = new Set(prev); s.delete(moduleBeingRejected); return s; });
+        });
+      }
     } catch (err) {
       toast({ title: 'Rejection failed', variant: 'destructive' });
     } finally {
@@ -429,6 +451,7 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
             const ans = answers[mod.key];
             const labels = questionLabels[mod.key] || [];
             const isGenerating = generatingKeys.has(mod.key);
+            const isRegenerating = regeneratingModules.has(mod.assessmentType);
             const IconComp = mod.icon;
             const status = approvalStatus[mod.key] || 'pending';
             const reason = rejectionReasons[mod.key];
@@ -454,7 +477,9 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
                       <h3 className="font-semibold text-base">{t(mod.titleKey)}</h3>
                     </div>
                     {isComplete && ans && (
-                      status === 'approved' ? (
+                      isRegenerating ? (
+                        <Badge className="bg-blue-100 text-blue-700 text-[10px]"><Loader2 className="h-3 w-3 mr-1 animate-spin" />Regenerating...</Badge>
+                      ) : status === 'approved' ? (
                         <Badge className="bg-green-100 text-green-700 text-[10px]"><CheckCircle className="h-3 w-3 mr-1" />Approved</Badge>
                       ) : status === 'rejected' ? (
                         <Badge className="bg-red-100 text-red-700 text-[10px]"><XCircle className="h-3 w-3 mr-1" />Changes Requested</Badge>
@@ -530,7 +555,7 @@ export default function ProfileCardPage({ studentIdOverride, readOnly }: Profile
                   )}
 
                   {/* Teacher: per-module reject button */}
-                  {readOnly && isComplete && ans && status !== 'rejected' && (
+                  {readOnly && isComplete && ans && status !== 'rejected' && !isRegenerating && (
                     <div className="mt-3 pt-3 border-t border-gray-100">
                       <Button
                         variant="outline"
