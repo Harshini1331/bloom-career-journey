@@ -217,20 +217,11 @@ export default function MyHobbiesAssessment() {
 
           logger.log('✅ Database questions loaded:', questionsWithTranslations.length, 'questions');
           setHobbiesQuestions(questionsWithTranslations);
-          // Initialize responses based on questions
-          const initialResponses: HobbiesAssessmentResponse = {};
-          questionsWithTranslations.forEach(q => {
-            initialResponses[q.id] = '';
-          });
-          // Load summary questions
-          const summaryInitialResponses: Record<string, string> = {};
+          // Load summary questions (responses initialised in checkExistingResponse)
           try {
             const { data: summaryData, error: summaryError } = await supabase.rpc('get_hobbies_summary_questions_i18n', { p_lang: lang } as any);
             if (!summaryError && summaryData && Array.isArray(summaryData)) {
               setSummaryQuestions(summaryData);
-              summaryData.forEach((sq: any) => {
-                summaryInitialResponses[`summary_${sq.sequence_number}`] = '';
-              });
             }
           } catch (e) {
             logger.error('Error loading summary questions:', e);
@@ -242,8 +233,6 @@ export default function MyHobbiesAssessment() {
             const tTitle = titleRows.find(r => r.resource_key === 'summary_title')?.text;
             if (tTitle) setDbSummaryTitle(tTitle);
           } catch (e) { /* no-op */ }
-
-          setResponses(prev => ({ ...prev, ...initialResponses, ...summaryInitialResponses }));
 
           // Set initial section
           const firstSection = questionsWithTranslations[0]?.section || 'section1';
@@ -264,10 +253,10 @@ export default function MyHobbiesAssessment() {
   }, [tabParam, hobbiesQuestions]);
 
   useEffect(() => {
-    if (hobbiesQuestions.length > 0) {
+    if (hobbiesQuestions.length > 0 && summaryQuestions.length > 0) {
       checkExistingResponse();
     }
-  }, [hobbiesQuestions]);
+  }, [hobbiesQuestions, summaryQuestions]);
 
   // Keep URL ?lang in sync without re-rendering
   useEffect(() => {
@@ -445,7 +434,7 @@ export default function MyHobbiesAssessment() {
   };
 
   const checkExistingResponse = async () => {
-    if (!userProfile || hobbiesQuestions.length === 0) {
+    if (!userProfile || hobbiesQuestions.length === 0 || summaryQuestions.length === 0) {
       setLoading(false);
       return;
     }
@@ -462,29 +451,33 @@ export default function MyHobbiesAssessment() {
         .select('*')
         .eq('student_id', studentId)
         .eq('assessment_type', 'hobbies')
-                .order('updated_at', { ascending: false })
+        .order('updated_at', { ascending: false })
         .limit(1);
+
+      // Build the full initial map (all keys → '') — single source of truth for responses
+      const initialResponses: HobbiesAssessmentResponse = {};
+      hobbiesQuestions.forEach(q => { initialResponses[q.id] = ''; });
+      summaryQuestions.forEach(sq => {
+        initialResponses[`summary_${sq.sequence_number}`] = '';
+      });
 
       if (existingRecords && existingRecords.length > 0 && !error) {
         const data = existingRecords[0];
         if (data.responses) {
-          // Merge saved responses with initialized responses
+          // Overlay saved values on top of the initialized map
           const savedResponses = data.responses as Partial<HobbiesAssessmentResponse>;
-          const initialResponses: HobbiesAssessmentResponse = {};
-          hobbiesQuestions.forEach(q => {
-            initialResponses[q.id] = savedResponses[q.id] || '';
+          Object.keys(initialResponses).forEach(key => {
+            if (savedResponses[key] !== undefined) {
+              initialResponses[key] = savedResponses[key] || '';
+            }
           });
-          summaryQuestions.forEach(sq => {
-            const key = `summary_${sq.sequence_number}`;
-            initialResponses[key] = savedResponses[key] || '';
-          });
-          setResponses(initialResponses);
-
           if (data.completed_at) {
             setIsCompleted(true);
           }
         }
       }
+      // Always set responses — this is the single initialisation point
+      setResponses(initialResponses);
     } catch (error) {
       // No existing response found, which is fine
     } finally {

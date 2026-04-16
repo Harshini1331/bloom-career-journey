@@ -258,7 +258,7 @@ export default function MyRoleModelsAssessment() {
 
   // Auto-save drafts on changes (debounced)
   useEffect(() => {
-    if (loading || isCompleted) return;
+    if (loading || isCompleted || readOnlyView) return;
     const t = setTimeout(async () => {
       try {
         if (!userProfile?.id) return;
@@ -279,7 +279,7 @@ export default function MyRoleModelsAssessment() {
       } catch { }
     }, 800);
     return () => clearTimeout(t);
-  }, [responses, loading, isCompleted, userProfile]);
+  }, [responses, loading, isCompleted, readOnlyView, userProfile]);
 
   const checkExistingResponse = async () => {
     if (!userProfile) return;
