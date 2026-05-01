@@ -21,6 +21,9 @@ declare global {
       widgetId: string
       tokenAuth: string
       exposeMethods?: boolean
+      captchaRenderId?: string
+      success?: (data: Record<string, unknown>) => void
+      failure?: (error: unknown) => void
     }) => void
     // With exposeMethods:true, sendOtp only dispatches the SMS — no callbacks
     sendOtp: (mobile: string) => void
@@ -108,7 +111,18 @@ export default function AuthPage() {
     script.src = 'https://verify.msg91.com/otp-provider.js';
     script.async = true;
     script.onload = () => {
-      window.initSendOTP({ widgetId, tokenAuth, exposeMethods: true });
+      window.initSendOTP({
+        widgetId,
+        tokenAuth,
+        exposeMethods: true,
+        captchaRenderId: '',
+        success: (_data: Record<string, unknown>) => {
+          // intentionally empty — we handle success in verifyOtp callbacks
+        },
+        failure: (_error: unknown) => {
+          // intentionally empty — we handle failure in verifyOtp callbacks
+        },
+      });
     };
     document.head.appendChild(script);
     return () => {

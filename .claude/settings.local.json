@@ -64,7 +64,22 @@
       "Bash(grep -n \"\\\\.create\\({\" /c/Users/harsh/OneDrive - Quadrobay Technologies Pvt Ltd/bloom-career-journey/src/components/assessments/*.tsx)",
       "Bash(echo \"EXIT: $?\")",
       "Bash(for assess:*)",
-      "Bash(do for:*)"
+      "Bash(do for:*)",
+      "Bash(echo \"---EXIT:$?\")",
+      "Bash(claude:*)",
+      "Bash(node -e ':*)",
+      "Bash(sed:*)",
+      "Bash(node:*)",
+      "Bash(find \"C:\\\\Users\\\\harsh\\\\OneDrive - Quadrobay Technologies Pvt Ltd\\\\bloom-career-journey\\\\src\" -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" \\\\\\) -exec grep -l \"assessment_responses.*insert\\\\|responses.*insert\\\\|saveResponse\\\\|submitAssessment\" {} \\\\;)",
+      "WebSearch",
+      "Bash(supabase functions:*)",
+      "Bash(supabase db:*)",
+      "Bash(curl:*)",
+      "Bash(python -c ':*)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git commit *)"
     ]
   }
 }
