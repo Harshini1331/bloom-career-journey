@@ -13,7 +13,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { StateInfo } from '@/integrations/supabase/types';
 import { useToast } from '@/hooks/use-toast';
 import IlpFooter from '@/components/IlpFooter';
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 
 declare global {
   interface Window {
@@ -47,6 +46,86 @@ function toE164Indian(phone: string): string {
 
 function isValidE164(phone: string): boolean {
   return /^\+91\d{10}$/.test(phone) || /^\d{10}$/.test(phone);
+}
+
+// Defined outside AuthPage so useRef is stable across parent re-renders
+function OtpScreen({
+  phone,
+  otpValue,
+  onOtpChange,
+  onVerify,
+  verifyLoading,
+}: {
+  phone: string
+  otpValue: string
+  onOtpChange: (v: string) => void
+  onVerify: (e: React.FormEvent) => void
+  verifyLoading: boolean
+}) {
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([null, null, null, null]);
+
+  const handleChange = (index: number, value: string) => {
+    const digit = value.replace(/\D/g, '').slice(-1);
+    const chars = Array.from({ length: 4 }, (_, i) => otpValue[i] ?? '');
+    chars[index] = digit;
+    onOtpChange(chars.join(''));
+    if (digit && index < 3) inputRefs.current[index + 1]?.focus();
+  };
+
+  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !(otpValue[index] ?? '') && index > 0) {
+      const chars = Array.from({ length: 4 }, (_, i) => otpValue[i] ?? '');
+      chars[index - 1] = '';
+      onOtpChange(chars.join(''));
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 4);
+    if (!pasted) return;
+    onOtpChange(pasted);
+    inputRefs.current[Math.min(pasted.length, 3)]?.focus();
+  };
+
+  return (
+    <form onSubmit={onVerify} className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Enter the 4-digit OTP sent to{' '}
+        <span className="font-medium">{toE164Indian(phone)}</span>
+      </p>
+      <div className="flex justify-center gap-3">
+        {Array.from({ length: 4 }, (_, i) => (
+          <input
+            key={i}
+            ref={(el) => { inputRefs.current[i] = el; }}
+            type="text"
+            inputMode="numeric"
+            maxLength={1}
+            value={otpValue[i] ?? ''}
+            onChange={(e) => handleChange(i, e.target.value)}
+            onKeyDown={(e) => handleKeyDown(i, e)}
+            onPaste={handlePaste}
+            onFocus={(e) => e.target.select()}
+            className="w-12 h-12 text-center text-lg font-semibold border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+          />
+        ))}
+      </div>
+      <Button type="submit" className="w-full" disabled={verifyLoading || otpValue.length < 4}>
+        {verifyLoading ? 'Verifying...' : 'Verify OTP'}
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full"
+        onClick={() => window.retryOtp(null)}
+        disabled={verifyLoading}
+      >
+        Resend OTP
+      </Button>
+    </form>
+  );
 }
 
 export default function AuthPage() {
@@ -256,6 +335,16 @@ export default function AuthPage() {
       async (data: Record<string, unknown>) => {
         accessTokenRef.current = (data?.['access-token'] as string) ?? '';
 
+        if (!accessTokenRef.current) {
+          toast({
+            title: 'Verification Error',
+            description: 'OTP verified but no token received. Please try again.',
+            variant: 'destructive',
+          });
+          setLoading(false);
+          return;
+        }
+
         if (signUpForm.role === 'student') {
           // Student self-registration via create-student-self-register Edge Function
           const { data: fnData, error } = await supabase.functions.invoke('create-student-self-register', {
@@ -266,6 +355,7 @@ export default function AuthPage() {
               grade: signUpForm.grade,
               stateId: signUpForm.stateId,
               preferredLanguage: signUpForm.preferredLanguage,
+              accessToken: accessTokenRef.current ?? '',
             },
           });
 
@@ -294,6 +384,7 @@ export default function AuthPage() {
             password: signUpForm.password,
             stateId: signUpForm.stateId,
             preferredLanguage: signUpForm.preferredLanguage,
+            accessToken: accessTokenRef.current ?? '',
           },
         });
 
@@ -419,52 +510,6 @@ export default function AuthPage() {
   const phoneError = signUpForm.phone && !isValidE164(signUpForm.phone)
     ? 'Please enter a 10-digit mobile number'
     : '';
-
-  // Shared OTP input UI used in both Sign Up and First Login flows
-  const OtpScreen = ({
-    phone,
-    otpValue,
-    onOtpChange,
-    onVerify,
-    verifyLoading,
-  }: {
-    phone: string
-    otpValue: string
-    onOtpChange: (v: string) => void
-    onVerify: (e: React.FormEvent) => void
-    verifyLoading: boolean
-  }) => (
-    <form onSubmit={onVerify} className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Enter the 6-digit OTP sent to{' '}
-        <span className="font-medium">{toE164Indian(phone)}</span>
-      </p>
-      <div className="flex justify-center">
-        <InputOTP maxLength={6} value={otpValue} onChange={(v) => onOtpChange(v)}>
-          <InputOTPGroup>
-            <InputOTPSlot index={0} />
-            <InputOTPSlot index={1} />
-            <InputOTPSlot index={2} />
-            <InputOTPSlot index={3} />
-            <InputOTPSlot index={4} />
-            <InputOTPSlot index={5} />
-          </InputOTPGroup>
-        </InputOTP>
-      </div>
-      <Button type="submit" className="w-full" disabled={verifyLoading || otpValue.length < 6}>
-        {verifyLoading ? 'Verifying...' : 'Verify OTP'}
-      </Button>
-      <Button
-        type="button"
-        variant="outline"
-        className="w-full"
-        onClick={() => window.retryOtp(null)}
-        disabled={verifyLoading}
-      >
-        Resend OTP
-      </Button>
-    </form>
-  );
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-primary/5 via-background to-accent/5">

@@ -12,6 +12,7 @@ interface RequestBody {
   grade: string
   stateId: string
   preferredLanguage: string
+  accessToken: string
 }
 
 function isValidE164(phone: string): boolean {
@@ -45,7 +46,7 @@ Deno.serve(async (req) => {
     }
 
     const body: RequestBody = await req.json()
-    const { fullName, phone, password, grade, stateId, preferredLanguage } = body
+    const { fullName, phone, password, grade, stateId, preferredLanguage, accessToken } = body
 
     if (!fullName || !phone || !password || !grade || !stateId) {
       return new Response(
@@ -54,7 +55,37 @@ Deno.serve(async (req) => {
       )
     }
 
-    // 1. Validate phone format
+    // 1. Validate MSG91 OTP token server-side (enforced when MSG91_AUTH_KEY is configured)
+    const msg91AuthKey = Deno.env.get('MSG91_AUTH_KEY')
+    if (msg91AuthKey) {
+      if (!accessToken) {
+        return new Response(
+          JSON.stringify({ error: 'OTP verification is required' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
+      const verifyRes = await fetch(`${supabaseUrl}/functions/v1/verify-msg91-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceRoleKey}` },
+        body: JSON.stringify({ access_token: accessToken }),
+      })
+      const verifyData = await verifyRes.json()
+      if (!verifyData.success) {
+        return new Response(
+          JSON.stringify({ error: 'OTP verification failed. Please verify your mobile number.' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
+      const normalize = (m: string) => (m || '').replace(/\D/g, '').slice(-10)
+      if (!verifyData.mobile || normalize(verifyData.mobile) !== normalize(phone)) {
+        return new Response(
+          JSON.stringify({ error: 'OTP was verified for a different mobile number.' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
+    }
+
+    // 2. Validate phone format
     if (!isValidE164(phone)) {
       return new Response(
         JSON.stringify({ error: `Invalid phone format: ${phone}. Expected E.164 format like +91XXXXXXXXXX` }),
@@ -62,7 +93,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    // 2. Check for duplicate phone in users table
+    // 3. Check for duplicate phone in users table
     const { data: existingUser } = await supabaseAdmin
       .from('users')
       .select('id')
