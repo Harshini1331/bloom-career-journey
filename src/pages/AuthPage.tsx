@@ -177,6 +177,7 @@ export default function AuthPage() {
   const [firstLoginOtp, setFirstLoginOtp] = useState('');
 
   const accessTokenRef = useRef<string | null>(null);
+  const msg91MobileRef = useRef<string>('');
 
   useEffect(() => {
     logger.log('AuthPage: useEffect triggered, calling loadStates');
@@ -319,6 +320,7 @@ export default function AuthPage() {
 
     // MSG91 expects 91XXXXXXXXXX (no '+')
     const msg91Mobile = toE164Indian(signUpForm.phone).replace('+', '');
+    msg91MobileRef.current = msg91Mobile;
     window.sendOtp(
       msg91Mobile,
       (data) => {
@@ -378,6 +380,10 @@ export default function AuthPage() {
 
         console.log('Sending accessToken to Edge Function:', accessTokenRef.current?.substring(0, 50) + '...');
         console.log('Supabase anon key present:', !!import.meta.env.VITE_SUPABASE_ANON_KEY);
+        console.log('Phone being sent to Edge Function:', signUpForm.phone);
+        console.log('MSG91 mobile used for OTP:', msg91MobileRef.current);
+        console.log('Last 10 of form phone:', (signUpForm.phone || '').replace(/\D/g, '').slice(-10));
+        console.log('Last 10 of msg91 mobile:', (msg91MobileRef.current || '').replace(/\D/g, '').slice(-10));
 
         if (signUpForm.role === 'student') {
           // Student self-registration via create-student-self-register Edge Function
