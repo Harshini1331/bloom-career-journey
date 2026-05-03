@@ -193,11 +193,16 @@ export default function AuthPage() {
     script.src = 'https://verify.msg91.com/otp-provider.js';
     script.async = true;
     script.onload = () => {
-      window.initSendOTP({
-        widgetId,
-        tokenAuth,
-        exposeMethods: true,
-      });
+      console.log('MSG91 init config:', { widgetId, tokenAuth, hasWidgetId: !!widgetId, hasTokenAuth: !!tokenAuth });
+      try {
+        window.initSendOTP({
+          widgetId,
+          tokenAuth,
+          exposeMethods: true,
+        });
+      } catch (err) {
+        console.error('MSG91 initSendOTP threw:', err);
+      }
     };
     document.head.appendChild(script);
     return () => {
