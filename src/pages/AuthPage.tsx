@@ -376,6 +376,9 @@ export default function AuthPage() {
           return;
         }
 
+        console.log('Sending accessToken to Edge Function:', accessTokenRef.current?.substring(0, 50) + '...');
+        console.log('Supabase anon key present:', !!import.meta.env.VITE_SUPABASE_ANON_KEY);
+
         if (signUpForm.role === 'student') {
           // Student self-registration via create-student-self-register Edge Function
           const { data: fnData, error } = await supabase.functions.invoke('create-student-self-register', {
@@ -388,9 +391,13 @@ export default function AuthPage() {
               preferredLanguage: signUpForm.preferredLanguage,
               accessToken: accessTokenRef.current ?? '',
             },
+            headers: {
+              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            },
           });
 
           if (error || fnData?.error) {
+            console.error('Edge Function error:', error);
             const msg = fnData?.error || error?.message || 'Could not create account. Please try again.';
             logger.error('Student sign up error:', msg);
             toast({ title: 'Sign Up Failed', description: msg, variant: 'destructive' });
@@ -417,9 +424,13 @@ export default function AuthPage() {
             preferredLanguage: signUpForm.preferredLanguage,
             accessToken: accessTokenRef.current ?? '',
           },
+          headers: {
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
         });
 
         if (error || fnData?.error) {
+          console.error('Edge Function error:', error);
           const msg = fnData?.error || error?.message || 'Could not create account. Please try again.';
           logger.error('Teacher sign up error:', msg);
           toast({ title: 'Sign Up Failed', description: msg, variant: 'destructive' });
@@ -514,6 +525,7 @@ export default function AuthPage() {
           return;
         }
 
+        console.log('First Login accessToken:', accessTokenRef.current?.substring(0, 50) + '...');
         setFirstLoginStep('setpassword');
         setLoading(false);
       },
