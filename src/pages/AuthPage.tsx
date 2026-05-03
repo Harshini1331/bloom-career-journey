@@ -194,21 +194,17 @@ export default function AuthPage() {
     script.src = 'https://verify.msg91.com/otp-provider.js';
     script.async = true;
     script.onload = () => {
-      console.log('MSG91 init config:', { widgetId, tokenAuth, hasWidgetId: !!widgetId, hasTokenAuth: !!tokenAuth });
+      logger.log('MSG91 init config:', { widgetId, tokenAuth, hasWidgetId: !!widgetId, hasTokenAuth: !!tokenAuth });
       try {
         window.initSendOTP({
           widgetId,
           tokenAuth,
           exposeMethods: true,
-          success: (data: unknown) => {
-            console.log('MSG91 widget init success:', data);
-          },
-          failure: (error: unknown) => {
-            console.log('MSG91 widget init failure:', error);
-          },
+          success: (_data: unknown) => {},
+          failure: (_error: unknown) => {},
         });
       } catch (err) {
-        console.error('MSG91 initSendOTP threw:', err);
+        logger.error('MSG91 initSendOTP threw:', err);
       }
     };
     document.head.appendChild(script);
@@ -356,8 +352,6 @@ export default function AuthPage() {
     window.verifyOtp(
       signUpOtp,
       async (data: Record<string, unknown>) => {
-        console.log('MSG91 verifyOtp raw data:', JSON.stringify(data));
-        logger.log('MSG91 verifyOtp success data:', JSON.stringify(data));
         // MSG91 may return the token under different key names depending on the plan/version
         accessTokenRef.current = (
           (data?.['access-token'] as string) ||
@@ -378,13 +372,6 @@ export default function AuthPage() {
           return;
         }
 
-        console.log('Sending accessToken to Edge Function:', accessTokenRef.current?.substring(0, 50) + '...');
-        console.log('Supabase anon key present:', !!import.meta.env.VITE_SUPABASE_ANON_KEY);
-        console.log('Phone being sent to Edge Function:', signUpForm.phone);
-        console.log('MSG91 mobile used for OTP:', msg91MobileRef.current);
-        console.log('Last 10 of form phone:', (signUpForm.phone || '').replace(/\D/g, '').slice(-10));
-        console.log('Last 10 of msg91 mobile:', (msg91MobileRef.current || '').replace(/\D/g, '').slice(-10));
-
         if (signUpForm.role === 'student') {
           // Student self-registration via create-student-self-register Edge Function
           const { data: fnData, error } = await supabase.functions.invoke('create-student-self-register', {
@@ -400,7 +387,6 @@ export default function AuthPage() {
           });
 
           if (error || fnData?.error) {
-            console.error('Edge Function error:', error);
             const msg = fnData?.error || error?.message || 'Could not create account. Please try again.';
             logger.error('Student sign up error:', msg);
             toast({ title: 'Sign Up Failed', description: msg, variant: 'destructive' });
@@ -430,7 +416,6 @@ export default function AuthPage() {
         });
 
         if (error || fnData?.error) {
-          console.error('Edge Function error:', error);
           const msg = fnData?.error || error?.message || 'Could not create account. Please try again.';
           logger.error('Teacher sign up error:', msg);
           toast({ title: 'Sign Up Failed', description: msg, variant: 'destructive' });
@@ -504,8 +489,6 @@ export default function AuthPage() {
     window.verifyOtp(
       firstLoginOtp,
       (data: Record<string, unknown>) => {
-        console.log('MSG91 verifyOtp raw data:', JSON.stringify(data));
-        logger.log('MSG91 verifyOtp success data:', JSON.stringify(data));
         accessTokenRef.current = (
           (data?.['access-token'] as string) ||
           (data?.['access_token'] as string) ||
@@ -525,7 +508,6 @@ export default function AuthPage() {
           return;
         }
 
-        console.log('First Login accessToken:', accessTokenRef.current?.substring(0, 50) + '...');
         setFirstLoginStep('setpassword');
         setLoading(false);
       },

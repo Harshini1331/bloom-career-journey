@@ -176,6 +176,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!dbError && freshProfile) {
         logger.log('✅ Fresh profile data loaded from database:', freshProfile);
+        if (typeof window !== 'undefined' && freshProfile.preferred_language) {
+          localStorage.setItem('lang', freshProfile.preferred_language);
+        }
 
         // Fetch role-specific data
         try {
@@ -270,8 +273,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       logger.log('🔐 Sign in attempt for phone:', phone);
 
-      const lang = (typeof window !== 'undefined' ? localStorage.getItem('lang') : null) || 'en';
-
       const signInSuccessToasts: Record<string, { title: string; description: string }> = {
         en: { title: 'Sign in successful! ✨', description: 'Welcome back!' },
         ta: { title: 'வெற்றிகரமாக உள்நுழைந்தீர்கள்! ✨', description: 'மீண்டும் வரவேற்கிறோம்!' },
@@ -292,7 +293,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) {
         logger.error('❌ Sign in error:', error);
-        const failMsg = signInFailToasts[lang] || signInFailToasts['en'];
+        const failLang = (typeof window !== 'undefined' ? localStorage.getItem('lang') : null) || 'en';
+        const failMsg = signInFailToasts[failLang] || signInFailToasts['en'];
         toast({
           title: failMsg.title,
           description: error.message || "Invalid mobile number or password",
@@ -304,8 +306,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (signInData?.user) {
         logger.log('✅ Supabase Auth successful:', signInData.user);
         setUser(signInData.user as AuthUser);
+        // fetchUserProfile writes the user's preferred_language to localStorage
         await fetchUserProfile(signInData.user.id, signInData.user as AuthUser);
-        const successMsg = signInSuccessToasts[lang] || signInSuccessToasts['en'];
+        const successLang = (typeof window !== 'undefined' ? localStorage.getItem('lang') : null) || 'en';
+        const successMsg = signInSuccessToasts[successLang] || signInSuccessToasts['en'];
         toast({ title: successMsg.title, description: successMsg.description });
         return { error: null };
       }

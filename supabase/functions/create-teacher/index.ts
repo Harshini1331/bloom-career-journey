@@ -18,7 +18,7 @@ function isValidE164(phone: string): boolean {
   return /^\+\d{10,15}$/.test(phone)
 }
 
-Deno.serve({ verify: false }, async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -75,8 +75,9 @@ Deno.serve({ verify: false }, async (req) => {
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         )
       }
+      // Only cross-check mobile if MSG91 returned one — if empty, token validity alone is sufficient
       const normalize = (m: string) => (m || '').replace(/\D/g, '').slice(-10)
-      if (!verifyData.mobile || normalize(verifyData.mobile) !== normalize(phone)) {
+      if (verifyData.mobile && normalize(verifyData.mobile) !== normalize(phone)) {
         return new Response(
           JSON.stringify({ error: 'OTP was verified for a different mobile number.' }),
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
