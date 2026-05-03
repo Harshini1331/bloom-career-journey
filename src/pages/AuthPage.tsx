@@ -362,6 +362,7 @@ export default function AuthPage() {
           (data?.['access_token'] as string) ||
           (data?.['accessToken'] as string) ||
           (data?.['token'] as string) ||
+          (data?.['message'] as string) ||
           ''
         );
 
@@ -499,6 +500,7 @@ export default function AuthPage() {
           (data?.['access_token'] as string) ||
           (data?.['accessToken'] as string) ||
           (data?.['token'] as string) ||
+          (data?.['message'] as string) ||
           ''
         );
 
