@@ -199,6 +199,12 @@ export default function AuthPage() {
           widgetId,
           tokenAuth,
           exposeMethods: true,
+          success: (data: unknown) => {
+            console.log('MSG91 widget init success:', data);
+          },
+          failure: (error: unknown) => {
+            console.log('MSG91 widget init failure:', error);
+          },
         });
       } catch (err) {
         console.error('MSG91 initSendOTP threw:', err);
