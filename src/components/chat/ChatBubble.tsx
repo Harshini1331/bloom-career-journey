@@ -266,7 +266,7 @@ export default function ChatBubble({ role, isOpen: controlledIsOpen, onOpenChang
           p_type: 'chat_message',
           p_title: 'New message',
           p_message: `${senderName} sent you a message`,
-          p_link: null,
+          p_link: '/student?openChat=true',
         }).then(({ error: notifError }) => {
           if (notifError) logger.error('Chat notification error:', notifError);
         });

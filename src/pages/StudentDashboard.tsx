@@ -307,6 +307,17 @@ export default function StudentDashboard() {
     handleViewSummary(assessment);
   }, [searchParams, setSearchParams]);
 
+  // ── Auto-open chat from URL param (?openChat=true) ────────────────
+  useEffect(() => {
+    if (searchParams.get('openChat') === 'true') {
+      setIsChatOpen(true);
+      setSearchParams(prev => {
+        prev.delete('openChat');
+        return prev;
+      });
+    }
+  }, [searchParams]);
+
   // ── Assessment helpers ────────────────────────────────────────────
 
   const isAssessmentUnlocked = (_assessmentType: string) => true; // TESTING: All unlocked

@@ -30,6 +30,7 @@ export default function ProfileDialog({ open, onOpenChange }: Props) {
   const [password, setPassword] = useState('');
   const [saving, setSaving] = useState(false);
   const [meta, setMeta] = useState<{ mobile?: string | null; state?: string; className?: string; teacherName?: string }>();
+  const hasRefreshedRef = useRef(false);
 
   useEffect(() => {
     if (!userProfile?.id) return;
@@ -71,15 +72,19 @@ export default function ProfileDialog({ open, onOpenChange }: Props) {
         // swallow optional meta fetch errors
       }
     })();
-  }, [userProfile?.id, userProfile?.full_name, userProfile?.gender, userProfile?.school, userProfile?.career_goals, userProfile?.profile_picture_url]);
+  }, [userProfile?.id]);
 
   const contactLabel = useMemo(() => meta?.mobile || '', [meta]);
 
-  // Refresh profile data when dialog opens
+  // Refresh profile data when dialog opens — guard prevents re-firing on every render
   useEffect(() => {
-    if (open && userProfile?.id) {
+    if (open && userProfile?.id && !hasRefreshedRef.current) {
+      hasRefreshedRef.current = true;
       logger.log('🔄 ProfileDialog opened - refreshing profile data');
       refreshUserProfile();
+    }
+    if (!open) {
+      hasRefreshedRef.current = false;
     }
   }, [open, userProfile?.id]);
 

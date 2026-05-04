@@ -408,8 +408,16 @@ export default function TeacherDashboard() {
   };
 
   const handleSearchExisting = async () => {
+    const normalizedQuery = existingQuery.trim();
+    if (!normalizedQuery) {
+      toast({ title: 'Search', description: 'Please enter a name or mobile number to search.', variant: 'destructive' });
+      return;
+    }
     try {
-      const { data, error } = await supabase.rpc('search_students', { teacher_user_id: user?.id, query: existingQuery });
+      const { data, error } = await supabase.rpc('search_students', {
+        teacher_user_id: user?.id,
+        query: normalizedQuery,
+      });
       if (error) throw error;
       setExistingResults(data || []);
     } catch (err) {

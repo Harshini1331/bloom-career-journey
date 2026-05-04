@@ -57,15 +57,53 @@ function OtpScreen({
   otpValue,
   onOtpChange,
   onVerify,
+  onResend,
   verifyLoading,
 }: {
   phone: string
   otpValue: string
   onOtpChange: (v: string) => void
   onVerify: (e: React.FormEvent) => void
+  onResend: () => void
   verifyLoading: boolean
 }) {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([null, null, null, null]);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const cooldownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => { if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current); };
+  }, []);
+
+  const startCooldown = () => {
+    setResendCooldown(30);
+    if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+    cooldownTimerRef.current = setInterval(() => {
+      setResendCooldown(prev => {
+        if (prev <= 1) { clearInterval(cooldownTimerRef.current!); cooldownTimerRef.current = null; return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const EXPIRY_SECONDS = 900; // 15 minutes — matches MSG91 widget config
+  const [timeLeft, setTimeLeft] = useState(EXPIRY_SECONDS);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) { clearInterval(interval); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []); // runs once on mount, resets on remount via key prop
+
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60).toString().padStart(2, '0');
+    const sec = (s % 60).toString().padStart(2, '0');
+    return `${m}:${sec}`;
+  };
 
   const handleChange = (index: number, value: string) => {
     const digit = value.replace(/\D/g, '').slice(-1);
@@ -115,17 +153,24 @@ function OtpScreen({
           />
         ))}
       </div>
-      <Button type="submit" className="w-full" disabled={verifyLoading || otpValue.length < 4}>
+      <p className="text-sm text-center text-muted-foreground">
+        {timeLeft > 0 ? (
+          <>OTP expires in <span className="font-medium text-foreground">{formatTime(timeLeft)}</span></>
+        ) : (
+          <span className="text-destructive font-medium">OTP expired. Please request a new one.</span>
+        )}
+      </p>
+      <Button type="submit" className="w-full" disabled={verifyLoading || otpValue.length < 4 || timeLeft === 0}>
         {verifyLoading ? 'Verifying...' : 'Verify OTP'}
       </Button>
       <Button
         type="button"
         variant="outline"
         className="w-full"
-        onClick={() => window.retryOtp(null)}
-        disabled={verifyLoading}
+        onClick={() => { onResend(); startCooldown(); }}
+        disabled={verifyLoading || resendCooldown > 0}
       >
-        Resend OTP
+        {resendCooldown > 0 ? `Resend OTP (${resendCooldown}s)` : 'Resend OTP'}
       </Button>
     </form>
   );
@@ -175,6 +220,7 @@ export default function AuthPage() {
   const [firstLoginStep, setFirstLoginStep] = useState<'phone' | 'otp' | 'setpassword'>('phone');
   const [firstLoginForm, setFirstLoginForm] = useState({ phone: '', newPassword: '', confirmPassword: '' });
   const [firstLoginOtp, setFirstLoginOtp] = useState('');
+  const [otpSentCount, setOtpSentCount] = useState(0);
 
   const accessTokenRef = useRef<string | null>(null);
   const msg91MobileRef = useRef<string>('');
@@ -286,9 +332,21 @@ export default function AuthPage() {
   };
 
   // Step 1 of Sign Up: validate form, dispatch OTP, show OTP input screen
-  const handleSignUp = (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
+    const trimmedName = signUpForm.fullName.trim();
+    if (!trimmedName) {
+      toast({ title: 'Sign Up Failed', description: 'Please enter your full name.', variant: 'destructive' });
+      setLoading(false);
+      return;
+    }
+    if (!/^[a-zA-Zಀ-೿஀-௿ऀ-ॿ\s'-]+$/.test(trimmedName)) {
+      toast({ title: 'Sign Up Failed', description: 'Full name should only contain letters and spaces.', variant: 'destructive' });
+      setLoading(false);
+      return;
+    }
 
     if (!signUpForm.stateId) {
       toast({ title: 'Sign Up Failed', description: 'Please select your state.', variant: 'destructive' });
@@ -314,8 +372,26 @@ export default function AuthPage() {
       return;
     }
 
+    // Check if mobile already registered before sending OTP
+    const normalizedPhone = toE164Indian(signUpForm.phone);
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('mobile', normalizedPhone)
+      .maybeSingle();
+
+    if (existingUser) {
+      toast({
+        title: 'Already Registered',
+        description: 'This mobile number is already registered. Please sign in instead.',
+        variant: 'destructive',
+      });
+      setLoading(false);
+      return;
+    }
+
     // MSG91 expects 91XXXXXXXXXX (no '+')
-    const msg91Mobile = toE164Indian(signUpForm.phone).replace('+', '');
+    const msg91Mobile = normalizedPhone.replace('+', '');
     msg91MobileRef.current = msg91Mobile;
     window.sendOtp(
       msg91Mobile,
@@ -323,6 +399,7 @@ export default function AuthPage() {
         logger.log('MSG91 sendOtp success:', JSON.stringify(data));
         setSignUpOtp('');
         setSignUpStep('otp');
+        setOtpSentCount(c => c + 1);
         setLoading(false);
       },
       (error) => {
@@ -456,12 +533,14 @@ export default function AuthPage() {
     }
 
     const msg91Mobile = toE164Indian(firstLoginForm.phone).replace('+', '');
+    msg91MobileRef.current = msg91Mobile;
     window.sendOtp(
       msg91Mobile,
       (data) => {
         logger.log('MSG91 sendOtp success:', JSON.stringify(data));
         setFirstLoginOtp('');
         setFirstLoginStep('otp');
+        setOtpSentCount(c => c + 1);
       },
       (error) => {
         logger.error('MSG91 sendOtp failed:', JSON.stringify(error));
@@ -664,10 +743,27 @@ export default function AuthPage() {
                   </form>
                 ) : firstLoginStep === 'otp' ? (
                   <OtpScreen
+                    key={otpSentCount}
                     phone={firstLoginForm.phone}
                     otpValue={firstLoginOtp}
                     onOtpChange={setFirstLoginOtp}
                     onVerify={handleFirstLoginVerifyOtp}
+                    onResend={() => {
+                      if (typeof window.sendOtp === 'function' && msg91MobileRef.current) {
+                        window.sendOtp(
+                          msg91MobileRef.current,
+                          (data) => {
+                            logger.log('MSG91 resend OTP success:', data);
+                            setOtpSentCount(c => c + 1);
+                            toast({ title: 'OTP Resent', description: 'A new OTP has been sent to your mobile number.' });
+                          },
+                          (error) => {
+                            logger.error('MSG91 resend OTP failed:', error);
+                            toast({ title: 'Failed to Resend', description: 'Could not resend OTP. Please try again.', variant: 'destructive' });
+                          }
+                        );
+                      }
+                    }}
                     verifyLoading={loading}
                   />
                 ) : (
@@ -707,10 +803,27 @@ export default function AuthPage() {
               <TabsContent value="signup">
                 {signUpStep === 'otp' ? (
                   <OtpScreen
+                    key={otpSentCount}
                     phone={signUpForm.phone}
                     otpValue={signUpOtp}
                     onOtpChange={setSignUpOtp}
                     onVerify={handleSignUpVerifyOtp}
+                    onResend={() => {
+                      if (typeof window.sendOtp === 'function' && msg91MobileRef.current) {
+                        window.sendOtp(
+                          msg91MobileRef.current,
+                          (data) => {
+                            logger.log('MSG91 resend OTP success:', data);
+                            setOtpSentCount(c => c + 1);
+                            toast({ title: 'OTP Resent', description: 'A new OTP has been sent to your mobile number.' });
+                          },
+                          (error) => {
+                            logger.error('MSG91 resend OTP failed:', error);
+                            toast({ title: 'Failed to Resend', description: 'Could not resend OTP. Please try again.', variant: 'destructive' });
+                          }
+                        );
+                      }
+                    }}
                     verifyLoading={loading}
                   />
                 ) : (
@@ -740,7 +853,7 @@ export default function AuthPage() {
                         type="text"
                         placeholder="Enter your full name"
                         value={signUpForm.fullName}
-                        onChange={(e) => setSignUpForm({ ...signUpForm, fullName: e.target.value })}
+                        onChange={(e) => setSignUpForm({ ...signUpForm, fullName: e.target.value.trimStart() })}
                         required
                       />
                     </div>
