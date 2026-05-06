@@ -776,24 +776,6 @@ export default function AuthPage() {
               </TabsList>
 
               <TabsContent value="signin">
-                {/* Sign In / First Login mode toggle */}
-                <div className="flex rounded-lg border overflow-hidden mb-4">
-                  <button
-                    type="button"
-                    onClick={() => { setSignInMode('signin'); setFirstLoginStep('phone'); accessTokenRef.current = null; msg91MobileRef.current = ''; }}
-                    className={`flex-1 py-2 text-sm font-medium transition-colors ${signInMode === 'signin' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}
-                  >
-                    Sign In
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setSignInMode('firstlogin'); setFirstLoginStep('phone'); accessTokenRef.current = null; msg91MobileRef.current = ''; }}
-                    className={`flex-1 py-2 text-sm font-medium transition-colors ${signInMode === 'firstlogin' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}
-                  >
-                    First Login
-                  </button>
-                </div>
-
                 {signInMode === 'signin' ? (
                   <form onSubmit={handleSignIn} className="space-y-4">
                     <div className="space-y-2">
@@ -822,11 +804,21 @@ export default function AuthPage() {
                     <Button type="submit" className="w-full" disabled={loading}>
                       {loading ? 'Signing In...' : t('signInBtn')}
                     </Button>
+                    <p className="text-center text-sm text-muted-foreground">
+                      Account set up by your teacher?{' '}
+                      <button
+                        type="button"
+                        className="underline text-foreground hover:text-primary transition-colors"
+                        onClick={() => { setSignInMode('firstlogin'); setFirstLoginStep('phone'); accessTokenRef.current = null; msg91MobileRef.current = ''; }}
+                      >
+                        Set up your password
+                      </button>
+                    </p>
                   </form>
                 ) : firstLoginStep === 'phone' ? (
                   <form onSubmit={handleFirstLoginOtp} className="space-y-4">
                     <p className="text-sm text-muted-foreground">
-                      First time? Verify your mobile number to set a password.
+                      Verify your mobile number to set a password for the first time.
                     </p>
                     <div className="space-y-2">
                       <Label htmlFor="firstlogin-phone">{t('mobileNumber')}</Label>
@@ -842,6 +834,16 @@ export default function AuthPage() {
                     <Button type="submit" className="w-full" disabled={loading}>
                       {loading ? 'Sending OTP...' : 'Verify Mobile'}
                     </Button>
+                    <p className="text-center text-sm text-muted-foreground">
+                      Already have a password?{' '}
+                      <button
+                        type="button"
+                        className="underline text-foreground hover:text-primary transition-colors"
+                        onClick={() => { setSignInMode('signin'); setFirstLoginStep('phone'); accessTokenRef.current = null; msg91MobileRef.current = ''; }}
+                      >
+                        Sign in
+                      </button>
+                    </p>
                   </form>
                 ) : firstLoginStep === 'otp' ? (
                   <OtpScreen
