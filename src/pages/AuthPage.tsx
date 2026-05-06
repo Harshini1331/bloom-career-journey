@@ -57,6 +57,7 @@ function sendOtpWithTimeout(
   onFailure: () => void,
   timeoutMs = 15000,
 ) {
+  if (typeof window.sendOtp !== 'function') { onFailure(); return; }
   let settled = false;
   const timer = setTimeout(() => {
     if (!settled) { settled = true; onFailure(); }
@@ -148,6 +149,7 @@ function OtpScreen({
             type="text"
             inputMode="numeric"
             maxLength={1}
+            aria-label={`OTP digit ${i + 1}`}
             value={otpValue[i] ?? ''}
             onChange={(e) => handleChange(i, e.target.value)}
             onKeyDown={(e) => handleKeyDown(i, e)}
@@ -601,7 +603,7 @@ export default function AuthPage() {
   };
 
   // Step 1 of First Login: validate phone, dispatch OTP, show OTP input screen
-  const handleFirstLoginOtp = (e: React.FormEvent) => {
+  const handleFirstLoginOtp = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!isValidE164(firstLoginForm.phone)) {
@@ -609,13 +611,27 @@ export default function AuthPage() {
       return;
     }
 
-    if (typeof window.sendOtp !== 'function') {
-      toast({ title: 'OTP Unavailable', description: 'OTP service unavailable. Please refresh and try again.', variant: 'destructive' });
+    setLoading(true);
+
+    // Pre-check: confirm this mobile is registered before spending an SMS
+    const normalizedPhone = toE164Indian(firstLoginForm.phone);
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('mobile', normalizedPhone)
+      .maybeSingle();
+
+    if (!existingUser) {
+      toast({
+        title: 'Not Registered',
+        description: 'No account found for this mobile number. Please sign up instead.',
+        variant: 'destructive',
+      });
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
-    const msg91Mobile = toE164Indian(firstLoginForm.phone).replace('+', '');
+    const msg91Mobile = normalizedPhone.replace('+', '');
     msg91MobileRef.current = msg91Mobile;
     sendOtpWithTimeout(
       msg91Mobile,
@@ -796,6 +812,7 @@ export default function AuthPage() {
                       <Input
                         id="signin-password"
                         type="password"
+                        autoComplete="current-password"
                         placeholder="Enter your password"
                         value={signInForm.password}
                         onChange={(e) => setSignInForm({ ...signInForm, password: e.target.value })}
@@ -865,17 +882,25 @@ export default function AuthPage() {
                       <Input
                         id="firstlogin-newpassword"
                         type="password"
+                        autoComplete="new-password"
+                        minLength={6}
                         placeholder="Create a password"
                         value={firstLoginForm.newPassword}
                         onChange={(e) => setFirstLoginForm({ ...firstLoginForm, newPassword: e.target.value })}
                         required
                       />
+                      {firstLoginForm.newPassword.length > 0 && firstLoginForm.newPassword.length < 6 ? (
+                        <p className="text-xs text-red-500">Password must be at least 6 characters</p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">At least 6 characters</p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="firstlogin-confirmpassword">Confirm Password</Label>
                       <Input
                         id="firstlogin-confirmpassword"
                         type="password"
+                        autoComplete="new-password"
                         placeholder="Confirm your password"
                         value={firstLoginForm.confirmPassword}
                         onChange={(e) => setFirstLoginForm({ ...firstLoginForm, confirmPassword: e.target.value })}
@@ -968,11 +993,18 @@ export default function AuthPage() {
                       <Input
                         id="signup-password"
                         type="password"
+                        autoComplete="new-password"
+                        minLength={6}
                         placeholder={t('createPassword')}
                         value={signUpForm.password}
                         onChange={(e) => setSignUpForm({ ...signUpForm, password: e.target.value })}
                         required
                       />
+                      {signUpForm.password.length > 0 && signUpForm.password.length < 6 ? (
+                        <p className="text-xs text-red-500">Password must be at least 6 characters</p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">At least 6 characters</p>
+                      )}
                     </div>
                     {/* State Selection */}
                     <div className="space-y-2">
