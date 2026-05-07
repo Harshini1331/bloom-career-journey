@@ -43,6 +43,7 @@ export default function TeacherStudentRoadmapPage() {
   const [studentName, setStudentName] = useState('');
   const [studentLang, setStudentLang] = useState<string>('en');
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [milestoneUpdatedAt, setMilestoneUpdatedAt] = useState<Partial<Record<MilestoneKey, string>>>({});
 
   useEffect(() => {
     if (!studentId) return;
@@ -65,7 +66,7 @@ export default function TeacherStudentRoadmapPage() {
 
         // career_roadmap.student_id references users.id, not students.id
         const userId = (student as any)?.user_id;
-        if (!userId) { setLoading(false); return; }
+        if (!userId) { setFetchError(true); setLoading(false); return; }
 
         const { data, error: roadmapError } = await supabase
           .from('career_roadmap')
@@ -80,10 +81,13 @@ export default function TeacherStudentRoadmapPage() {
 
         if (data) {
           let maxUpdated: string | null = null;
+          const perMilestone: Partial<Record<MilestoneKey, string>> = {};
           for (const row of data) {
             if (row.updated_at && (!maxUpdated || row.updated_at > maxUpdated)) maxUpdated = row.updated_at;
+            if (row.updated_at) perMilestone[row.milestone as MilestoneKey] = row.updated_at;
           }
           if (maxUpdated) setLastUpdated(maxUpdated);
+          setMilestoneUpdatedAt(perMilestone);
           setRows(prev => {
             const next = { ...prev };
             for (const row of data) {
@@ -164,7 +168,14 @@ export default function TeacherStudentRoadmapPage() {
                     <td className="px-6 py-4 bg-gray-50 font-medium text-gray-800 align-top w-48">
                       <div className="flex items-center gap-2">
                         {!m.editable && <Lock className="h-3.5 w-3.5 text-gray-400 shrink-0" />}
-                        <span className={!m.editable ? 'text-gray-500' : ''}>{getMilestoneLabel(m, studentLang)}</span>
+                        <div>
+                          <span className={!m.editable ? 'text-gray-500' : ''}>{getMilestoneLabel(m, studentLang)}</span>
+                          {milestoneUpdatedAt[m.key] && (
+                            <p className="text-[10px] text-gray-400 mt-0.5">
+                              {new Date(milestoneUpdatedAt[m.key]!).toLocaleDateString(teacherLang === 'en' ? 'en-IN' : teacherLang, { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </td>
                     {(['plan_a', 'plan_b', 'plan_c'] as const).map(field => (

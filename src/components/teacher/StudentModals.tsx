@@ -2,7 +2,6 @@ import React from 'react';
 import { logger } from '@/lib/logger';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,6 +24,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import type { Student } from './StudentsTab';
 import type { SchoolClass } from '@/integrations/supabase/types';
+import { LANG_LABELS } from '@/lib/langLabels';
 
 function getStatusColor(status: string) {
     switch (status) {
@@ -41,12 +41,11 @@ function getStatusColor(status: string) {
 }
 
 // ─── Add Student Modal ──────────────────────────────────────────────
-const LANG_LABELS: Record<string, string> = { en: 'English', kn: 'ಕನ್ನಡ', ta: 'தமிழ்', hi: 'हिन्दी' };
 
 interface AddStudentModalProps {
     open: boolean;
     onOpenChange: (v: boolean) => void;
-    newStudent: { fullName: string; phone: string; grade: string; stateId?: string; preferredLanguage?: string };
+    newStudent: { fullName: string; phone: string; grade: string; preferredLanguage?: string };
     setNewStudent: React.Dispatch<React.SetStateAction<{ fullName: string; phone: string; grade: string; stateId?: string; preferredLanguage?: string }>>;
     onSubmit: () => void;
 }
@@ -225,93 +224,6 @@ export function StudentDetailsModal({ open, onOpenChange, selectedStudent, activ
                             View Profile Card
                         </Button>
                     )}
-                    <Button onClick={() => onOpenChange(false)}>Close</Button>
-                </div>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-// ─── View Progress Modal ────────────────────────────────────────────
-interface ViewProgressModalProps {
-    open: boolean;
-    onOpenChange: (v: boolean) => void;
-    selectedStudent: Student | null;
-    progressSummary: { [k: string]: { count: number; last?: string } };
-}
-
-export function ViewProgressModal({ open, onOpenChange, selectedStudent, progressSummary }: ViewProgressModalProps) {
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-3xl">
-                <DialogHeader>
-                    <DialogTitle className="text-xl">{selectedStudent?.user?.full_name || 'Student'} – Progress</DialogTitle>
-                    <DialogDescription>Latest assessment status and counts</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {['inspiration', 'about_me', 'dreams', 'school_learning', 'hobbies', 'role_models'].map((t) => (
-                            <Card key={t} className="border shadow-sm">
-                                <CardHeader>
-                                    <CardTitle className="text-base capitalize">{t.replace('_', ' ')}</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-sm text-gray-600">Submissions: <span className="font-medium">{progressSummary[t]?.count || 0}</span></div>
-                                    <div className="text-sm text-gray-600">Last completed: <span className="font-medium">{progressSummary[t]?.last ? new Date(progressSummary[t]!.last!).toLocaleString() : '—'}</span></div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-                </div>
-                <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => window.print()}>Print</Button>
-                    <Button onClick={() => onOpenChange(false)}>Close</Button>
-                </div>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-// ─── Assessment Answers Modal ───────────────────────────────────────
-interface AssessmentAnswersModalProps {
-    open: boolean;
-    onOpenChange: (v: boolean) => void;
-    selectedStudent: Student | null;
-    assessmentAnswers: any[];
-    renderReadableAnswers: (assessmentType: string, responses: any) => React.ReactNode;
-}
-
-export function AssessmentAnswersModal({ open, onOpenChange, selectedStudent, assessmentAnswers, renderReadableAnswers }: AssessmentAnswersModalProps) {
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto" data-print-content>
-                <DialogHeader>
-                    <DialogTitle className="text-xl">{selectedStudent?.user?.full_name || 'Student'} – Assessment Answers</DialogTitle>
-                    <DialogDescription>Latest submissions across all assessments</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                    {assessmentAnswers.length === 0 ? (
-                        <div className="text-sm text-gray-500">No assessment submissions yet.</div>
-                    ) : (
-                        assessmentAnswers.map((r: any) => (
-                            <Card key={`${r.assessment_type}-${r.completed_at || r.updated_at}`} className="border shadow-sm" data-assessment-card>
-                                <CardHeader>
-                                    <CardTitle className="text-base">
-                                        <span className="capitalize">{r.assessment_type.replace('_', ' ')}</span> – {r.assessment_title}
-                                        {r.completed_at && (
-                                            <span className="ml-2 text-sm text-gray-500">{new Date(r.completed_at).toLocaleString()}</span>
-                                        )}
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    {renderReadableAnswers(r.assessment_type, r.responses)}
-                                </CardContent>
-                            </Card>
-                        ))
-                    )}
-                </div>
-                <div className="flex justify-end gap-2 print:hidden">
-                    <Button variant="outline" onClick={() => window.print()}>Print</Button>
                     <Button onClick={() => onOpenChange(false)}>Close</Button>
                 </div>
             </DialogContent>

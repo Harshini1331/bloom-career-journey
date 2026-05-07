@@ -106,7 +106,7 @@ export default function TeacherStatsCards({ totalStudents, reviewOverview, pendi
             {/* Profile Cards Pending */}
             <Card
                 className={`border-0 shadow-lg cursor-pointer hover:shadow-xl transition-shadow ${pendingProfileCards > 0 ? 'bg-gradient-to-br from-purple-50 to-purple-100' : 'bg-gradient-to-br from-gray-50 to-gray-100'}`}
-                onClick={() => onTabChange('reviews')}
+                onClick={() => onTabChange('students')}
             >
                 <CardContent className="p-6">
                     <div className="flex items-center justify-between">

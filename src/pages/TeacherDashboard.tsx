@@ -24,7 +24,6 @@ import StudentsTab, { Student } from '@/components/teacher/StudentsTab';
 import {
   AddStudentModal,
   StudentDetailsModal,
-  AssessmentAnswersModal,
   AddExistingStudentModal,
 } from '@/components/teacher/StudentModals';
 import AssessmentResponsesView from '@/components/teacher/AssessmentResponsesView';
@@ -62,7 +61,7 @@ export default function TeacherDashboard() {
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
   const [isAddExistingOpen, setIsAddExistingOpen] = useState(false);
   const teacherLang = userProfile?.preferred_language || 'en';
-  const [newStudent, setNewStudent] = useState({ fullName: '', phone: '', grade: '', stateId: '', preferredLanguage: teacherLang });
+  const [newStudent, setNewStudent] = useState({ fullName: '', phone: '', grade: '', preferredLanguage: teacherLang });
   const [states, setStates] = useState<StateInfo[]>([]);
   const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [loadingStates, setLoadingStates] = useState(false);
@@ -76,9 +75,7 @@ export default function TeacherDashboard() {
   // ── Student detail/progress state ─────────────────────────────────
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [isAnswersOpen, setIsAnswersOpen] = useState(false);
   const [activityTimeline, setActivityTimeline] = useState<Array<{ id: string; title: string; seq: number; status: string; completed_at?: string }>>([]);
-  const [assessmentAnswers, setAssessmentAnswers] = useState<any[]>([]);
 
   // ── Reviews state ─────────────────────────────────────────────────
   const [reviewOverview, setReviewOverview] = useState<{ unreviewed_count: number; reviewed_count: number; needs_revision_count: number; flagged_count: number; followups_due_this_week: number }>({ unreviewed_count: 0, reviewed_count: 0, needs_revision_count: 0, flagged_count: 0, followups_due_this_week: 0 });
@@ -106,7 +103,7 @@ export default function TeacherDashboard() {
       );
     }
     if (selectedGrade !== 'all') {
-      filtered = filtered.filter(student => student.class?.name === selectedGrade);
+      filtered = filtered.filter(student => student.class?.name?.match(/\d+/)?.[0] === selectedGrade);
     }
     if (selectedStatus !== 'all') {
       filtered = filtered.filter(student => student.enrollment_status === selectedStatus);
@@ -219,7 +216,7 @@ export default function TeacherDashboard() {
       if (result.created?.length > 0) {
         toast({ title: "Student Added!", description: "Student added successfully." });
         setIsAddStudentOpen(false);
-        setNewStudent({ fullName: '', phone: '', grade: '', stateId: '', preferredLanguage: teacherLang });
+        setNewStudent({ fullName: '', phone: '', grade: '', preferredLanguage: teacherLang });
         loadStudents();
       }
     } catch (error: any) {
@@ -294,39 +291,47 @@ export default function TeacherDashboard() {
   const refreshReviewOverview = async () => {
     try {
       if (!userProfile?.id) return;
+      const zero = { unreviewed_count: 0, reviewed_count: 0, needs_revision_count: 0, flagged_count: 0, followups_due_this_week: 0 };
       const { data: teacherRecord } = await supabase.from('teachers').select('id').eq('user_id', userProfile.id).single();
-      if (!teacherRecord) {
-        setReviewOverview({ unreviewed_count: 0, reviewed_count: 0, needs_revision_count: 0, flagged_count: 0, followups_due_this_week: 0 });
-        return;
-      }
+      if (!teacherRecord) { setReviewOverview(zero); return; }
+
       const { data: studs } = await supabase.from('students').select('id').eq('teacher_id', teacherRecord.id);
-      if (!studs || studs.length === 0) {
-        setReviewOverview({ unreviewed_count: 0, reviewed_count: 0, needs_revision_count: 0, flagged_count: 0, followups_due_this_week: 0 });
-        return;
-      }
+      if (!studs || studs.length === 0) { setReviewOverview(zero); return; }
       const studentIds = studs.map(s => s.id);
-      const { data: assessments } = await supabase.from('assessment_responses').select('id, student_id, assessment_type, assessment_title, review_status, completed_at').in('student_id', studentIds).order('completed_at', { ascending: false }).limit(500);
-      if (!assessments) {
-        setReviewOverview({ unreviewed_count: 0, reviewed_count: 0, needs_revision_count: 0, flagged_count: 0, followups_due_this_week: 0 });
-        return;
-      }
-      const uniqueAssessments = new Map<string, typeof assessments[0]>();
-      assessments.forEach(a => { const key = `${a.student_id}_${a.assessment_type}_${a.assessment_title}`; if (!uniqueAssessments.has(key)) uniqueAssessments.set(key, a); });
-      const counts = { unreviewed_count: 0, reviewed_count: 0, needs_revision_count: 0, flagged_count: 0, followups_due_this_week: 0 };
-      uniqueAssessments.forEach(a => {
-        const status = a.review_status || 'unreviewed';
-        if (status === 'reviewed') counts.reviewed_count++;
-        else if (status === 'needs_revision') counts.needs_revision_count++;
-        else if (status === 'flagged') counts.flagged_count++;
-        else counts.unreviewed_count++;
-      });
-      setReviewOverview(counts);
+
+      // Fetch response IDs (no row limit — only IDs, small payload)
+      const { data: responses } = await supabase
+        .from('assessment_responses')
+        .select('id, student_id')
+        .in('student_id', studentIds);
+      if (!responses || responses.length === 0) { setReviewOverview(zero); return; }
+
+      const responseIds = responses.map(r => r.id);
+      const responseToStudent: Record<string, string> = {};
+      responses.forEach(r => { responseToStudent[r.id] = r.student_id; });
+
+      // Count from assessment_summaries.approval_status — aligns with the Reviews tab
+      const { data: summaries } = await supabase
+        .from('assessment_summaries')
+        .select('approval_status, assessment_response_id')
+        .in('assessment_response_id', responseIds);
+
+      const counts = { ...zero };
       const perStudent: Record<string, { reviewed: number; total: number }> = {};
-      uniqueAssessments.forEach(a => {
-        if (!perStudent[a.student_id]) perStudent[a.student_id] = { reviewed: 0, total: 0 };
-        perStudent[a.student_id].total++;
-        if ((a.review_status || 'unreviewed') === 'reviewed') perStudent[a.student_id].reviewed++;
+
+      (summaries || []).forEach(s => {
+        const studentId = responseToStudent[s.assessment_response_id];
+        if (!perStudent[studentId]) perStudent[studentId] = { reviewed: 0, total: 0 };
+        perStudent[studentId].total++;
+        switch (s.approval_status) {
+          case 'approved':            counts.reviewed_count++;       perStudent[studentId].reviewed++; break;
+          case 'pending_approval':    counts.unreviewed_count++;     break;
+          case 'revision_requested':  counts.needs_revision_count++; break;
+          case 'rejected':            counts.flagged_count++;        break;
+        }
       });
+
+      setReviewOverview(counts);
       setStudentReviewMap(perStudent);
     } catch (err) { logger.error('Error refreshing review overview:', err); }
   };
@@ -342,13 +347,19 @@ export default function TeacherDashboard() {
   }, [userProfile]);
 
   useEffect(() => {
-    if (newStudent.stateId) loadClasses(newStudent.stateId);
-    else setClasses([]);
-  }, [newStudent.stateId]);
-
-  useEffect(() => {
     if (teacherRow?.state_id) loadClasses(teacherRow.state_id);
   }, [teacherRow?.state_id]);
+
+  // Reset all stale state when AddExistingStudentModal closes (G17)
+  useEffect(() => {
+    if (!isAddExistingOpen) {
+      setExistingQuery('');
+      setExistingResults([]);
+      setEnrollTarget(null);
+      setEnrollClassId('');
+      setIsClassLocked(false);
+    }
+  }, [isAddExistingOpen]);
 
   // ═══════════════════════════════════════════════════════════════════
   //  HANDLERS (for sub-components)
@@ -358,32 +369,44 @@ export default function TeacherDashboard() {
     setSelectedStudent(student);
     try {
       const order = [
-        { key: 'inspiration', title: t('inspirationTitle'), seq: 1 },
-        { key: 'about_me', title: t('aboutMeTitle'), seq: 2 },
-        { key: 'dreams', title: 'MY DREAMS', seq: 3 },
-        { key: 'school_learning', title: 'MY SCHOOL', seq: 4 },
-        { key: 'hobbies', title: 'MY HOBBIES', seq: 5 },
-        { key: 'role_models', title: 'MY ROLE MODELS', seq: 6 },
+        { key: 'inspiration',           title: t('inspirationTitle'), seq: 1 },
+        { key: 'about_me',              title: t('aboutMeTitle'),     seq: 2 },
+        { key: 'dreams',                title: 'MY DREAMS',           seq: 3 },
+        { key: 'school_learning',       title: 'MY SCHOOL',           seq: 4 },
+        { key: 'hobbies',               title: 'MY HOBBIES',          seq: 5 },
+        { key: 'role_models',           title: 'MY ROLE MODELS',      seq: 6 },
+        { key: 'personality',           title: 'HOLLAND CODE',        seq: 7 },
+        { key: 'career_guidance_tools', title: 'CAREER GUIDANCE',     seq: 8 },
       ] as const;
       const { data: ar } = await supabase.from('assessment_responses').select('assessment_type, completed_at').eq('student_id', student.id);
       const latest: Record<string, string | undefined> = {};
-      (ar || []).forEach((r: any) => { if (r.completed_at) { const prev = latest[r.assessment_type]; if (!prev || new Date(r.completed_at) > new Date(prev)) latest[r.assessment_type] = r.completed_at; } });
-      const insp = !!latest['inspiration'], aboutMe = !!latest['about_me'], dreams = !!latest['dreams'], school = !!latest['school_learning'], hobbies = !!latest['hobbies'];
+      (ar || []).forEach((r: any) => {
+        if (r.completed_at) {
+          const prev = latest[r.assessment_type];
+          if (!prev || new Date(r.completed_at) > new Date(prev)) latest[r.assessment_type] = r.completed_at;
+        }
+      });
       const timeline = order.map(item => {
-        let isCompleted = false;
-        if (item.key === 'inspiration') isCompleted = insp;
-        else if (item.key === 'about_me') isCompleted = aboutMe;
-        else if (item.key === 'dreams') isCompleted = dreams;
-        else if (item.key === 'school_learning') isCompleted = school;
-        else if (item.key === 'hobbies') isCompleted = hobbies;
-        else if (item.key === 'role_models') isCompleted = !!latest['role_models'];
-        let status = 'locked';
-        if (item.key === 'inspiration') status = isCompleted ? 'completed' : 'unlocked';
-        else if (item.key === 'about_me') status = insp ? (isCompleted ? 'completed' : 'unlocked') : 'locked';
-        else if (item.key === 'dreams') status = (insp && aboutMe) ? (isCompleted ? 'completed' : 'unlocked') : 'locked';
-        else if (item.key === 'school_learning') status = (insp && aboutMe && dreams) ? (isCompleted ? 'completed' : 'unlocked') : 'locked';
-        else if (item.key === 'hobbies') status = (insp && aboutMe && dreams && school) ? (isCompleted ? 'completed' : 'unlocked') : 'locked';
-        else if (item.key === 'role_models') status = (insp && aboutMe && dreams && school && hobbies) ? (isCompleted ? 'completed' : 'unlocked') : 'locked';
+        const isCompleted = !!latest[item.key];
+        // personality and career_guidance_tools are always unlocked (not sequentially gated)
+        const alwaysUnlocked = item.key === 'personality' || item.key === 'career_guidance_tools';
+        let status: string;
+        if (alwaysUnlocked) {
+          status = isCompleted ? 'completed' : 'unlocked';
+        } else {
+          const insp = !!latest['inspiration'], aboutMe = !!latest['about_me'],
+                dreams = !!latest['dreams'], school = !!latest['school_learning'], hobbies = !!latest['hobbies'];
+          const prereqs: Record<string, boolean> = {
+            inspiration: true,
+            about_me: insp,
+            dreams: insp && aboutMe,
+            school_learning: insp && aboutMe && dreams,
+            hobbies: insp && aboutMe && dreams && school,
+            role_models: insp && aboutMe && dreams && school && hobbies,
+          };
+          const unlocked = prereqs[item.key] ?? true;
+          status = isCompleted ? 'completed' : unlocked ? 'unlocked' : 'locked';
+        }
         return { id: item.key, title: item.title, seq: item.seq, status, completed_at: latest[item.key] } as any;
       });
       setActivityTimeline(timeline);
@@ -392,15 +415,15 @@ export default function TeacherDashboard() {
   };
 
   const handleUnenroll = async (student: Student) => {
-    if (!confirm('Unenroll this student from your list?')) return;
+    if (!confirm('Mark this student as inactive? Their data and assessments will be preserved.')) return;
     try {
-      const { error } = await supabase.from('students').delete().eq('id', student.id);
+      const { error } = await supabase.from('students').update({ enrollment_status: 'inactive' }).eq('id', student.id);
       if (error) throw error;
-      toast({ title: 'Student unenrolled', description: 'Student has been removed from your list.' });
+      toast({ title: 'Student unenrolled', description: 'Student marked as inactive. Their data is preserved.' });
       loadStudents();
     } catch (err) {
       logger.error('Unenroll error:', err);
-      toast({ title: 'Unenroll failed', description: 'Could not remove student', variant: 'destructive' });
+      toast({ title: 'Unenroll failed', description: 'Could not unenroll student', variant: 'destructive' });
     }
   };
 
@@ -440,38 +463,6 @@ export default function TeacherDashboard() {
     } finally { setEnrolling(false); }
   };
 
-  const renderReadableAnswers = (assessmentType: string, responses: any) => {
-    if (!responses || typeof responses !== 'object') {
-      return <div className="text-sm text-gray-500">No responses available.</div>;
-    }
-    if (assessmentType === 'about_me') {
-      return (
-        <div className="space-y-4">
-          {Object.entries(responses).map(([fieldKey, value]: [string, any]) => {
-            if (!value || (Array.isArray(value) && value.every(v => !v || v.trim() === '')) || (typeof value === 'string' && value.trim() === '')) return null;
-            return (
-              <div key={fieldKey} className="border-b border-gray-200 pb-3 last:border-b-0">
-                <div className="font-medium text-sm text-gray-700 mb-1 capitalize">{fieldKey.replace(/_/g, ' ')}</div>
-                <div className="text-sm text-gray-900 whitespace-pre-wrap break-words pl-2">
-                  {Array.isArray(value) ? (
-                    <ul className="list-disc list-inside space-y-1">
-                      {value.map((item: string, idx: number) => (item && item.trim() ? <li key={idx}>{item}</li> : null))}
-                    </ul>
-                  ) : (<div>{String(value)}</div>)}
-                </div>
-              </div>
-            );
-          })}
-          {Object.keys(responses).length === 0 && (<div className="text-sm text-gray-500">No responses submitted yet.</div>)}
-        </div>
-      );
-    }
-    return (
-      <pre className="text-xs whitespace-pre-wrap break-words bg-gray-50 p-3 rounded-md border">
-        {JSON.stringify(responses, null, 2)}
-      </pre>
-    );
-  };
 
   // ═══════════════════════════════════════════════════════════════════
   //  RENDER
@@ -542,7 +533,13 @@ export default function TeacherDashboard() {
               t={t}
               onAddStudent={() => setIsAddStudentOpen(true)}
               onAddExisting={() => setIsAddExistingOpen(true)}
-              onImportCsv={() => setImportOpen(true)}
+              onImportCsv={() => {
+                if (!teacherRow) {
+                  toast({ title: 'Not ready', description: 'Teacher profile still loading. Please try again.', variant: 'destructive' });
+                  return;
+                }
+                setImportOpen(true);
+              }}
               onViewDetails={handleViewDetails}
               onUnenroll={handleUnenroll}
               loadStudents={loadStudents}
@@ -563,12 +560,14 @@ export default function TeacherDashboard() {
 
       {/* Dialogs & Modals */}
       <ProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
-      {teacherRow && (
-        <ImportStudentsDialog
-          open={importOpen} onOpenChange={setImportOpen}
-          classes={classes} teacherId={teacherRow.id} stateId={teacherRow.state_id} onImported={loadStudents}
-        />
-      )}
+      <ImportStudentsDialog
+        open={importOpen && !!teacherRow}
+        onOpenChange={setImportOpen}
+        classes={classes}
+        teacherId={teacherRow?.id ?? ''}
+        stateId={teacherRow?.state_id ?? ''}
+        onImported={loadStudents}
+      />
       <ChatbotDialog open={false} onOpenChange={() => { }} />
       <ContactIlpDialog open={contactOpen} onOpenChange={setContactOpen} />
       <ChatBubble role="teacher" />
@@ -580,11 +579,6 @@ export default function TeacherDashboard() {
       <StudentDetailsModal
         open={isDetailsOpen} onOpenChange={setIsDetailsOpen}
         selectedStudent={selectedStudent} activityTimeline={activityTimeline}
-      />
-      <AssessmentAnswersModal
-        open={isAnswersOpen} onOpenChange={setIsAnswersOpen}
-        selectedStudent={selectedStudent} assessmentAnswers={assessmentAnswers}
-        renderReadableAnswers={renderReadableAnswers}
       />
       <AddExistingStudentModal
         open={isAddExistingOpen} onOpenChange={setIsAddExistingOpen}

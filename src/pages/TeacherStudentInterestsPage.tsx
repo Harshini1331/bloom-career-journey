@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useLang } from '@/hooks/useLang';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Loader2, Heart } from 'lucide-react';
+import { ArrowLeft, Loader2, Heart, AlertCircle } from 'lucide-react';
 
 const STRINGS: Record<string, {
   title: string;
@@ -61,11 +62,12 @@ interface InterestRow {
 export default function TeacherStudentInterestsPage() {
   const navigate = useNavigate();
   const { studentId } = useParams<{ studentId: string }>();
+  const { lang: teacherLang } = useLang();
   const [rows, setRows] = useState<InterestRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [studentName, setStudentName] = useState('');
-  const [studentLang, setStudentLang] = useState<string>('en');
   const [notFound, setNotFound] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
 
   useEffect(() => {
     if (!studentId) return;
@@ -82,21 +84,21 @@ export default function TeacherStudentInterestsPage() {
       }
 
       setStudentName((student as any)?.users?.full_name || 'Student');
-      setStudentLang((student as any)?.users?.preferred_language || 'en');
 
       // things_that_interest_me.student_id references users.id, not students.id
       const userId = (student as any)?.user_id;
-      const { data } = await supabase
+      const { data, error: interestsError } = await supabase
         .from('things_that_interest_me')
         .select('subject, lesson_chapter, why_factors, compatible_career')
         .eq('student_id', userId)
         .order('created_at', { ascending: true });
+      if (interestsError) { setFetchError(true); setLoading(false); return; }
       setRows(data || []);
       setLoading(false);
     })();
   }, [studentId]);
 
-  const s = STRINGS[studentLang] || STRINGS.en;
+  const s = STRINGS[teacherLang] || STRINGS.en;
 
   if (loading) {
     return (
@@ -106,11 +108,12 @@ export default function TeacherStudentInterestsPage() {
     );
   }
 
-  if (notFound) {
+  if (notFound || fetchError) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-gray-50 text-gray-500">
-        <p>{s.not_found}</p>
-        <Button variant="outline" onClick={() => navigate(-1)}>
+        <AlertCircle className="h-8 w-8 text-red-400" />
+        <p>{notFound ? s.not_found : 'Could not load interests data.'}</p>
+        <Button variant="outline" onClick={() => { if (window.history.state?.idx > 0) navigate(-1); else navigate('/teacher'); }}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Go back
         </Button>
@@ -123,7 +126,7 @@ export default function TeacherStudentInterestsPage() {
       <div className="bg-gradient-to-r from-rose-600 via-pink-600 to-rose-700 text-white">
         <div className="container mx-auto px-4 py-10">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="text-white/80 hover:text-white hover:bg-white/10" onClick={() => navigate(-1)}>
+            <Button variant="ghost" size="icon" className="text-white/80 hover:text-white hover:bg-white/10" onClick={() => { if (window.history.state?.idx > 0) navigate(-1); else navigate('/teacher'); }}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>

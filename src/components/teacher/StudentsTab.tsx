@@ -1,5 +1,6 @@
 import React from 'react';
 import { logger } from '@/lib/logger';
+import { LANG_LABELS } from '@/lib/langLabels';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,7 @@ import {
     Map,
     Heart,
     ClipboardList,
+    Compass,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -129,7 +131,7 @@ export default function StudentsTab({
                             <div className="relative flex-1">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                                 <Input
-                                    placeholder="Search students by name, mobile, or parent..."
+                                    placeholder={t('searchPlaceholder')}
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     className="pl-10"
@@ -160,6 +162,7 @@ export default function StudentsTab({
                                     <SelectItem value="inactive">Inactive</SelectItem>
                                     <SelectItem value="pending">Pending</SelectItem>
                                     <SelectItem value="graduated">Graduated</SelectItem>
+                                    <SelectItem value="transferred">Transferred</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -253,10 +256,7 @@ export default function StudentsTab({
                                             </td>
                                             <td className="py-4 px-4">
                                                 <span className="text-sm text-gray-700">
-                                                    {student.user?.preferred_language === 'kn' ? 'ಕನ್ನಡ'
-                                                        : student.user?.preferred_language === 'ta' ? 'தமிழ்'
-                                                        : student.user?.preferred_language === 'hi' ? 'हिन्दी'
-                                                        : 'English'}
+                                                    {LANG_LABELS[student.user?.preferred_language ?? ''] ?? '—'}
                                                 </span>
                                             </td>
                                             <td className="py-4 px-4">
@@ -266,7 +266,7 @@ export default function StudentsTab({
                                             </td>
                                             <td className="py-4 px-4">
                                                 <p className="text-sm text-gray-600">
-                                                    {new Date(student.enrollment_date).toLocaleDateString()}
+                                                    {student.enrollment_date ? new Date(student.enrollment_date).toLocaleDateString() : '—'}
                                                 </p>
                                             </td>
                                             <td className="py-4 px-4">
@@ -283,25 +283,29 @@ export default function StudentsTab({
                                                         <DropdownMenuContent>
                                                             <DropdownMenuItem onClick={() => navigate(`/student/${student.id}/summary`)}>
                                                                 <FileText className="w-4 h-4 mr-2" />
-                                                                View Summary
+                                                                {t('viewSummary')}
                                                             </DropdownMenuItem>
                                                             <DropdownMenuItem onClick={() => navigate(`/teacher/student-responses/${student.id}`)}>
                                                                 <ClipboardList className="w-4 h-4 mr-2" />
-                                                                View Responses
+                                                                {t('viewResponses')}
                                                             </DropdownMenuItem>
                                                             <DropdownMenuItem onClick={() => navigate(`/teacher/student-roadmap/${student.id}`)}>
                                                                 <Map className="w-4 h-4 mr-2" />
-                                                                View Career Roadmap
+                                                                {t('viewCareerRoadmap')}
                                                             </DropdownMenuItem>
                                                             <DropdownMenuItem onClick={() => navigate(`/teacher/student-interests/${student.id}`)}>
                                                                 <Heart className="w-4 h-4 mr-2" />
-                                                                View Interests
+                                                                {t('viewInterests')}
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => navigate(`/teacher/student-profile-card/${student.id}`)}>
+                                                                <Compass className="w-4 h-4 mr-2" />
+                                                                {t('viewProfileCard')}
                                                             </DropdownMenuItem>
                                                             <DropdownMenuItem
                                                                 className="text-red-600"
                                                                 onClick={() => onUnenroll(student)}
                                                             >
-                                                                Remove / Unenroll
+                                                                {t('unenroll')}
                                                             </DropdownMenuItem>
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>

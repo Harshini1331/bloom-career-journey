@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -38,8 +39,14 @@ const TABS: { key: AssessmentType; label: string }[] = [
   { key: 'career_guidance_tools', label: 'Career Guidance' },
 ];
 
+// ─── Audio URL detection ──────────────────────────────────────────────────────
+function isAudioUrl(value: string): boolean {
+  if (!value.startsWith('http')) return false;
+  return /audio-files/.test(value) || /\.(webm|mp3|wav|ogg|m4a)(\?|$)/i.test(value);
+}
+
 // ─── Generic ResponseViewer ───────────────────────────────────────────────────
-// Recursively renders JSONB. Booleans render as Yes/No.
+// Recursively renders JSONB. Booleans → Yes/No. Audio URLs → <audio> player.
 
 const ResponseViewer = ({ data, level = 0 }: { data: any; level?: number }) => {
   if (data === null || data === undefined) {
@@ -55,7 +62,16 @@ const ResponseViewer = ({ data, level = 0 }: { data: any; level?: number }) => {
   }
 
   if (typeof data !== 'object') {
-    return <div className="text-gray-800 whitespace-pre-wrap">{String(data)}</div>;
+    const str = String(data);
+    if (isAudioUrl(str)) {
+      return (
+        <audio controls className="w-full mt-1 rounded">
+          <source src={str} />
+          <a href={str} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-sm">Download audio</a>
+        </audio>
+      );
+    }
+    return <div className="text-gray-800 whitespace-pre-wrap">{str}</div>;
   }
 
   const entries = Array.isArray(data)
@@ -93,69 +109,84 @@ const ResponseViewer = ({ data, level = 0 }: { data: any; level?: number }) => {
 };
 
 // ─── Hobbies renderer ─────────────────────────────────────────────────────────
-
+// Hobbies are stored as { [questionId: string]: string } — use the generic viewer.
 const HobbiesRenderer = ({ responses }: { responses: any }) => {
-  const hobbies: any[] = responses?.hobbies || [];
-  if (hobbies.length === 0) {
+  if (!responses || Object.keys(responses).length === 0) {
     return <p className="text-gray-500 italic">No hobbies recorded.</p>;
   }
-  return (
-    <div className="space-y-4">
-      {hobbies.map((hobby: any, i: number) => (
-        <Card key={hobby.id ?? i} className="border border-gray-200">
-          <CardHeader className="pb-2 pt-4 px-4">
-            <CardTitle className="text-sm font-semibold text-blue-700">Hobby {i + 1}</CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 pb-4 space-y-2 text-sm">
-            {[
-              { label: 'Name', value: hobby.name },
-              { label: 'Description', value: hobby.description },
-              { label: 'Time Spent', value: hobby.timeSpent },
-              { label: 'Enjoyment', value: hobby.enjoyment },
-              { label: 'Skills', value: hobby.skills },
-            ].map(({ label, value }) => (
-              <div key={label}>
-                <span className="font-medium text-gray-600 mr-2">{label}:</span>
-                <span className="text-gray-800">{value || <span className="text-gray-400 italic">—</span>}</span>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
+  return <ResponseViewer data={responses} />;
 };
 
 // ─── Role Models renderer ─────────────────────────────────────────────────────
+// Stored as { roleModel1: {...}, roleModel2: {...}, roleModel3: {...}, question12, question13 }
+
+const ROLE_MODEL_FIELDS: { key: string; label: string }[] = [
+  { key: 'name', label: 'Name' },
+  { key: 'relationship', label: 'Relationship' },
+  { key: 'admirationReasons', label: 'Why I admire them' },
+  { key: 'profession', label: 'Profession' },
+  { key: 'desiredQualities', label: 'Qualities I want to develop' },
+  { key: 'careerDiscussed', label: 'Career discussed' },
+  { key: 'opinion', label: 'Their opinion' },
+  { key: 'willingToHelp', label: 'Willing to help' },
+  { key: 'helpLookingFor', label: 'Help I am looking for' },
+  { key: 'similarities', label: 'Similarities' },
+  { key: 'incorporatePlan', label: 'How I will incorporate their qualities' },
+];
 
 const RoleModelsRenderer = ({ responses }: { responses: any }) => {
-  const roleModels: any[] = responses?.roleModels || [];
-  if (roleModels.length === 0) {
+  if (!responses) return <p className="text-gray-500 italic">No role models recorded.</p>;
+
+  const roleModelKeys = ['roleModel1', 'roleModel2', 'roleModel3'].filter(k => responses[k]);
+  if (roleModelKeys.length === 0) {
     return <p className="text-gray-500 italic">No role models recorded.</p>;
   }
+
   return (
     <div className="space-y-4">
-      {roleModels.map((rm: any, i: number) => (
-        <Card key={rm.id ?? i} className="border border-gray-200">
+      {roleModelKeys.map((key, i) => {
+        const rm = responses[key];
+        return (
+          <Card key={key} className="border border-gray-200">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm font-semibold text-purple-700">
+                Role Model {i + 1}{rm.name ? ` — ${rm.name}` : ''}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 space-y-2 text-sm">
+              {ROLE_MODEL_FIELDS.map(({ key: field, label }) =>
+                rm[field] ? (
+                  <div key={field}>
+                    <span className="font-medium text-gray-600 mr-2">{label}:</span>
+                    <span className="text-gray-800">{rm[field]}</span>
+                  </div>
+                ) : null
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
+      {(responses.question12 || responses.question13) && (
+        <Card className="border border-purple-100">
           <CardHeader className="pb-2 pt-4 px-4">
-            <CardTitle className="text-sm font-semibold text-purple-700">Role Model {i + 1}</CardTitle>
+            <CardTitle className="text-sm font-semibold text-purple-700">Reflection</CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-4 space-y-2 text-sm">
-            {[
-              { label: 'Name', value: rm.name },
-              { label: 'Relationship', value: rm.relationship },
-              { label: 'Qualities', value: rm.qualities },
-              { label: 'Influence', value: rm.influence },
-              { label: 'Incorporate Plan', value: rm.incorporatePlan },
-            ].map(({ label, value }) => (
-              <div key={label}>
-                <span className="font-medium text-gray-600 mr-2">{label}:</span>
-                <span className="text-gray-800">{value || <span className="text-gray-400 italic">—</span>}</span>
+            {responses.question12 && (
+              <div>
+                <span className="font-medium text-gray-600 mr-2">Similarities between role models:</span>
+                <span className="text-gray-800">{responses.question12}</span>
               </div>
-            ))}
+            )}
+            {responses.question13 && (
+              <div>
+                <span className="font-medium text-gray-600 mr-2">How to cultivate these qualities:</span>
+                <span className="text-gray-800">{responses.question13}</span>
+              </div>
+            )}
           </CardContent>
         </Card>
-      ))}
+      )}
     </div>
   );
 };
@@ -188,7 +219,7 @@ const HollandCodeRenderer = ({ responses }: { responses: any }) => {
     return <p className="text-gray-500 italic">Holland Code data not available.</p>;
   }
 
-  const maxScore = 7; // 7 questions per category
+  const maxScore = Math.max(7, ...Object.values(scores));
 
   return (
     <div className="space-y-6">
@@ -237,10 +268,13 @@ const HollandCodeRenderer = ({ responses }: { responses: any }) => {
 
 // ─── Empty state ──────────────────────────────────────────────────────────────
 
-const NotCompleted = () => (
+const NotCompleted = ({ inProgress = false }: { inProgress?: boolean }) => (
   <div className="py-12 text-center text-gray-500">
-    <ClipboardList className="w-10 h-10 mx-auto mb-3 opacity-20" />
-    <p>Student has not completed this assessment yet.</p>
+    <ClipboardList className={`w-10 h-10 mx-auto mb-3 ${inProgress ? 'opacity-60 text-yellow-500' : 'opacity-20'}`} />
+    <p>{inProgress
+      ? 'Student has started this assessment but not yet submitted it.'
+      : 'Student has not completed this assessment yet.'
+    }</p>
   </div>
 );
 
@@ -248,23 +282,40 @@ const NotCompleted = () => (
 
 export default function TeacherStudentResponsesPage() {
   const navigate = useNavigate();
+  const { userProfile } = useAuth();
   const { studentId } = useParams<{ studentId: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const validTabs = ['inspiration','about_me','dreams','school_learning','hobbies','role_models','personality','career_guidance_tools'];
+  const activeTab = validTabs.includes(searchParams.get('tab') ?? '') ? searchParams.get('tab')! : 'inspiration';
   const [loading, setLoading] = useState(true);
   const [studentName, setStudentName] = useState('');
   const [responseMap, setResponseMap] = useState<Partial<Record<AssessmentType, AssessmentRecord>>>({});
+  const [inProgressSet, setInProgressSet] = useState<Set<AssessmentType>>(new Set());
+
+  // G39: Role guard — only teachers may view this page
+  useEffect(() => {
+    if (userProfile && userProfile.role !== 'teacher') navigate('/', { replace: true });
+  }, [userProfile]);
 
   useEffect(() => {
     if (!studentId) return;
     (async () => {
       setLoading(true);
 
-      // Fetch student name
-      const { data: student } = await supabase
+      // G40: Two-step query — avoids silent FK join failure
+      const { data: studentRow } = await supabase
         .from('students')
-        .select('user_id, users:user_id(full_name)')
+        .select('user_id')
         .eq('id', studentId)
         .maybeSingle();
-      setStudentName((student as any)?.users?.full_name || 'Student');
+      if (studentRow?.user_id) {
+        const { data: userRow } = await supabase
+          .from('users')
+          .select('full_name')
+          .eq('id', studentRow.user_id)
+          .maybeSingle();
+        setStudentName(userRow?.full_name || 'Student');
+      }
 
       // Fetch all assessment responses (student_id references students.id)
       const { data: records } = await supabase
@@ -272,17 +323,24 @@ export default function TeacherStudentResponsesPage() {
         .select('assessment_type, responses, completed_at')
         .eq('student_id', studentId);
 
-      // Build map: keep only completed records, latest per type
+      // Build map: latest completed record per type; separately track in-progress
       const map: Partial<Record<AssessmentType, AssessmentRecord>> = {};
+      const inProgress = new Set<AssessmentType>();
       for (const rec of (records || [])) {
-        if (!rec.completed_at) continue;
         const type = rec.assessment_type as AssessmentType;
+        if (!rec.completed_at) {
+          inProgress.add(type);
+          continue;
+        }
         const existing = map[type];
         if (!existing || new Date(rec.completed_at) > new Date(existing.completed_at!)) {
           map[type] = rec as AssessmentRecord;
         }
       }
+      // G37: Only mark in-progress when there is no completed version
+      inProgress.forEach(t => { if (map[t]) inProgress.delete(t); });
       setResponseMap(map);
+      setInProgressSet(inProgress);
       setLoading(false);
     })();
   }, [studentId]);
@@ -296,6 +354,7 @@ export default function TeacherStudentResponsesPage() {
   }
 
   const completedCount = TABS.filter(t => !!responseMap[t.key]).length;
+  const inProgressCount = inProgressSet.size;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -307,7 +366,7 @@ export default function TeacherStudentResponsesPage() {
               variant="ghost"
               size="icon"
               className="text-white/80 hover:text-white hover:bg-white/10"
-              onClick={() => navigate(-1)}
+              onClick={() => { if (window.history.state?.idx > 0) navigate(-1); else navigate('/teacher'); }}
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
@@ -317,6 +376,7 @@ export default function TeacherStudentResponsesPage() {
               </h1>
               <p className="text-white/70 text-sm">
                 {studentName} &mdash; {completedCount} of {TABS.length} assessments completed
+                {inProgressCount > 0 && `, ${inProgressCount} in progress`}
               </p>
             </div>
           </div>
@@ -325,10 +385,11 @@ export default function TeacherStudentResponsesPage() {
 
       {/* Tabs */}
       <div className="container mx-auto px-4 py-6">
-        <Tabs defaultValue="inspiration">
+        <Tabs value={activeTab} onValueChange={tab => setSearchParams({ tab }, { replace: true })}>
           <TabsList className="flex flex-wrap h-auto gap-1 mb-6 bg-white border border-gray-200 shadow-sm p-1 rounded-xl">
             {TABS.map(tab => {
               const done = !!responseMap[tab.key];
+              const started = !done && inProgressSet.has(tab.key);
               return (
                 <TabsTrigger
                   key={tab.key}
@@ -339,6 +400,9 @@ export default function TeacherStudentResponsesPage() {
                   {done && (
                     <span className="ml-1.5 w-1.5 h-1.5 rounded-full bg-green-500 inline-block" title="Completed" />
                   )}
+                  {started && (
+                    <span className="ml-1.5 w-1.5 h-1.5 rounded-full bg-yellow-400 inline-block" title="Started but not submitted" />
+                  )}
                 </TabsTrigger>
               );
             })}
@@ -346,56 +410,56 @@ export default function TeacherStudentResponsesPage() {
 
           {/* inspiration */}
           <TabsContent value="inspiration">
-            <TabCard title="My Inspiration" record={responseMap['inspiration']}>
+            <TabCard title="My Inspiration" record={responseMap['inspiration']} inProgress={inProgressSet.has('inspiration')}>
               <ResponseViewer data={responseMap['inspiration']?.responses} />
             </TabCard>
           </TabsContent>
 
           {/* about_me */}
           <TabsContent value="about_me">
-            <TabCard title="About Me" record={responseMap['about_me']}>
+            <TabCard title="About Me" record={responseMap['about_me']} inProgress={inProgressSet.has('about_me')}>
               <ResponseViewer data={responseMap['about_me']?.responses} />
             </TabCard>
           </TabsContent>
 
           {/* dreams */}
           <TabsContent value="dreams">
-            <TabCard title="My Dreams" record={responseMap['dreams']}>
+            <TabCard title="My Dreams" record={responseMap['dreams']} inProgress={inProgressSet.has('dreams')}>
               <ResponseViewer data={responseMap['dreams']?.responses} />
             </TabCard>
           </TabsContent>
 
           {/* school_learning */}
           <TabsContent value="school_learning">
-            <TabCard title="School & Learning" record={responseMap['school_learning']}>
+            <TabCard title="School & Learning" record={responseMap['school_learning']} inProgress={inProgressSet.has('school_learning')}>
               <ResponseViewer data={responseMap['school_learning']?.responses} />
             </TabCard>
           </TabsContent>
 
           {/* hobbies */}
           <TabsContent value="hobbies">
-            <TabCard title="Talents & Hobbies" record={responseMap['hobbies']}>
+            <TabCard title="Talents & Hobbies" record={responseMap['hobbies']} inProgress={inProgressSet.has('hobbies')}>
               <HobbiesRenderer responses={responseMap['hobbies']?.responses} />
             </TabCard>
           </TabsContent>
 
           {/* role_models */}
           <TabsContent value="role_models">
-            <TabCard title="My Role Models" record={responseMap['role_models']}>
+            <TabCard title="My Role Models" record={responseMap['role_models']} inProgress={inProgressSet.has('role_models')}>
               <RoleModelsRenderer responses={responseMap['role_models']?.responses} />
             </TabCard>
           </TabsContent>
 
           {/* personality / Holland Code */}
           <TabsContent value="personality">
-            <TabCard title="Holland Code (RIASEC)" record={responseMap['personality']}>
+            <TabCard title="Holland Code (RIASEC)" record={responseMap['personality']} inProgress={inProgressSet.has('personality')}>
               <HollandCodeRenderer responses={responseMap['personality']?.responses} />
             </TabCard>
           </TabsContent>
 
           {/* career_guidance_tools */}
           <TabsContent value="career_guidance_tools">
-            <TabCard title="Career Guidance Tools" record={responseMap['career_guidance_tools']}>
+            <TabCard title="Career Guidance Tools" record={responseMap['career_guidance_tools']} inProgress={inProgressSet.has('career_guidance_tools')}>
               <ResponseViewer data={responseMap['career_guidance_tools']?.responses} />
             </TabCard>
           </TabsContent>
@@ -410,10 +474,12 @@ export default function TeacherStudentResponsesPage() {
 function TabCard({
   title,
   record,
+  inProgress = false,
   children,
 }: {
   title: string;
   record: AssessmentRecord | undefined;
+  inProgress?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -426,10 +492,13 @@ function TabCard({
               Completed {new Date(record.completed_at).toLocaleDateString()}
             </span>
           )}
+          {!record && inProgress && (
+            <span className="text-xs text-yellow-600 font-medium">In progress</span>
+          )}
         </div>
       </CardHeader>
       <CardContent className="pt-4">
-        {record ? children : <NotCompleted />}
+        {record ? children : <NotCompleted inProgress={inProgress} />}
       </CardContent>
     </Card>
   );

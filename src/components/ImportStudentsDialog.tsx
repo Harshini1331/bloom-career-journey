@@ -1,12 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-
-const LANG_LABELS: Record<string, string> = { en: 'English', kn: 'ಕನ್ನಡ', ta: 'தமிழ்', hi: 'हिन्दी' };
+import { LANG_LABELS } from '@/lib/langLabels';
 
 type Props = {
   open: boolean;
@@ -18,13 +17,36 @@ type Props = {
 };
 
 function parseCSV(text: string): Array<Record<string, string>> {
-  const lines = text.split(/\r?\n/).filter(Boolean);
-  if (lines.length === 0) return [];
-  const headers = lines[0].split(',').map(h => h.trim());
-  return lines.slice(1).map(line => {
-    const cols = line.split(',');
+  // RFC 4180-compliant parser — handles quoted fields containing commas and escaped quotes
+  const rows: string[][] = [];
+  let current: string[] = [];
+  let field = '';
+  let inQuotes = false;
+  let i = 0;
+  while (i < text.length) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"' && text[i + 1] === '"') { field += '"'; i += 2; continue; }
+      else if (ch === '"') { inQuotes = false; }
+      else { field += ch; }
+    } else {
+      if (ch === '"') { inQuotes = true; }
+      else if (ch === ',') { current.push(field.trim()); field = ''; }
+      else if (ch === '\n' || ch === '\r') {
+        current.push(field.trim()); field = '';
+        if (current.some(f => f)) rows.push(current);
+        current = [];
+        if (ch === '\r' && text[i + 1] === '\n') i++;
+      } else { field += ch; }
+    }
+    i++;
+  }
+  if (field || current.length > 0) { current.push(field.trim()); if (current.some(f => f)) rows.push(current); }
+  if (rows.length === 0) return [];
+  const headers = rows[0].map(h => h.trim());
+  return rows.slice(1).map(cols => {
     const row: Record<string, string> = {};
-    headers.forEach((h, i) => row[h] = (cols[i] || '').trim());
+    headers.forEach((h, idx) => { row[h] = (cols[idx] || '').trim(); });
     return row;
   });
 }
@@ -44,8 +66,18 @@ export default function ImportStudentsDialog({ open, onOpenChange, classes, teac
   const { userProfile } = useAuth();
   const [rows, setRows] = useState<Array<Record<string, string>>>([]);
   const [errors, setErrors] = useState<string[]>([]);
+  const [successes, setSuccesses] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
   const [selectedLang, setSelectedLang] = useState(userProfile?.preferred_language || 'en');
+
+  // Reset all state when dialog closes so re-opening is always fresh
+  useEffect(() => {
+    if (!open) {
+      setRows([]);
+      setErrors([]);
+      setSuccesses([]);
+    }
+  }, [open]);
 
   const classMap = useMemo(() => {
     const pairs: Array<[string, string]> = [];
@@ -66,13 +98,13 @@ export default function ImportStudentsDialog({ open, onOpenChange, classes, teac
     return new Map(pairs);
   }, [classes]);
 
-  // Extract grade number from class name like "Class 9" → "9"
+  // Extract grade number from class name — handles "Class 9", "Grade 9", "9th Standard", "9", etc.
   const classIdToGrade = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of classes as any[]) {
       const id = String((c as any).class_id ?? (c as any).id ?? '');
       const name = String((c as any).class_name ?? (c as any).name ?? '');
-      const match = name.match(/Class\s+(\d+)/i);
+      const match = name.match(/(\d+)/);
       if (id && match) map.set(id, match[1]);
     }
     return map;
@@ -95,14 +127,16 @@ export default function ImportStudentsDialog({ open, onOpenChange, classes, teac
         classId = nameToId.get(className) || '';
       }
       if (!classId || !classMap.has(classId)) { errs.push(`Row ${idx+2}: invalid class (provide class_id or class_name)`); return; }
-      normalized.push({ full_name: r.full_name, phone: normalizedPhone, class_id: classId });
+      const rowLang = r.preferred_language?.trim();
+      const lang = rowLang && LANG_LABELS[rowLang] ? rowLang : '';
+      normalized.push({ full_name: r.full_name, phone: normalizedPhone, class_id: classId, preferred_language: lang });
     });
     setRows(normalized);
     setErrors(errs);
   };
 
   const downloadTemplate = () => {
-    const csv = 'full_name,phone,class_name\n';
+    const csv = 'full_name,phone,class_name,preferred_language\n';
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -121,7 +155,7 @@ export default function ImportStudentsDialog({ open, onOpenChange, classes, teac
         fullName: r.full_name,
         phone: r.phone,
         grade: classIdToGrade.get(r.class_id) || '',
-        preferredLanguage: selectedLang,
+        preferredLanguage: r.preferred_language || selectedLang,
         teacherId,
         stateId,
       }));
@@ -136,17 +170,19 @@ export default function ImportStudentsDialog({ open, onOpenChange, classes, teac
         return;
       }
 
-      const messages: string[] = [];
+      const successMessages: string[] = [];
+      const errorMessages: string[] = [];
       if (result.created?.length > 0) {
-        messages.push(`${result.created.length} student(s) imported successfully.`);
+        successMessages.push(`${result.created.length} student(s) imported successfully.`);
       }
       if (result.errors?.length > 0) {
         for (const err of result.errors) {
-          messages.push(`${err.fullName} (${err.phone}): ${err.reason}`);
+          errorMessages.push(`${err.fullName} (${err.phone}): ${err.reason}`);
         }
       }
 
-      setErrors(messages);
+      setSuccesses(successMessages);
+      setErrors(errorMessages);
       setImporting(false);
 
       if (result.created?.length > 0) {
@@ -157,6 +193,7 @@ export default function ImportStudentsDialog({ open, onOpenChange, classes, teac
       }
     } catch (e: any) {
       setErrors([`Import failed: ${e?.message || e}`]);
+      setSuccesses([]);
       setImporting(false);
     }
   };
@@ -166,7 +203,7 @@ export default function ImportStudentsDialog({ open, onOpenChange, classes, teac
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Import Students (CSV)</DialogTitle>
-          <DialogDescription>Columns: full_name, phone, class_name</DialogDescription>
+          <DialogDescription>Required: full_name, phone, class_name — Optional: preferred_language (en/kn/ta/hi)</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div className="flex gap-2">
@@ -177,7 +214,7 @@ export default function ImportStudentsDialog({ open, onOpenChange, classes, teac
           </div>
           <div className="text-xs text-gray-500">
             Example (CSV):
-            <pre className="bg-gray-50 border rounded p-2 mt-1 whitespace-pre-wrap">{`full_name,phone,class_name\nAsha Kumar,9876543210,Class 8\nRavi M,9876543211,Class 9`}</pre>
+            <pre className="bg-gray-50 border rounded p-2 mt-1 whitespace-pre-wrap">{`full_name,phone,class_name,preferred_language\nAsha Kumar,9876543210,Class 8,kn\nRavi M,9876543211,Class 9,`}</pre>
           </div>
           <div className="space-y-1">
             <Label className="text-sm">Preferred Language for all students</Label>
@@ -194,6 +231,9 @@ export default function ImportStudentsDialog({ open, onOpenChange, classes, teac
           </div>
           {rows.length > 0 && (
             <div className="text-sm text-gray-700">Ready to import: {rows.length} rows</div>
+          )}
+          {successes.length > 0 && (
+            <div className="text-sm text-green-700 bg-green-50 border border-green-200 rounded p-2 whitespace-pre-wrap">{successes.join('\n')}</div>
           )}
           {errors.length > 0 && (
             <div className="text-sm text-red-600 whitespace-pre-wrap">{errors.join('\n')}</div>
