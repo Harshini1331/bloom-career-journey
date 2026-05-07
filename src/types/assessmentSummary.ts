@@ -11,14 +11,26 @@ export type SummaryType =
   | 'teacher_edited'
   | 'student_edited';
 
+/**
+ * Stores AI-generated (or teacher/student-edited) answers for all 6 summary assessments.
+ *
+ * Field semantics vary by assessment type — callers must know which format applies:
+ *   Inspiration   – question1/2/3: plain-text answers
+ *   School Learning – question1–6: plain-text answers
+ *   About Me      – question1–16: plain-text answers (question16 used as a presence marker)
+ *   Role Models   – question1: plain-text numbered list; question2–6 intentionally empty
+ *   Dreams        – question1: JSON string → DreamPortfolioEntry[]; question2–6 empty
+ *   Hobbies       – question1: JSON string → hobbies entry[]; question6: JSON string →
+ *                   talents entry[]; question2–5 intentionally empty
+ */
 export interface SummaryQuestions {
-  question1: string; // List the things that inspired you
-  question2: string; // Behaviors you should avoid
-  question3: string; // Similarities between video characters and real-life inspirations
-  question4?: string; // Optional 4th question (for Dreams assessment)
-  question5?: string; // Optional 5th question (for School Learning assessment)
-  question6?: string; // Optional 6th question (for School Learning assessment)
-  [key: string]: string | undefined; // Allow additional questions (e.g., About Me has 16)
+  question1: string;
+  question2: string;
+  question3: string;
+  question4?: string;
+  question5?: string;
+  question6?: string;
+  [key: string]: string | undefined;
 }
 
 // Special structure for Dreams portfolio - array of 3 dream entries

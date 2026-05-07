@@ -65,6 +65,7 @@ const BASE_SYSTEM_PROMPT =
   'Your language will be simple, clear and relevant for grade 8 through grade 12 students. ' +
   'Answer in small simple sentences. ' +
   "Respond in the same language as the student's responses. " +
+  'Students in rural India often write in Roman script (Tanglish/Kanglish/Hinglish); understand their meaning and respond in the instructed language. ' +
   "Be encouraging and positive — highlight the student's strengths before mentioning areas for growth. " +
   'Keep each summary answer to 2-3 sentences maximum. ' +
   "Do not use general knowledge beyond the student's responses. " +
@@ -76,7 +77,8 @@ const BASE_SYSTEM_PROMPT =
 
 class AISummaryService {
 
-  private templateCache: Map<string, SummaryTemplate> = new Map();
+  private templateCache: Map<string, { template: SummaryTemplate; cachedAt: number }> = new Map();
+  private readonly TEMPLATE_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
   constructor() {
     // API calls routed through gemini-proxy Edge Function — no client-side key needed
@@ -140,6 +142,12 @@ class AISummaryService {
       if (typeof node === 'string') {
         const trimmed = node.trim();
         if (!trimmed) return;
+        // Skip serialized booleans, pure numeric IDs, and very short ASCII tokens
+        // (e.g. checkbox keys "true"/"false", option codes "1"/"en") — they inflate
+        // totalCount without contributing to any script, diluting the ratios.
+        if (trimmed === 'true' || trimmed === 'false') return;
+        if (/^\d+$/.test(trimmed)) return;
+        if (trimmed.length < 4 && /^[a-zA-Z0-9_\-]+$/.test(trimmed)) return;
         totalCount++;
         if (this.containsKannada(trimmed)) {
           kannadaCount++;
@@ -177,9 +185,13 @@ class AISummaryService {
     const tamilRatio = tamilCount / totalCount;
     const hindiRatio = hindiCount / totalCount;
 
-    if (kannadaRatio > 0.5) return 'kn';
-    if (tamilRatio > 0.5) return 'ta';
-    if (hindiRatio > 0.5) return 'hi';
+    // Plurality vote: use whichever script leads, provided it appears in ≥20% of strings.
+    // The old >0.5 threshold failed for mixed-script responses (e.g. 40% Kannada + 35% Tamil
+    // both below 50% → incorrectly defaulted to English).
+    const threshold = 0.2;
+    if (kannadaRatio >= threshold && kannadaRatio >= tamilRatio && kannadaRatio >= hindiRatio) return 'kn';
+    if (tamilRatio >= threshold && tamilRatio > kannadaRatio && tamilRatio >= hindiRatio) return 'ta';
+    if (hindiRatio >= threshold && hindiRatio > kannadaRatio && hindiRatio > tamilRatio) return 'hi';
 
     return 'en';
   }
@@ -216,9 +228,9 @@ class AISummaryService {
    * Fetch summary template from database
    */
   private async getSummaryTemplate(assessmentType: string = 'inspiration'): Promise<SummaryTemplate | null> {
-    // Check cache first
-    if (this.templateCache.has(assessmentType)) {
-      return this.templateCache.get(assessmentType)!;
+    const cached = this.templateCache.get(assessmentType);
+    if (cached && Date.now() - cached.cachedAt < this.TEMPLATE_CACHE_TTL_MS) {
+      return cached.template;
     }
 
     try {
@@ -228,18 +240,18 @@ class AISummaryService {
 
       if (error) {
         logger.error('Error fetching summary template:', error);
+        console.warn(`[aiSummaryService] Template fetch failed for "${assessmentType}" — using fallback`);
         return null;
       }
 
       if (!data || data.length === 0) {
         logger.warn(`No summary template found for assessment type: ${assessmentType}`);
+        console.warn(`[aiSummaryService] No DB template for "${assessmentType}" — using fallback`);
         return null;
       }
 
       const template = data[0].summary_questions as SummaryTemplate;
-
-      // Cache the template
-      this.templateCache.set(assessmentType, template);
+      this.templateCache.set(assessmentType, { template, cachedAt: Date.now() });
 
       return template;
     } catch (error) {
@@ -300,22 +312,30 @@ class AISummaryService {
       }
       : isTamil
         ? {
-          // Simple Tamil guidance; model is still instructed separately to answer in Tamil
           question1:
-            "- வீடியோக்களில் உங்களை குறிப்பாக பாதித்த தருணங்கள், வசனங்கள் அல்லது கருத்துகளை குறிப்பிடுங்கள்\n- மாணவர் சொன்ன தனிப்பட்ட அனுபவங்களுடன் இணைத்துச் सोचிக்கவும்\n- 3–5 முக்கிய புள்ளிகளாக எழுதுங்கள்\n- முதல் நபர் பார்வையில் எழுதுங்கள் (\"என்னை ... மிகவும் ஊக்கப்படுத்தியது\")",
+            "- வீடியோக்களில் உங்களை குறிப்பாக பாதித்த தருணங்கள், வசனங்கள் அல்லது கருத்துகளை குறிப்பிடுங்கள்\n- மாணவர் சொன்ன தனிப்பட்ட அனுபவங்களுடன் இணைத்துச் சிந்திக்கவும்\n- 3–5 முக்கிய புள்ளிகளாக எழுதுங்கள்\n- முதல் நபர் பார்வையில் எழுதுங்கள் (\"என்னை ... மிகவும் ஊக்கப்படுத்தியது\")",
           question2:
-            "- வீடியோக்களில் வரும் தவிர்க்க வேண்டிய பழக்கங்கள், நடத்தைகள் அல்லது மனப்பாங்குகளை குறிப்பிடுங்கள்\n- ஏன் அவற்றை தவிர்க்க வேண்டும் என்று சுலபமான சொல்லில் விளக்குங்கள்\n- கட்டுரை போல் அல்லாமல் சாதாரண வாக்கியங்களில் எழுதுங்கள்\n- முதல் நபர் பார்வையில் எழுதுங்கள் (\"நான் ... தவிர்க்க வேண்டும்\")",
+            "- வீடியோக்களில் வரும் தவிர்க்க வேண்டிய பழக்கங்கள், நடத்தைகள் அல்லது மனப்பாங்குகளை குறிப்பிடுங்கள்\n- ஏன் அவற்றை தவிர்க்க வேண்டும் என்று சுலபமான சொல்லில் விளக்குங்கள்\n- முதல் நபர் பார்வையில் எழுதுங்கள் (\"நான் ... தவிர்க்க வேண்டும்\")",
           question3:
-            "- உங்களை ஊக்கப்படுத்தும் மனிதர்களில் காணப்படும் பொதுவான குணங்களையும் மதிப்புகளையும் கண்டுபிடிக்கவும்\n- வீடியோ கதாபாத்திரங்களையும் உங்கள் உண்மை வாழ்க்கை முன்மாதிரிகளையும் ஒப்பிடுங்கள்\n- இந்த ஒற்றுமைகள் உங்கள் எதிர்காலத்திற்கு எப்படி உதவுகின்றன என்று எழுதுங்கள்\n- முதல் நபர் பார்வையில் எழுதுங்கள் (\"நான் கவனித்தது என்னவென்றால் ...\")"
+            "- உங்களை ஊக்கப்படுத்தும் மனிதர்களில் காணப்படும் பொதுவான குணங்களையும் மதிப்புகளையும் கண்டுபிடிக்கவும்\n- வீடியோ கதாபாத்திரங்களையும் உண்மை வாழ்க்கை முன்மாதிரிகளையும் ஒப்பிடுங்கள்\n- முதல் நபர் பார்வையில் எழுதுங்கள் (\"நான் கவனித்தது என்னவென்றால் ...\")"
         }
-        : {
-          question1:
-            "- Identify specific moments, quotes, or themes from the videos\n- Connect to any personal experiences the student mentioned\n- Be specific with 3-5 key takeaways\n- Write in first person (\"I was inspired by...\")",
-          question2:
-            "- Identify negative patterns, habits, or attitudes mentioned in the videos\n- Explain why these should be avoided\n- Provide constructive framing\n- Write in first person (\"I should avoid...\")",
-          question3:
-            "- Find common themes, values, or traits\n- Connect video characters to real-life role models the student mentioned\n- Identify patterns of what makes someone inspiring\n- Write in first person (\"I notice that...\")"
-        };
+        : isHindi
+          ? {
+            question1:
+              "- वीडियो से विशिष्ट क्षणों, उद्धरणों या विषयों की पहचान करें\n- छात्र के बताए व्यक्तिगत अनुभवों से जोड़ें\n- 3-5 मुख्य बातें स्पष्ट करें\n- पहले व्यक्ति में लिखें (\"मुझे ... से प्रेरणा मिली\")",
+            question2:
+              "- वीडियो में बताए गए नकारात्मक व्यवहारों, आदतों या दृष्टिकोणों की पहचान करें\n- बताएं कि इनसे क्यों बचना चाहिए\n- रचनात्मक ढाँचा दें\n- पहले व्यक्ति में लिखें (\"मुझे ... से बचना चाहिए\")",
+            question3:
+              "- सामान्य विषय, मूल्य या गुण खोजें\n- वीडियो पात्रों को छात्र के वास्तविक जीवन के आदर्शों से जोड़ें\n- प्रेरणादायक पैटर्न की पहचान करें\n- पहले व्यक्ति में लिखें (\"मैंने देखा कि...\")"
+          }
+          : {
+            question1:
+              "- Identify specific moments, quotes, or themes from the videos\n- Connect to any personal experiences the student mentioned\n- Be specific with 3-5 key takeaways\n- Write in first person (\"I was inspired by...\")",
+            question2:
+              "- Identify negative patterns, habits, or attitudes mentioned in the videos\n- Explain why these should be avoided\n- Provide constructive framing\n- Write in first person (\"I should avoid...\")",
+            question3:
+              "- Find common themes, values, or traits\n- Connect video characters to real-life role models the student mentioned\n- Identify patterns of what makes someone inspiring\n- Write in first person (\"I notice that...\")"
+          };
 
     const questionsPrompt = `Question 1: ${questions.question1}
 ${instructions.question1}
@@ -343,7 +363,6 @@ IMPORTANT RULES:
 - Write like the student is talking (use "I" and "me")
 - Use very simple words that a grade 8 or 9 student can easily understand
 - Use plain English - no difficult words
-- For Question 1, produce the Markdown table described above so each category appears on its own row
 - The TOTAL length should be 100-150 words for all three answers together
 - Be short and clear
 - Use the student's own words from their answers
@@ -448,28 +467,10 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
 
       logger.log('📋 Parsed JSON structure:', Object.keys(parsed));
 
-      // Handle dream portfolio structure
-      if (Array.isArray(parsed.entries)) {
-        const entries = parsed.entries.map((entry: any) => ({
-          dream: (entry?.dream ?? '').trim(),
-          quality_value_strength: (entry?.quality_value_strength ?? '').trim(),
-          prevent_failure: (entry?.prevent_failure ?? '').trim(),
-          study_path: (entry?.study_path ?? '').trim()
-        }));
-
-        return {
-          question1: JSON.stringify(entries),
-          question2: parsed.question2 || parsed.summary || '',
-          question3: parsed.question3 || parsed.action_plan || '',
-          question4: '',
-          question5: '',
-          question6: ''
-        };
-      }
-
-      // Handle Role Models assessment (only question1)
-      if (parsed.question1 && !parsed.question2) {
-        logger.log('✅ Role Models format detected (question1 only)');
+      // Handle Role Models assessment (exactly one questionN key in the response)
+      const parsedQuestionKeys = Object.keys(parsed).filter(k => /^question\d+$/.test(k));
+      if (parsedQuestionKeys.length === 1 && parsed.question1) {
+        logger.log('✅ Role Models format detected (single question1)');
         return {
           question1: parsed.question1,
           question2: '',
@@ -541,15 +542,9 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
 
       const prompt = await this.buildPrompt(responses, detectedLanguage);
 
-      // Use exact same format as chatbot - no generationConfig initially
       const requestBody = {
-        contents: [
-          {
-            parts: [
-              { text: prompt }
-            ]
-          }
-        ]
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.4, maxOutputTokens: 1024 }
       };
 
       logger.log('📡 Calling Gemini API via proxy (inspiration)');
@@ -602,24 +597,61 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
    * Validate summary content
    */
   validateSummary(summary: SummaryQuestions): boolean {
-    const minLength = 50; // Minimum characters per answer
+    const minLength = 50;
 
-    return !!(
+    // Inspiration, School Learning: multiple plain-text questions
+    if (
       summary.question1 && summary.question1.length >= minLength &&
       summary.question2 && summary.question2.length >= minLength &&
       summary.question3 && summary.question3.length >= minLength
-    ) || (
-        // Or if it's the detailed About Me (check a few key questions)
-        summary.question1 && summary.question16 && summary.question1.length > 5
-      );
+    ) return true;
+
+    // About Me: up to 16 plain-text questions
+    if (summary.question1 && summary.question16 && summary.question1.length > 5) return true;
+
+    // Hobbies: question1 = hobbies JSON array, question6 = talents JSON array, question2 empty
+    if (summary.question1 && summary.question6 && !summary.question2) {
+      try {
+        const h = JSON.parse(summary.question1);
+        const t = JSON.parse(summary.question6);
+        if (Array.isArray(h) && h.length > 0 && Array.isArray(t) && t.length > 0) return true;
+      } catch { /* not Hobbies JSON */ }
+    }
+
+    // Dreams (JSON portfolio) and Role Models (plain-text list): both have question2/question6 empty
+    if (summary.question1 && !summary.question2 && !summary.question6) {
+      try {
+        const parsed = JSON.parse(summary.question1);
+        // Dreams: JSON array of {dream, quality_value_strength, prevent_failure, study_path}
+        if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].dream) return true;
+      } catch { /* plain text = Role Models numbered list */ }
+      // Role Models or any other single plain-text answer
+      if (summary.question1.length >= minLength) return true;
+    }
+
+    return false;
   }
 
   /**
    * Get word count for a summary
    */
   getSummaryWordCount(summary: SummaryQuestions): number {
-    const allText = `${summary.question1} ${summary.question2} ${summary.question3}`;
-    return allText.split(/\s+/).filter(word => word.length > 0).length;
+    let allText = '';
+    for (const key of Object.keys(summary)) {
+      const val = (summary as Record<string, string | undefined>)[key];
+      if (!val) continue;
+      try {
+        const parsed = JSON.parse(val);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((entry: Record<string, unknown>) => {
+            Object.values(entry).forEach(v => { if (typeof v === 'string') allText += ' ' + v; });
+          });
+          continue;
+        }
+      } catch { /* plain text — use as-is */ }
+      allText += ' ' + val;
+    }
+    return allText.trim().split(/\s+/).filter(w => w.length > 0).length;
   }
 
   /**
@@ -679,7 +711,9 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
       ? '- ಪ್ರತಿಯೊಂದು ಕನಸಿಗಾಗಿ, ನಿಮ್ಮ ಪ್ರತಿಕ್ರಿಯೆಗಳಿಂದ ನಿಜವಾದ ವಿವರಗಳನ್ನು ಬಳಸಿ\n- ವಿದ್ಯಾರ್ಥಿಯ ಧ್ವನಿಯಲ್ಲಿ ಬರೆಯಿರಿ (ಮೊದಲ ವ್ಯಕ್ತಿ)\n- ಪ್ರತಿಯೊಂದು ಪ್ರವೇಶಕ್ಕೆ ಸ್ಪಷ್ಟವಾಗಿ ಮತ್ತು ಸಂಕ್ಷಿಪ್ತವಾಗಿ ಉತ್ತರಿಸಿ'
       : isTamil
         ? '- ஒவ்வொரு கனவுக்கும், மாணவர் எழுதிய பதில்களில் இருந்து உண்மையான விவரங்களைப் பயன்படுத்துங்கள்\n- மாணவரின் குரலில் (முதல் நபர்) எழுதுங்கள்\n- ஒவ்வொரு பகுதியையும் குறுகிய, தெளிவான வரிகளில் எழுதுங்கள்'
-        : '- For each dream, use specific details from their responses\n- Write in the student\'s voice (first person)\n- Be clear and concise for each entry';
+        : isHindi
+          ? '- प्रत्येक सपने के लिए, अपनी प्रतिक्रियाओं से वास्तविक विवरण का उपयोग करें\n- छात्र की आवाज़ में लिखें (पहला व्यक्ति)\n- प्रत्येक प्रविष्टि के लिए स्पष्ट और संक्षिप्त रहें'
+          : '- For each dream, use specific details from their responses\n- Write in the student\'s voice (first person)\n- Be clear and concise for each entry';
 
     const questionsPrompt = `Create a dream portfolio with 3 dream entries. For each entry, fill in:
 
@@ -863,13 +897,8 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
       const prompt = await this.buildDreamsPrompt(responses, detectedLanguage);
 
       const requestBody = {
-        contents: [
-          {
-            parts: [
-              { text: prompt }
-            ]
-          }
-        ]
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.4, maxOutputTokens: 1024 }
       };
 
       logger.log('📡 Calling Gemini API for Dreams summary:', 'gemini-proxy');
@@ -927,8 +956,9 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
 
       const parsed = JSON.parse(cleaned);
 
-      // Validate structure
-      if (!parsed.entries || !Array.isArray(parsed.entries) || parsed.entries.length !== 3) {
+      // Validate structure — accept any non-empty array (Gemini may return 2 or 4 if student
+      // mentioned fewer/more dreams; strict === 3 caused silent failures in production)
+      if (!parsed.entries || !Array.isArray(parsed.entries) || parsed.entries.length === 0) {
         logger.error('❌ Invalid Dreams summary structure:', parsed);
         return null;
       }
@@ -1023,7 +1053,9 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
       ? '- ವಿದ್ಯಾರ್ಥಿಯ ಪ್ರತಿಕ್ರಿಯೆಗಳಿಂದ ನಿಜವಾದ ವಿವರಗಳನ್ನು ಬಳಸಿ\n- ವಿದ್ಯಾರ್ಥಿಯ ಧ್ವನಿಯಲ್ಲಿ ಬರೆಯಿರಿ (ಮೊದಲ ವ್ಯಕ್ತಿ)\n- ಪ್ರತಿಯೊಂದು ಪ್ರಶ್ನೆಗೆ ಸ್ಪಷ್ಟವಾಗಿ ಮತ್ತು ಸಂಕ್ಷಿಪ್ತವಾಗಿ ಉತ್ತರಿಸಿ'
       : isTamil
         ? '- மாணவர் எழுதிய பதில்களில் இருந்து உண்மையான விவரங்களைப் பயன்படுத்துங்கள்\n- மாணவரின் குரலில் (முதல் நபர்) எழுதுங்கள்\n- ஒவ்வொரு கேள்விக்கும் குறுகிய, தெளிவான பதில் கொடுங்கள்'
-        : '- Use specific details from the student\'s responses\n- Write in the student\'s voice (first person)\n- Be clear and concise for each question';
+        : isHindi
+          ? '- छात्र की प्रतिक्रियाओं से विशिष्ट विवरण का उपयोग करें\n- छात्र की आवाज़ में लिखें (पहला व्यक्ति)\n- प्रत्येक प्रश्न के लिए स्पष्ट और संक्षिप्त रहें'
+          : '- Use specific details from the student\'s responses\n- Write in the student\'s voice (first person)\n- Be clear and concise for each question';
 
     const questionsPrompt = `Question 1: ${questions.question1}
 ${instructions}
@@ -1043,16 +1075,7 @@ ${instructions}
 Question 6: ${questions.question6}
 ${instructions}`;
 
-    const languageRule =
-      isKannada
-        ? '- Use simple Kannada words – no difficult or English-heavy phrases.\n'
-        : isTamil
-          ? '- Use simple Tamil words – no difficult or English-heavy phrases.\n'
-          : isHindi
-            ? '- Use simple Hindi words – no difficult or English-heavy phrases.\n'
-            : '- Use plain English – no difficult words.\n';
-
-    const coreInstructions = BASE_SYSTEM_PROMPT + '\n' + languageRule;
+    const coreInstructions = BASE_SYSTEM_PROMPT;
 
     return `${coreInstructions}
 
@@ -1210,13 +1233,8 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
       const prompt = await this.buildSchoolLearningPrompt(responses, detectedLanguage);
 
       const requestBody = {
-        contents: [
-          {
-            parts: [
-              { text: prompt }
-            ]
-          }
-        ]
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.4, maxOutputTokens: 1024 }
       };
 
       logger.log('📡 Calling Gemini API for School Learning summary:', 'gemini-proxy');
@@ -1316,7 +1334,9 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
       ? '- ಪ್ರತಿಯೊಂದು ಹವ್ಯಾಸ ಮತ್ತು ಪ್ರತಿಭೆಗಾಗಿ, ನಿಮ್ಮ ಪ್ರತಿಕ್ರಿಯೆಗಳಿಂದ ನಿಜವಾದ ವಿವರಗಳನ್ನು ಬಳಸಿ\n- ವಿದ್ಯಾರ್ಥಿಯ ಧ್ವನಿಯಲ್ಲಿ ಬರೆಯಿರಿ (ಮೊದಲ ವ್ಯಕ್ತಿ)\n- ಪ್ರತಿಯೊಂದು ಪ್ರವೇಶಕ್ಕೆ ಸ್ಪಷ್ಟವಾಗಿ ಮತ್ತು ಸಂಕ್ಷಿಪ್ತವಾಗಿ ಉತ್ತರಿಸಿ'
       : isTamil
         ? '- ஒவ்வொரு பொழுதுபோக்கும் திறமைக்கும், மாணவர் எழுதிய பதில்களில் இருந்து உண்மையான விவரங்களைப் பயன்படுத்துங்கள்\n- மாணவரின் குரலில் (முதல் நபர்) எழுதுங்கள்\n- ஒவ்வொரு பதிவையும் குறுகிய, தெளிவான வரிகளில் எழுதுங்கள்'
-        : '- For each hobby and talent, use specific details from their responses\n- Write in the student\'s voice (first person)\n- Be clear and concise for each entry';
+        : isHindi
+          ? '- प्रत्येक शौक और प्रतिभा के लिए, अपनी प्रतिक्रियाओं से विशिष्ट विवरण का उपयोग करें\n- छात्र की आवाज़ में लिखें (पहला व्यक्ति)\n- प्रत्येक प्रविष्टि के लिए स्पष्ट और संक्षिप्त रहें'
+          : '- For each hobby and talent, use specific details from their responses\n- Write in the student\'s voice (first person)\n- Be clear and concise for each entry';
 
     const hobbiesPrompt = `HOBBIES PORTFOLIO:
 Create a hobbies portfolio table with entries. For each entry, fill in:
@@ -1489,13 +1509,8 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
       const prompt = await this.buildHobbiesPrompt(responses, detectedLanguage);
 
       const requestBody = {
-        contents: [
-          {
-            parts: [
-              { text: prompt }
-            ]
-          }
-        ]
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.4, maxOutputTokens: 1024 }
       };
 
       logger.log('📡 Calling Gemini API for Hobbies summary:', 'gemini-proxy');
@@ -1559,13 +1574,13 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
         return null;
       }
 
-      if (!parsed.hobbiesPortfolio.entries || !Array.isArray(parsed.hobbiesPortfolio.entries)) {
-        logger.error('❌ Invalid Hobbies Portfolio structure:', parsed.hobbiesPortfolio);
+      if (!Array.isArray(parsed.hobbiesPortfolio.entries) || parsed.hobbiesPortfolio.entries.length === 0) {
+        logger.error('❌ Invalid or empty Hobbies Portfolio entries:', parsed.hobbiesPortfolio);
         return null;
       }
 
-      if (!parsed.talentsPortfolio.entries || !Array.isArray(parsed.talentsPortfolio.entries)) {
-        logger.error('❌ Invalid Talents Portfolio structure:', parsed.talentsPortfolio);
+      if (!Array.isArray(parsed.talentsPortfolio.entries) || parsed.talentsPortfolio.entries.length === 0) {
+        logger.error('❌ Invalid or empty Talents Portfolio entries:', parsed.talentsPortfolio);
         return null;
       }
 
@@ -1826,13 +1841,8 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
       const prompt = await this.buildAboutMePrompt(responses, detectedLanguage);
 
       const requestBody = {
-        contents: [
-          {
-            parts: [
-              { text: prompt }
-            ]
-          }
-        ]
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.4, maxOutputTokens: 1024 }
       };
 
       logger.log('📡 Calling Gemini API for About Me summary:', 'gemini-proxy');
@@ -1949,6 +1959,14 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
 
     const coreInstructions = BASE_SYSTEM_PROMPT;
 
+    const simpleWordsRule = isKannada
+      ? '- Use simple Kannada words — no English-heavy phrases'
+      : isTamil
+        ? '- Use simple Tamil words — no English-heavy phrases'
+        : isHindi
+          ? '- Use simple Hindi words — no English-heavy phrases'
+          : '- Use plain English — no difficult words';
+
     return `${coreInstructions}
 
 You will now create a summary based only on the student's responses about their role models.
@@ -1956,25 +1974,24 @@ ${languageInstruction}
 STUDENT ANSWERS ABOUT THEIR ROLE MODELS:
 ${formattedResponses}
 
-Write an answer to this question as if the student is speaking(use "I" and "me").
+Write an answer to this question as if the student is speaking (use "I" and "me").
 
-      ${questionsPrompt}
+${questionsPrompt}
 
 IMPORTANT RULES:
-    - Write like the student is talking(use "I" and "me")
-      - Use very simple words that a grade 8 or 9 student can easily understand
-        - Use plain English - no difficult words
-          - The output MUST be a numbered list of 5 to 10 specific questions
-            - Each question in the list should be something the student would want to ask their role model
-              - Base the questions on the specific role models and qualities the student mentioned(e.g., if they chose a teacher, ask about teaching; if they chose a doctor, ask about medicine)
-    - Be short and clear
-      - Use the student's own words from their answers
-        - Write like the student himself / herself is writing
-          - Format the response as valid JSON with this exact structure:
+- Write like the student is talking (use "I" and "me")
+- Use very simple words that a grade 8 or 9 student can easily understand
+- ${simpleWordsRule}
+- The output MUST be a numbered list of 5 to 10 specific questions
+- Each question should be something the student would want to ask their role model
+- Base the questions on the specific role models and qualities the student mentioned (e.g., if they chose a teacher, ask about teaching; if they chose a doctor, ask about medicine)
+- Be short and clear
+- Use the student's own words from their answers
+- Format the response as valid JSON with this exact structure:
 
-    {
-      "question1": "1. [First Question]\\n2. [Second Question]\\n..."
-    }
+{
+  "question1": "1. [First Question]\\n2. [Second Question]\\n..."
+}
 
 Return ONLY the JSON object, no additional text or markdown formatting.`;
   }
@@ -2007,6 +2024,14 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
 
     const coreInstructions = BASE_SYSTEM_PROMPT;
 
+    const simpleWordsRule = isKannada
+      ? '- Use simple Kannada words — no English-heavy phrases'
+      : isTamil
+        ? '- Use simple Tamil words — no English-heavy phrases'
+        : isHindi
+          ? '- Use simple Hindi words — no English-heavy phrases'
+          : '- Use plain English — no difficult words';
+
     return `${coreInstructions}
 
 You will now create a summary based only on the student's responses about their role models.
@@ -2014,25 +2039,24 @@ ${languageInstruction}
 STUDENT ANSWERS ABOUT THEIR ROLE MODELS:
 ${formattedResponses}
 
-Write an answer to this question as if the student is speaking(use "I" and "me").
+Write an answer to this question as if the student is speaking (use "I" and "me").
 
-      ${questionsPrompt}
+${questionsPrompt}
 
 IMPORTANT RULES:
-    - Write like the student is talking(use "I" and "me")
-      - Use very simple words that a grade 8 or 9 student can easily understand
-        - Use plain English - no difficult words
-          - The output MUST be a numbered list of 5 to 10 specific questions
-            - Each question in the list should be something the student would want to ask their role model
-              - Base the questions on the specific role models and qualities the student mentioned
-                - Be short and clear
-                  - Use the student's own words from their answers
-                    - Write like the student himself / herself is writing
-                      - Format the response as valid JSON with this exact structure:
+- Write like the student is talking (use "I" and "me")
+- Use very simple words that a grade 8 or 9 student can easily understand
+- ${simpleWordsRule}
+- The output MUST be a numbered list of 5 to 10 specific questions
+- Each question should be something the student would want to ask their role model
+- Base the questions on the specific role models and qualities the student mentioned
+- Be short and clear
+- Use the student's own words from their answers
+- Format the response as valid JSON with this exact structure:
 
-    {
-      "question1": "1. [First Question]\\n2. [Second Question]\\n..."
-    }
+{
+  "question1": "1. [First Question]\\n2. [Second Question]\\n..."
+}
 
 Return ONLY the JSON object, no additional text or markdown formatting.`;
   }
@@ -2067,13 +2091,8 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
       const prompt = await this.buildRoleModelsPrompt(responses, detectedLanguage);
 
       const requestBody = {
-        contents: [
-          {
-            parts: [
-              { text: prompt }
-            ]
-          }
-        ]
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.4, maxOutputTokens: 1024 }
       };
 
       logger.log('📡 Calling Gemini API for Role Models summary:', 'gemini-proxy');
@@ -2134,8 +2153,8 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
     if (!this.isConfigured()) {
       return { success: false, error: 'Gemini API key is not configured' };
     }
-    if (!summaryText || summaryText.trim().length === 0) {
-      return { success: false, error: 'No summary text provided' };
+    if ((!summaryText || !summaryText.trim()) && (!assessmentResponses || !assessmentResponses.trim())) {
+      return { success: false, error: 'No content provided for profile card generation' };
     }
 
     // Fetch profile card questions from content_translations
@@ -2149,7 +2168,7 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
       .in('resource_key', questionKeys);
 
     if (!qRows || qRows.length === 0) {
-      // Fallback to English if no rows for requested lang
+      // Requested language has no rows — fall back to English questions
       const { data: enRows } = await supabase
         .from('content_translations')
         .select('resource_key,text')
@@ -2159,11 +2178,7 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
       if (!enRows || enRows.length === 0) {
         return { success: false, error: `No profile card questions found for ${assessmentType}` };
       }
-      qRows?.splice(0, qRows.length, ...enRows);
-      if (!qRows || qRows.length === 0) {
-        // Direct assignment for when qRows was null
-        return this.generateProfileCardKeywordsWithQuestions(assessmentType, summaryText, lang, enRows, assessmentResponses, teacherFeedback);
-      }
+      return this.generateProfileCardKeywordsWithQuestions(assessmentType, summaryText, lang, enRows, assessmentResponses, teacherFeedback);
     }
 
     return this.generateProfileCardKeywordsWithQuestions(assessmentType, summaryText, lang, qRows, assessmentResponses, teacherFeedback);
@@ -2224,9 +2239,14 @@ This overrides all other language instructions. Do NOT mirror the student's inpu
       jsonStructure[q.resource_key] = '2-3 word answer';
     });
 
-    const contextBlock = assessmentResponses
-      ? `\nAssessment Responses:\n${assessmentResponses}\n\nAssessment Summary:\n${summaryText}${teacherFeedback ? `\n\nTeacher Feedback (incorporate this into revised answers — the previous keywords did not meet the teacher's expectations):\n${teacherFeedback}` : ''}`
-      : `\nAssessment Summary:\n${summaryText}${teacherFeedback ? `\n\nTeacher Feedback (incorporate this into revised answers — the previous keywords did not meet the teacher's expectations):\n${teacherFeedback}` : ''}`;
+    const feedbackSection = teacherFeedback
+      ? `\n\nTeacher Feedback (incorporate this into revised answers — the previous keywords did not meet the teacher's expectations):\n${teacherFeedback}`
+      : '';
+    const contextBlock = assessmentResponses && summaryText
+      ? `\nAssessment Responses:\n${assessmentResponses}\n\nAssessment Summary:\n${summaryText}${feedbackSection}`
+      : assessmentResponses
+        ? `\nAssessment Responses:\n${assessmentResponses}${feedbackSection}`
+        : `\nAssessment Summary:\n${summaryText}${feedbackSection}`;
 
     const prompt = `${BASE_SYSTEM_PROMPT}
 
@@ -2281,6 +2301,14 @@ ${JSON.stringify(jsonStructure, null, 2)}`;
   ): Promise<{ success: boolean; direction?: string; error?: string }> {
     if (!this.isConfigured()) {
       return { success: false, error: 'Gemini API key is not configured' };
+    }
+
+    const hasContent =
+      Object.values(dreamsAnswers).some(v => v?.trim()) ||
+      Object.values(hobbiesAnswers).some(v => v?.trim()) ||
+      Object.values(roleModelsAnswers).some(v => v?.trim());
+    if (!hasContent) {
+      return { success: false, error: 'No profile card answers available to generate career direction' };
     }
 
     const langInstruction = lang === 'kn'
@@ -2343,7 +2371,8 @@ Role Models: ${formatAnswers(roleModelsAnswers)}`;
       result = await invoke('gemini-2.0-flash-lite');
     }
     if (result.error) {
-      throw new Error(result.error.message || 'Gemini proxy error');
+      logger.error('Both Gemini models failed:', result.error);
+      throw new Error('AI summary service is temporarily unavailable. Please try again in a few minutes.');
     }
     return result.data;
   }
@@ -2370,7 +2399,9 @@ Role Models: ${formatAnswers(roleModelsAnswers)}`;
       const text = parts.join('\n');
       if (!text) return;
 
-      const result = await this.generateProfileCardKeywords(assessmentType, text, lang);
+      // Pass raw responses as assessmentResponses (not summaryText) — no approved summary
+      // exists yet at submission time; the guard accepts assessmentResponses-only calls.
+      const result = await this.generateProfileCardKeywords(assessmentType, '', lang, text);
       if (result.success && result.keywords) {
         const { error } = await supabase.from('profile_card_cache').upsert({
           student_id: userId,
