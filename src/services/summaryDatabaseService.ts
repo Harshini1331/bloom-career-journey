@@ -333,6 +333,31 @@ class SummaryDatabaseService {
   }
 
   /**
+   * Request student revision (teacher action)
+   */
+  async requestRevision(
+    summaryId: string,
+    teacherUserId: string,
+    revisionNotes: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase.rpc('request_revision_summary', {
+        p_summary_id: summaryId,
+        p_teacher_user_id: teacherUserId,
+        p_revision_notes: revisionNotes
+      });
+      if (error) {
+        logger.error('Error requesting revision:', error);
+        return { success: false, error: error.message };
+      }
+      return { success: true };
+    } catch (error) {
+      logger.error('Exception requesting revision:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  /**
    * Check if summary exists for assessment
    */
   async checkSummaryExists(assessmentResponseId: string): Promise<boolean> {

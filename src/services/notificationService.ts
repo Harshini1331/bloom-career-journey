@@ -1,7 +1,7 @@
 ﻿import { logger } from '@/lib/logger';
 import { supabase } from '@/integrations/supabase/client';
 
-export type NotificationType = 'summary_approved' | 'teacher_message' | 'assessment_submitted' | 'system';
+export type NotificationType = 'summary_approved' | 'teacher_message' | 'assessment_submitted' | 'system' | 'revision_requested' | 'summary_rejected';
 
 export interface AppNotification {
   id: string;

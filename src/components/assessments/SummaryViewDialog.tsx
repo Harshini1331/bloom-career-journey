@@ -53,7 +53,7 @@ export default function SummaryViewDialog({
   assessmentType = 'inspiration'
 }: SummaryViewDialogProps) {
   const { toast } = useToast();
-  const { t, lang } = useLang();
+  const { lang } = useLang();
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const isAboutMeAssessment = assessmentType === 'about_me';
@@ -113,72 +113,6 @@ export default function SummaryViewDialog({
       });
     }
   }, [questionTitles, assessmentType]);
-
-  const parseAboutMeSummary = (content: string) => {
-    return content
-      .split(/\r?\n/)
-      .map(line => line.trim())
-      .filter(Boolean)
-      .map(line => {
-        const [category, ...rest] = line.split(':');
-        return {
-          category: category?.trim() || '',
-          detail: rest.join(':').trim()
-        };
-      })
-      .filter(item => item.category || item.detail);
-  };
-
-  const parseDreamEntries = (content: string) => {
-    try {
-      const parsed = JSON.parse(content);
-      if (Array.isArray(parsed)) {
-        return parsed.map((entry) => ({
-          dream: entry?.dream ?? '',
-          quality_value_strength: entry?.quality_value_strength ?? '',
-          prevent_failure: entry?.prevent_failure ?? '',
-          study_path: entry?.study_path ?? ''
-        }));
-      }
-    } catch (error) {
-      logger.warn('Failed to parse dream portfolio:', error);
-    }
-    return [];
-  };
-
-  const parseHobbiesEntries = (content: string) => {
-    try {
-      const parsed = JSON.parse(content);
-      if (Array.isArray(parsed)) {
-        return parsed.map((entry) => ({
-          hobby: entry?.hobby ?? '',
-          want_career: entry?.want_career ?? '',
-          compatible_careers: entry?.compatible_careers ?? '',
-          people_examples: entry?.people_examples ?? ''
-        }));
-      }
-    } catch (error) {
-      logger.warn('Failed to parse hobbies portfolio:', error);
-    }
-    return [];
-  };
-
-  const parseTalentsEntries = (content: string) => {
-    try {
-      const parsed = JSON.parse(content);
-      if (Array.isArray(parsed)) {
-        return parsed.map((entry) => ({
-          talent: entry?.talent ?? '',
-          want_career: entry?.want_career ?? '',
-          matching_careers: entry?.matching_careers ?? '',
-          people_examples: entry?.people_examples ?? ''
-        }));
-      }
-    } catch (error) {
-      logger.warn('Failed to parse talents portfolio:', error);
-    }
-    return [];
-  };
 
   // Fetch question titles from database template based on assessment type
   useEffect(() => {
@@ -288,6 +222,13 @@ export default function SummaryViewDialog({
     }
   }, [summary, open, isEditing]);
 
+  const handleDialogOpenChange = (newOpen: boolean) => {
+    if (!newOpen && isEditing) {
+      setIsEditing(false);
+    }
+    onOpenChange(newOpen);
+  };
+
   const handleEdit = () => {
     setIsEditing(true);
   };
@@ -333,13 +274,15 @@ export default function SummaryViewDialog({
     if (!allFilled) {
       const questionCount = isSchoolLearningAssessment ? 6 : isHobbiesAssessment ? 2 : isAboutMeAssessment ? 16 : 3;
       toast({
-        title: lang === 'kn' ? "ಅಪೂರ್ಣ ಸಾರಾಂಶ" : lang === 'ta' ? 'சுருக்கம் இன்னும் முழுமை அடையவில்லை' : "Incomplete Summary",
+        title: lang === 'kn' ? "ಅಪೂರ್ಣ ಸಾರಾಂಶ" : lang === 'ta' ? 'சுருக்கம் இன்னும் முழுமை அடையவில்லை' : lang === 'hi' ? 'सारांश अधूरा है' : "Incomplete Summary",
         description:
           lang === 'kn'
             ? `ಉಳಿಸುವ ಮೊದಲು ಎಲ್ಲಾ ${questionCount} ಪ್ರಶ್ನೆಗಳನ್ನು ಭರ್ತಿ ಮಾಡಿ.`
             : lang === 'ta'
               ? `சேமிக்க முன் எல்லா ${questionCount} கேள்விகளுக்கும் பதில் எழுதுங்கள்.`
-              : `Please fill in all ${questionCount} questions before saving.`,
+              : lang === 'hi'
+                ? `सहेजने से पहले सभी ${questionCount} प्रश्नों के उत्तर भरें।`
+                : `Please fill in all ${questionCount} questions before saving.`,
         variant: "destructive"
       });
       return;
@@ -355,13 +298,15 @@ export default function SummaryViewDialog({
 
       if (result.success) {
         toast({
-          title: lang === 'kn' ? "ಸಾರಾಂಶ ನವೀಕರಿಸಲಾಗಿದೆ! ✨" : lang === 'ta' ? 'சுருக்கம் சேமிக்கப்பட்டது! ✨' : "Summary Updated! ✨",
+          title: lang === 'kn' ? "ಸಾರಾಂಶ ನವೀಕರಿಸಲಾಗಿದೆ! ✨" : lang === 'ta' ? 'சுருக்கம் சேமிக்கப்பட்டது! ✨' : lang === 'hi' ? 'सारांश सहेजा गया! ✨' : "Summary Updated! ✨",
           description:
             lang === 'kn'
               ? "ನಿಮ್ಮ ಪ್ರತಿಬಿಂಬ ಸಾರಾಂಶ ಯಶಸ್ವಿಯಾಗಿ ಉಳಿಸಲಾಗಿದೆ."
               : lang === 'ta'
                 ? 'உங்கள் சுருக்கம் வெற்றிகரமாக சேமிக்கப்பட்டது.'
-                : "Your reflection summary has been saved successfully."
+                : lang === 'hi'
+                  ? 'आपका सारांश सफलतापूर्वक सहेजा गया।'
+                  : "Your reflection summary has been saved successfully."
         });
         setIsEditing(false);
         onSummaryUpdated?.();
@@ -371,13 +316,15 @@ export default function SummaryViewDialog({
     } catch (error) {
       logger.error('Error saving summary:', error);
       toast({
-        title: lang === 'kn' ? "ದೋಷ" : lang === 'ta' ? 'பிழை' : "Error",
+        title: lang === 'kn' ? "ದೋಷ" : lang === 'ta' ? 'பிழை' : lang === 'hi' ? 'त्रुटि' : "Error",
         description:
           lang === 'kn'
             ? "ನಿಮ್ಮ ಬದಲಾವಣೆಗಳನ್ನು ಉಳಿಸಲು ವಿಫಲವಾಗಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ."
             : lang === 'ta'
               ? 'உங்கள் மாற்றங்களை சேமிக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.'
-              : "Failed to save your changes. Please try again.",
+              : lang === 'hi'
+                ? 'आपके बदलाव सहेजे नहीं जा सके। कृपया पुनः प्रयास करें।'
+                : "Failed to save your changes. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -385,9 +332,9 @@ export default function SummaryViewDialog({
     }
   };
 
-  if (!summary) {
+  if (!summary || (summary.approval_status !== 'approved' && summary.approval_status !== 'revision_requested')) {
     return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={handleDialogOpenChange}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" lang={lang} dir="auto">
           {/* Summary Header */}
           <DialogHeader className="mb-4">
@@ -401,7 +348,7 @@ export default function SummaryViewDialog({
           <div className="p-8 text-center">
             <AlertCircle className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
             <p className="text-gray-600">
-              {lang === 'kn' ? 'ನಿಮ್ಮ ಸಾರಾಂಶವನ್ನು ನಿಮ್ಮ ಶಿಕ್ಷಕರು ವಿಮರ್ಶೆ ಮಾಡುತ್ತಿದ್ದಾರೆ ಮತ್ತು ಶೀಘ್ರದಲ್ಲೇ ಲಭ್ಯವಾಗುತ್ತದೆ.' : 'Your summary is being reviewed by your teacher and will be available soon.'}
+              {lang === 'kn' ? 'ನಿಮ್ಮ ಸಾರಾಂಶವನ್ನು ನಿಮ್ಮ ಶಿಕ್ಷಕರು ವಿಮರ್ಶೆ ಮಾಡುತ್ತಿದ್ದಾರೆ ಮತ್ತು ಶೀಘ್ರದಲ್ಲೇ ಲಭ್ಯವಾಗುತ್ತದೆ.' : lang === 'ta' ? 'உங்கள் சுருக்கம் ஆசிரியரால் ஆய்வு செய்யப்படுகிறது, விரைவில் கிடைக்கும்.' : lang === 'hi' ? 'आपका सारांश शिक्षक द्वारा समीक्षा में है, जल्द ही उपलब्ध होगा।' : 'Your summary is being reviewed by your teacher and will be available soon.'}
             </p>
           </div>
         </DialogContent>
@@ -451,10 +398,12 @@ export default function SummaryViewDialog({
                             : 'Summary: My Talents and Hobbies')
                         : assessmentType === 'role_models'
                           ? (lang === 'kn'
-                            ? 'ಸಾರಾಂಶ: ನನ್ನ ಮುಂದಿನ ಯೋಜನೆ'
+                            ? 'ಸಾರಾಂಶ: ನನ್ನ ಆದರ್ಶ ವ್ಯಕ್ತಿಗಳು'
                             : lang === 'ta'
-                              ? 'சுருக்கம்: என் எதிர்கால திட்டம்'
-                              : 'Summary: My future plan')
+                              ? 'சுருக்கம்: என் முன்மாதிரிகள்'
+                              : lang === 'hi'
+                                ? 'सारांश: मेरे आदर्श'
+                                : 'Summary: My Role Models')
                           : (lang === 'kn'
                             ? 'ನನ್ನನ್ನು ಪ್ರೇರೇಪಿಸಿದ ವಿಷಯಗಳು'
                             : lang === 'ta'
@@ -520,6 +469,20 @@ export default function SummaryViewDialog({
         </DialogHeader>
 
         <div className="space-y-6 mt-4">
+          {/* Revision request banner — shown when teacher has asked student to revise */}
+          {summary.approval_status === 'revision_requested' && (
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+              <p className="font-medium text-sm text-orange-800">
+                {lang === 'kn' ? 'ಶಿಕ್ಷಕರ ಸೂಚನೆ:' : lang === 'ta' ? 'ஆசிரியர் குறிப்பு:' : lang === 'hi' ? 'शिक्षक की टिप्पणी:' : "Teacher's revision notes:"}
+              </p>
+              {summary.rejection_reason && (
+                <p className="text-sm text-orange-700 mt-1">{summary.rejection_reason}</p>
+              )}
+              <p className="text-xs text-orange-600 mt-2">
+                {lang === 'kn' ? 'ಕೆಳಗಿನ ಸಾರಾಂಶವನ್ನು ಸಂಪಾದಿಸಿ ಮತ್ತು ಉಳಿಸಿ.' : lang === 'ta' ? 'கீழே உள்ள சுருக்கத்தை திருத்தி சேமிக்கவும்.' : lang === 'hi' ? 'नीचे दिए गए सारांश को संपादित करें और सहेजें।' : 'Please edit the summary below and save your changes for teacher re-review.'}
+              </p>
+            </div>
+          )}
           {/* Question 1 */}
           <Card>
             <CardHeader>
@@ -800,7 +763,7 @@ export default function SummaryViewDialog({
                     disabled={saving}
                   >
                     <X className="h-4 w-4 mr-2" />
-                    {lang === 'kn' ? 'ರದ್ದುಮಾಡಿ' : 'Cancel'}
+                    {lang === 'kn' ? 'ರದ್ದುಮಾಡಿ' : lang === 'ta' ? 'ரத்து செய்' : lang === 'hi' ? 'रद्द करें' : 'Cancel'}
                   </Button>
                   <Button
                     onClick={handleSave}
@@ -808,11 +771,11 @@ export default function SummaryViewDialog({
                     className="bg-green-600 hover:bg-green-700"
                   >
                     {saving ? (
-                      <>{lang === 'kn' ? 'ಉಳಿಸಲಾಗುತ್ತಿದೆ...' : 'Saving...'}</>
+                      <>{lang === 'kn' ? 'ಉಳಿಸಲಾಗುತ್ತಿದೆ...' : lang === 'ta' ? 'சேமிக்கிறது...' : lang === 'hi' ? 'सहेज रहे हैं...' : 'Saving...'}</>
                     ) : (
                       <>
                         <Save className="h-4 w-4 mr-2" />
-                        {lang === 'kn' ? 'ಬದಲಾವಣೆಗಳನ್ನು ಉಳಿಸಿ' : 'Save Changes'}
+                        {lang === 'kn' ? 'ಬದಲಾವಣೆಗಳನ್ನು ಉಳಿಸಿ' : lang === 'ta' ? 'மாற்றங்களை சேமி' : lang === 'hi' ? 'बदलाव सहेजें' : 'Save Changes'}
                       </>
                     )}
                   </Button>
@@ -820,12 +783,12 @@ export default function SummaryViewDialog({
               ) : (
                 <>
                   <Button variant="outline" onClick={() => onOpenChange(false)}>
-                    {lang === 'kn' ? 'ಮುಚ್ಚಿ' : 'Close'}
+                    {lang === 'kn' ? 'ಮುಚ್ಚಿ' : lang === 'ta' ? 'மூடு' : lang === 'hi' ? 'बंद करें' : 'Close'}
                   </Button>
                   {canEdit && (
                     <Button onClick={handleEdit} className="bg-blue-600 hover:bg-blue-700">
                       <Edit3 className="h-4 w-4 mr-2" />
-                      {lang === 'kn' ? 'ನನ್ನ ಸಾರಾಂಶವನ್ನು ಸಂಪಾದಿಸಿ' : 'Edit My Summary'}
+                      {lang === 'kn' ? 'ನನ್ನ ಸಾರಾಂಶವನ್ನು ಸಂಪಾದಿಸಿ' : lang === 'ta' ? 'என் சுருக்கத்தை திருத்து' : lang === 'hi' ? 'मेरा सारांश संपादित करें' : 'Edit My Summary'}
                     </Button>
                   )}
                 </>

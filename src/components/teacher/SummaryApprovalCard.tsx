@@ -48,10 +48,33 @@ import {
   getSummaryStatusLabel
 } from '@/types/assessmentSummary';
 import { summaryDatabaseService } from '@/services/summaryDatabaseService';
-// notificationService import removed — approval notification disabled
+import { notificationService } from '@/services/notificationService';
 import { aiSummaryService } from '@/services/aiSummaryService';
 import { supabase } from '@/integrations/supabase/client';
 import { parseDreamEntries, parseHobbiesEntries, parseTalentsEntries, parseSchoolLearningEntries } from '../../utils/summaryParsers';
+
+const ASSESSMENT_TITLES: Record<string, string> = {
+  inspiration: 'My Inspiration',
+  about_me: 'About Me',
+  dreams: 'My Dreams',
+  school_learning: 'My School, My Learning and I',
+  hobbies: 'My Talents and Hobbies',
+  role_models: 'My Role Models'
+};
+
+const buildApprovalNotif = (lang: string, title: string) => {
+  if (lang === 'kn') return { notifTitle: 'ಸಾರಾಂಶ ಅನುಮೋದಿಸಲಾಗಿದೆ ✅', notifMessage: `ನಿಮ್ಮ "${title}" ಸಾರಾಂಶ ಶಿಕ್ಷಕರಿಂದ ಅನುಮೋದಿಸಲ್ಪಟ್ಟಿದೆ.` };
+  if (lang === 'ta') return { notifTitle: 'சுருக்கம் அனுமதிக்கப்பட்டது ✅', notifMessage: `உங்கள் "${title}" சுருக்கம் ஆசிரியரால் அனுமதிக்கப்பட்டது.` };
+  if (lang === 'hi') return { notifTitle: 'सारांश अनुमोदित ✅', notifMessage: `आपकी "${title}" सारांश शिक्षक द्वारा अनुमोदित की गई है।` };
+  return { notifTitle: 'Summary Approved ✅', notifMessage: `Your "${title}" summary has been approved by your teacher.` };
+};
+
+const buildRevisionNotif = (lang: string, title: string) => {
+  if (lang === 'kn') return { notifTitle: 'ಸಾರಾಂಶ ಪರಿಷ್ಕರಣೆ ಅಗತ್ಯವಿದೆ', notifMessage: `ಶಿಕ್ಷಕರು "${title}" ಸಾರಾಂಶ ಪರಿಷ್ಕರಿಸಲು ಕೋರಿದ್ದಾರೆ.` };
+  if (lang === 'ta') return { notifTitle: 'சுருக்கம் திருத்தம் தேவை', notifMessage: `ஆசிரியர் "${title}" சுருக்கத்தில் திருத்தம் கோரியுள்ளார்.` };
+  if (lang === 'hi') return { notifTitle: 'सारांश संशोधन आवश्यक', notifMessage: `शिक्षक ने "${title}" सारांश में संशोधन का अनुरोध किया है।` };
+  return { notifTitle: 'Summary Revision Requested', notifMessage: `Your teacher has requested revisions to your "${title}" summary.` };
+};
 
 interface SummaryApprovalCardProps {
   summary: AssessmentSummary;
@@ -75,6 +98,9 @@ export default function SummaryApprovalCard({
   const [saving, setSaving] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [showRevisionDialog, setShowRevisionDialog] = useState(false);
+  const [revisionNotes, setRevisionNotes] = useState('');
+  const [requestingRevision, setRequestingRevision] = useState(false);
   const [showStudentResponses, setShowStudentResponses] = useState(false);
   const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
@@ -90,11 +116,11 @@ export default function SummaryApprovalCard({
     question3: ''
   });
 
-  const isAboutMeAssessment = assessmentType === 'about_me' || summary.summary_type === 'about_me_edited';
-  const isHobbiesAssessment = assessmentType === 'hobbies' || summary.summary_type === 'hobbies_edited';
-  const isDreamsAssessment = assessmentType === 'dreams' || summary.summary_type === 'dreams_edited';
-  const isSchoolLearningAssessment = assessmentType === 'school_learning' || summary.summary_type === 'school_learning_edited';
-  const isRoleModelsAssessment = assessmentType === 'role_models' || summary.summary_type === 'role_models_edited';
+  const isAboutMeAssessment = assessmentType === 'about_me';
+  const isHobbiesAssessment = assessmentType === 'hobbies';
+  const isDreamsAssessment = assessmentType === 'dreams';
+  const isSchoolLearningAssessment = assessmentType === 'school_learning';
+  const isRoleModelsAssessment = assessmentType === 'role_models';
 
   const detectLangKeyFromSummary = (): 'en' | 'ta' | 'kn' | 'hi' => {
     try {
@@ -107,23 +133,6 @@ export default function SummaryApprovalCard({
     }
     return 'en';
   };
-
-  const parseAboutMeSummary = (content: string) => {
-    return content
-      .split(/\r?\n/)
-      .map(line => line.trim())
-      .filter(Boolean)
-      .map(line => {
-        const [category, ...rest] = line.split(':');
-        return {
-          category: category?.trim() || '',
-          detail: rest.join(':').trim()
-        };
-      })
-      .filter(item => item.category || item.detail);
-  };
-
-
 
   // Load summary content when it changes
   useEffect(() => {
@@ -360,16 +369,18 @@ export default function SummaryApprovalCard({
   const handleApprove = async () => {
     setSaving(true);
     try {
-      // If teacher has edited, save those edits first
-      if (isEditing && summary.teacher_edited_summary) {
-        await summaryDatabaseService.updateTeacherSummary(
+      // If teacher has unsaved edits, save them first before approving
+      if (isEditing) {
+        const saveResult = await summaryDatabaseService.updateTeacherSummary(
           summary.id,
           teacherUserId,
           editedSummary
         );
+        if (!saveResult.success) {
+          throw new Error(saveResult.error || 'Failed to save edits before approval');
+        }
       }
 
-      // Approve the summary
       logger.log('🔄 Calling approveSummary:', {
         summaryId: summary.id,
         teacherUserId,
@@ -388,17 +399,50 @@ export default function SummaryApprovalCard({
           title: "Summary Approved! ✅",
           description: `${studentName}'s reflection summary is now visible to them.`
         });
-        // Student approval notification disabled — AI summary flow removed from student side
+
+        // Fire-and-forget: notify student in their preferred language
+        if (summary.student_user_id) {
+          const assessmentTitle = ASSESSMENT_TITLES[assessmentType || ''] || 'Assessment';
+          void (async () => {
+            try {
+              const { data: userData } = await supabase
+                .from('users')
+                .select('preferred_language')
+                .eq('id', summary.student_user_id!)
+                .maybeSingle();
+              const lang = userData?.preferred_language || 'en';
+              const { notifTitle, notifMessage } = buildApprovalNotif(lang, assessmentTitle);
+              await notificationService.create({
+                userId: summary.student_user_id!,
+                type: 'summary_approved',
+                title: notifTitle,
+                message: notifMessage
+              });
+            } catch (notifErr) {
+              logger.warn('Non-fatal: approval notification failed', notifErr);
+            }
+          })();
+        }
+
         setIsEditing(false);
         onSummaryUpdated?.();
       } else {
-        throw new Error(result.error || 'Failed to approve summary');
+        const msg = result.error || 'Failed to approve summary';
+        if (msg === 'already_approved') {
+          toast({
+            title: "Already Approved",
+            description: "This summary was already approved. Refreshing...",
+          });
+          onSummaryUpdated?.();
+          return;
+        }
+        throw new Error(msg);
       }
     } catch (error) {
       logger.error('Error approving summary:', error);
       toast({
         title: "Error",
-        description: "Failed to approve summary. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to approve summary. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -454,7 +498,19 @@ export default function SummaryApprovalCard({
       );
 
       if (!result.success) {
-        throw new Error(result.error || 'Failed to reject summary');
+        const msg = result.error || 'Failed to reject summary';
+        if (msg === 'already_approved') {
+          toast({
+            title: "Cannot Reject",
+            description: "This summary was already approved and cannot be rejected.",
+            variant: "destructive"
+          });
+          setShowRejectDialog(false);
+          setRejectionReason('');
+          onSummaryUpdated?.();
+          return;
+        }
+        throw new Error(msg);
       }
 
       logger.log('✅ Summary rejected successfully, triggering regeneration...');
@@ -685,18 +741,74 @@ export default function SummaryApprovalCard({
     }
   };
 
-  const handleSaveEdits = async () => {
-    // Prevent saving edits to approved summaries
-    if (summary.approval_status === 'approved') {
+  const handleRequestRevision = async () => {
+    const trimmedNotes = revisionNotes.trim();
+    if (!trimmedNotes) {
       toast({
-        title: "Cannot Edit",
-        description: "This summary has been approved and cannot be edited.",
+        title: "Notes Required",
+        description: "Please provide revision notes for the student.",
         variant: "destructive"
       });
-      setIsEditing(false);
       return;
     }
 
+    setRequestingRevision(true);
+    try {
+      const result = await summaryDatabaseService.requestRevision(
+        summary.id,
+        teacherUserId,
+        trimmedNotes
+      );
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to request revision');
+      }
+
+      toast({
+        title: "Revision Requested",
+        description: `${studentName} will be asked to revise their summary.`
+      });
+
+      // Fire-and-forget: notify student in their preferred language
+      if (summary.student_user_id) {
+        const assessmentTitle = ASSESSMENT_TITLES[assessmentType || ''] || 'Assessment';
+        void (async () => {
+          try {
+            const { data: userData } = await supabase
+              .from('users')
+              .select('preferred_language')
+              .eq('id', summary.student_user_id!)
+              .maybeSingle();
+            const lang = userData?.preferred_language || 'en';
+            const { notifTitle, notifMessage } = buildRevisionNotif(lang, assessmentTitle);
+            await notificationService.create({
+              userId: summary.student_user_id!,
+              type: 'revision_requested',
+              title: notifTitle,
+              message: notifMessage
+            });
+          } catch (notifErr) {
+            logger.warn('Non-fatal: revision notification failed', notifErr);
+          }
+        })();
+      }
+
+      setShowRevisionDialog(false);
+      setRevisionNotes('');
+      onSummaryUpdated?.();
+    } catch (error) {
+      logger.error('Error requesting revision:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to request revision. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setRequestingRevision(false);
+    }
+  };
+
+  const handleSaveEdits = async () => {
     setSaving(true);
     try {
       const result = await summaryDatabaseService.updateTeacherSummary(
@@ -728,12 +840,6 @@ export default function SummaryApprovalCard({
   };
 
   const handleCancelEdit = () => {
-    // Prevent canceling edits if summary is approved (shouldn't be editing anyway)
-    if (summary.approval_status === 'approved') {
-      setIsEditing(false);
-      return;
-    }
-
     const displaySummary = getDisplaySummary(summary);
     setEditedSummary({
       question1: displaySummary.question1,
@@ -748,62 +854,6 @@ export default function SummaryApprovalCard({
 
   const displaySummary = getDisplaySummary(summary);
   const isPending = summary.approval_status === 'pending_approval' || summary.approval_status === 'revision_requested';
-
-  // Debug: Check actual database status
-  const checkDatabaseStatus = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('assessment_summaries')
-        .select('id, approval_status, approved_at, approved_by, updated_at')
-        .eq('id', summary.id)
-        .maybeSingle();
-
-      if (error) {
-        logger.error('❌ Error checking database status:', error);
-        toast({
-          title: "Error",
-          description: `Failed to check database status: ${error.message}`,
-          variant: "destructive"
-        });
-        return;
-      }
-
-      if (data) {
-        logger.log('📊 Database Status:', {
-          id: data.id,
-          approval_status: data.approval_status,
-          approved_at: data.approved_at,
-          approved_by: data.approved_by,
-          updated_at: data.updated_at
-        });
-
-        toast({
-          title: "Database Status",
-          description: `Status: ${data.approval_status} | Updated: ${new Date(data.updated_at).toLocaleString()}`,
-        });
-
-        // If database shows approved but UI shows pending, refresh
-        if (data.approval_status === 'approved' && summary.approval_status !== 'approved') {
-          logger.log('🔄 Status mismatch detected - refreshing summary...');
-          onSummaryUpdated?.();
-        }
-      } else {
-        logger.warn('⚠️ Summary not found in database');
-        toast({
-          title: "Warning",
-          description: "Summary not found in database",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      logger.error('❌ Exception checking database status:', error);
-      toast({
-        title: "Error",
-        description: "Failed to check database status",
-        variant: "destructive"
-      });
-    }
-  };
 
   const summaryLangKey = detectLangKeyFromSummary();
 
@@ -847,16 +897,6 @@ export default function SummaryApprovalCard({
               You Edited This
             </Badge>
           )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={checkDatabaseStatus}
-            title="Check actual database status"
-            className="h-7 text-xs"
-          >
-            <RefreshCw className="h-3 w-3 mr-1" />
-            Check DB
-          </Button>
         </div>
       </div >
 
@@ -1490,23 +1530,21 @@ export default function SummaryApprovalCard({
                 <>
                   <Button
                     variant="outline"
-                    onClick={() => {
-                      // Prevent editing approved summaries
-                      if (summary.approval_status === 'approved') {
-                        toast({
-                          title: "Cannot Edit",
-                          description: "This summary has been approved and cannot be edited.",
-                          variant: "destructive"
-                        });
-                        return;
-                      }
-                      setIsEditing(true);
-                    }}
+                    onClick={() => setIsEditing(true)}
                     disabled={saving}
                     className="flex-1 sm:flex-none"
                   >
                     <Edit3 className="h-4 w-4 mr-2" />
                     Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowRevisionDialog(true)}
+                    disabled={saving}
+                    className="flex-1 sm:flex-none border-orange-300 text-orange-700 hover:bg-orange-50"
+                  >
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Request Revision
                   </Button>
                   <Button
                     variant="destructive"
@@ -1568,6 +1606,39 @@ export default function SummaryApprovalCard({
               className="bg-red-600 hover:bg-red-700"
             >
               {saving ? 'Rejecting...' : 'Reject & Regenerate'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {/* Request Revision Dialog */}
+      <AlertDialog open={showRevisionDialog} onOpenChange={setShowRevisionDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Request Revision from Student</AlertDialogTitle>
+            <AlertDialogDescription>
+              The student will be notified and asked to edit their summary based on your notes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="my-4">
+            <Label htmlFor="revision-notes">Revision Notes for Student</Label>
+            <Textarea
+              id="revision-notes"
+              value={revisionNotes}
+              onChange={(e) => setRevisionNotes(e.target.value)}
+              placeholder="e.g., Please add more detail about your second dream and what steps you'll take..."
+              className="mt-2 min-h-[100px]"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setShowRevisionDialog(false); setRevisionNotes(''); }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRequestRevision}
+              disabled={!revisionNotes.trim() || requestingRevision}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              {requestingRevision ? 'Sending...' : 'Send Revision Request'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

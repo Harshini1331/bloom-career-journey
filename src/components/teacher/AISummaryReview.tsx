@@ -6,11 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Sparkles, User, Calendar, CheckCircle, XCircle, Edit3, Search, RefreshCw, ArrowLeft } from 'lucide-react';
+import { Sparkles, User, Calendar, CheckCircle, XCircle, Edit3, RefreshCw, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import SummaryApprovalCard from './SummaryApprovalCard';
 import { aiSummaryService } from '@/services/aiSummaryService';
 import { summaryDatabaseService } from '@/services/summaryDatabaseService';
+import { getSummaryStatusLabel } from '@/types/assessmentSummary';
 
 interface SummaryData {
   id: string;
@@ -61,20 +62,18 @@ export default function AISummaryReview({ selectedStudentId }: AISummaryReviewPr
   ];
 
   useEffect(() => {
-    fetchStudents();
-    if (selectedStudentId) {
-      // Find and select the student if ID is provided
-      fetchStudents().then(() => {
-        const student = students.find(s => s.id === selectedStudentId);
+    fetchStudents().then((loadedStudents) => {
+      if (selectedStudentId && loadedStudents.length > 0) {
+        const student = loadedStudents.find(s => s.id === selectedStudentId);
         if (student) {
           handleStudentClick(student);
         }
-      });
-    }
+      }
+    });
   }, []);
 
-  const fetchStudents = async () => {
-    if (!userProfile?.id) return;
+  const fetchStudents = async (): Promise<Student[]> => {
+    if (!userProfile?.id) return [];
 
     try {
       setLoading(true);
@@ -169,6 +168,7 @@ export default function AISummaryReview({ selectedStudentId }: AISummaryReviewPr
 
       logger.log('✅ Fetched students:', studentsWithCounts);
       setStudents(studentsWithCounts);
+      return studentsWithCounts;
     } catch (error: any) {
       logger.error('❌ Error fetching students:', error);
       toast({
@@ -176,6 +176,7 @@ export default function AISummaryReview({ selectedStudentId }: AISummaryReviewPr
         description: `Failed to load students: ${error.message}`,
         variant: 'destructive'
       });
+      return [];
     } finally {
       setLoading(false);
     }
@@ -437,6 +438,8 @@ export default function AISummaryReview({ selectedStudentId }: AISummaryReviewPr
         return 'bg-red-100 text-red-800';
       case 'pending_approval':
         return 'bg-yellow-100 text-yellow-800';
+      case 'revision_requested':
+        return 'bg-orange-100 text-orange-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -445,6 +448,7 @@ export default function AISummaryReview({ selectedStudentId }: AISummaryReviewPr
   const pendingCount = summaries.filter(s => s.approval_status === 'pending_approval').length;
   const approvedCount = summaries.filter(s => s.approval_status === 'approved').length;
   const rejectedCount = summaries.filter(s => s.approval_status === 'rejected').length;
+  const revisionCount = summaries.filter(s => s.approval_status === 'revision_requested').length;
 
   if (loading && !selectedStudent) {
     return (
@@ -539,7 +543,7 @@ export default function AISummaryReview({ selectedStudentId }: AISummaryReviewPr
         ) : (
           <div className="space-y-6">
             {/* Overview Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card>
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
@@ -548,6 +552,17 @@ export default function AISummaryReview({ selectedStudentId }: AISummaryReviewPr
                       <div className="text-sm text-gray-600">Pending Approval</div>
                     </div>
                     <Sparkles className="w-8 h-8 text-yellow-500" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-2xl font-bold text-orange-600">{revisionCount}</div>
+                      <div className="text-sm text-gray-600">Revision Requested</div>
+                    </div>
+                    <Edit3 className="w-8 h-8 text-orange-500" />
                   </div>
                 </CardContent>
               </Card>
@@ -638,7 +653,7 @@ export default function AISummaryReview({ selectedStudentId }: AISummaryReviewPr
                                 {summary.assessment_title}
                               </span>
                               <Badge className={getStatusColor(summary.approval_status)}>
-                                {summary.approval_status.replace('_', ' ')}
+                                {getSummaryStatusLabel(summary.approval_status as any)}
                               </Badge>
                             </div>
                             <div className="text-sm text-gray-500 flex items-center gap-1">

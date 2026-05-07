@@ -79,7 +79,13 @@
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
       "Bash(git push *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(Sort-Object -Descending)",
+      "Bash(Select-Object -First 30)",
+      "Bash(Select-Object -First 8)",
+      "Bash(powershell *)",
+      "Bash(Select-String -Pattern \"Summary Generated\" -Context 8,8)",
+      "Bash(gh pr create --title 'fix: assessment auto-save hardening + background AI summary generation' --body ' *)"
     ]
   }
 }
