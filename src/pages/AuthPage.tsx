@@ -358,14 +358,29 @@ export default function AuthPage() {
       }
     };
 
+    // G5: MSG91 defines window globals as non-configurable, so `delete` throws a TypeError in
+    // strict mode (all ES-module bundles). Try delete first; fall back to undefined assignment.
+    // This runs both when we created the script AND when we only attached a load listener.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any;
+    const cleanupGlobals = () => {
+      (['initSendOTP', 'sendOtp', 'verifyOtp', 'retryOtp'] as const).forEach((key) => {
+        try { delete w[key]; } catch { w[key] = undefined; }
+      });
+    };
+
     // G4: check existing script tag — it may still be loading even if the tag is in the DOM
     const existing = document.querySelector<HTMLScriptElement>('script[src="https://verify.msg91.com/otp-provider.js"]');
     if (existing) {
       if (window.initSendOTP) {
         doInit();  // already loaded, reinit immediately
       } else {
-        // G4: script tag present but still loading — defer init until it fires
+        // G4: script tag present but still loading — defer init until it fires.
+        // Return a cleanup that removes the listener if the component unmounts first.
         existing.addEventListener('load', doInit, { once: true });
+        return () => {
+          existing.removeEventListener('load', doInit);
+        };
       }
       return;
     }
@@ -384,13 +399,7 @@ export default function AuthPage() {
     document.head.appendChild(script);
     return () => {
       if (document.head.contains(script)) document.head.removeChild(script);
-      // G5: remove window globals so stale MSG91 methods are not called after unmount/HMR
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const w = window as any;
-      delete w.initSendOTP;
-      delete w.sendOtp;
-      delete w.verifyOtp;
-      delete w.retryOtp;
+      cleanupGlobals();
     };
   }, []);
 
