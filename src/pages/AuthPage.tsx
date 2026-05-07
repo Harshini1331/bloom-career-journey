@@ -358,14 +358,15 @@ export default function AuthPage() {
       }
     };
 
-    // G5: MSG91 defines window globals as non-configurable, so `delete` throws a TypeError in
-    // strict mode (all ES-module bundles). Try delete first; fall back to undefined assignment.
-    // This runs both when we created the script AND when we only attached a load listener.
+    // G5: MSG91 registers globals as both non-configurable AND non-writable, so both `delete`
+    // and assignment throw TypeError in strict mode (ES-module bundles). Swallow both silently —
+    // the globals persist but MSG91 re-initialises them on the next mount anyway.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const w = window as any;
     const cleanupGlobals = () => {
       (['initSendOTP', 'sendOtp', 'verifyOtp', 'retryOtp'] as const).forEach((key) => {
-        try { delete w[key]; } catch { w[key] = undefined; }
+        try { delete w[key]; } catch { /* non-configurable — best-effort */ }
+        try { w[key] = undefined; } catch { /* non-writable — best-effort */ }
       });
     };
 
