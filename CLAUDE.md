@@ -47,7 +47,7 @@ bloom-career-journey/
 │   ├── App.tsx                    # Root component, all routes
 │   ├── main.tsx                   # Entry point
 │   ├── components/
-│   │   ├── assessments/           # 8 assessment components + DB variants + SummaryViewDialog
+│   │   ├── assessments/           # 8 assessment components + SummaryViewDialog (DB variants deleted May 2026)
 │   │   ├── teacher/               # Header, StatsCards, StudentsTab, StudentModals, teacherStrings
 │   │   ├── student/               # Header, AssessmentGrid, ProgressSection (unused), CareerChatSection, studentStrings
 │   │   ├── chat/                  # Chat UI components
@@ -87,7 +87,8 @@ bloom-career-journey/
 ├── supabase/migrations/           # 150+ SQL migration files (Jan 2025–Apr 2026)
 ├── scripts/                       # seed_test_data, generate_test_answers, cleanup_test_data,
 │                                  # parse_excel_questions, sync_questions (pending),
-│                                  # generate_migration, dump_sheets, test_upsert
+│                                  # generate_migration, dump_sheets, test_upsert,
+│                                  # smoke_approval_workflow (5 RPC smoke tests)
 ├── docs/                          # E2E_test_report, manual_test_checklist, google-sheets-setup, test-screenshots/
 ├── .claude/commands/              # migrate, seed, ship, sync-sheet, test-plan, wrap-up
 └── vercel.json / components.json
@@ -112,9 +113,9 @@ bloom-career-journey/
 | 7 | Holland Code (RIASEC) | `personality` | `HollandCodeAssessment.tsx` |
 | 8 | Career Guidance Tools | `career_guidance_tools` | `CareerGuidanceToolsAssessment.tsx` |
 
-Each has a companion `*DB.tsx` for DB ops. Responses saved as JSON in `assessment_responses.responses`.
+Responses saved as JSON in `assessment_responses.responses`. (Companion `*DB.tsx` files deleted May 2026 — DB ops inlined into `*Assessment.tsx`.)
 
-**Flow**: Student answers → `assessment_responses` → AI summary → `assessment_summaries` → teacher notified → reviews/approves → student views approved summary.
+**Flow**: Student answers → `assessment_responses` → AI summary generated in background (fire-and-forget, 5s retry on failure) → `assessment_summaries` → teacher notified → reviews/approves → student views approved summary.
 
 **Summary tab**: Locked until all core questions answered (`areCoreSectionsComplete()`). Unlocks progressively per section.
 
@@ -132,10 +133,13 @@ Each has a companion `*DB.tsx` for DB ops. Responses saved as JSON in `assessmen
 - Storage priority: student edits > teacher edits > AI original
 
 ### Teacher Approval Workflow
-- Approve/reject/edit/request-revision via `SummaryApprovalCard.tsx`
-- Statuses: `pending_approval` → `approved` | `rejected` | `revision_requested`
-- Language-aware notifications on approval (fetches `preferred_language` from `users` via `create_notification_secure` RPC)
-- `AISummaryReview.tsx` passes student's `preferred_language` to AI generators (not just `detectLanguage`)
+- Approve / reject / edit / request-revision via `SummaryApprovalCard.tsx`
+- Statuses: `pending_approval` → `approved` | `rejected` | `revision_requested`; `revision_requested` → `pending_approval` (student resubmit via `update_student_summary`)
+- RPCs: `approve_summary`, `reject_summary`, `request_revision_summary`, `update_student_summary` — all `SECURITY DEFINER`; `approve_summary` raises `already_approved` if status is not `pending_approval`
+- Language-aware fire-and-forget notifications for all 3 teacher actions (approve/reject/request revision); fetches student `preferred_language` before building notification text
+- `SummaryApprovalCard.tsx`: if teacher is in edit mode when approving, edits are saved first before the approve RPC; `already_approved` race condition handled with toast + refresh
+- `AISummaryReview.tsx`: stats show 4 columns (pending/approved/rejected/revision requested with orange card); fixed `selectedStudentId` race condition (returns `Promise<Student[]>` from `fetchStudents`)
+- `SummaryViewDialog.tsx`: `isEditing` resets to false when dialog closes; revision banner shown when status is `revision_requested`; uses shared `summaryParsers` (no local duplicates)
 
 ### Audio / Voice Features
 - **Batch STT** (`speechToTextService.ts`): Google Cloud → Azure → Gemini; supports `en-IN`, `hi-IN`, `kn-IN`, `ta-IN`
@@ -217,7 +221,7 @@ orgs (id, name) → states (id, state_name, org_id, state_code)
 |--------|------|
 | id | uuid PK |
 | user_id | FK → `users.id` |
-| type | `summary_approved`, `teacher_message`, `assessment_submitted`, `system` |
+| type | `summary_approved`, `summary_rejected`, `revision_requested`, `teacher_message`, `assessment_submitted`, `system` |
 | title, message, link | text |
 | read_at | timestamptz nullable (null = unread) |
 
@@ -249,7 +253,7 @@ students + teachers → chat_channels →1:N→ chat_messages
 
 ## 6. Database Migrations
 
-`supabase/migrations/`: 150+ files, Jan 2025–Apr 2026.
+`supabase/migrations/`: 150+ files, Jan 2025–May 2026.
 
 ### Key Schema Notes
 - **SQL Unicode rule**: All Kannada/Tamil/Hindi text in migrations must use PostgreSQL dollar-quoting (`$$...$$`)
@@ -260,6 +264,8 @@ students + teachers → chat_channels →1:N→ chat_messages
 - **inspiration_sources**: `lang` column; `get_inspiration_videos(p_lang)` RPC; 3 videos × 4 languages (en/kn/ta/hi)
 - **RLS on public tables (Apr 2026)**: 18 content/question tables have authenticated read-only policies; `SECURITY DEFINER` RPCs bypass RLS
 - **About Me question key mismatch (resolved)**: `about_me_fields` uses `field_key='question12'` for Section C question 5 ("List the activities that do not come naturally to you.") but `content_translations` had translations stored under `resource_key='question11'`. Migration `20260416000001_fix_about_me_question12.sql` copies question11 translations to question12. The question11 rows remain in `content_translations` as orphaned data but cause no harm — no `about_me_fields` row references question11.
+- **assessment_responses.responses type constraint**: `20260506000001_responses_type_constraint.sql` adds `NOT VALID CHECK (jsonb_typeof(responses) = 'object')` — existing rows skipped, new inserts must be a JSON object.
+- **Approval workflow RPCs (May 2026)**: `20260506000002_fix_approval_workflow.sql` adds `revision_requested`/`summary_rejected` to `notification_type` enum; updates `approve_summary` (already_approved guard, preserves student_user_id via COALESCE), `reject_summary` (already_approved guard), `update_student_summary` (accepts `revision_requested` → resets to `pending_approval`, clears rejection fields); adds new `request_revision_summary(p_summary_id, p_teacher_user_id, p_revision_notes)` RPC.
 
 ---
 
@@ -278,6 +284,7 @@ students + teachers → chat_channels →1:N→ chat_messages
 ### Key RPC Functions
 - `get_assessment_template(p_assessment_type)`, `get_inspiration_videos(p_lang)`, `get_assessment_media_sources(p_assessment_type)`
 - `get_student_assessment_responses(teacher_user_id, filter?)`, `get_review_overview(teacher_user_id)`, `get_student_review_progress(teacher_user_id)`, `update_assessment_review(...)`
+- `approve_summary(p_summary_id, p_teacher_user_id)`, `reject_summary(p_summary_id, p_teacher_user_id, p_rejection_reason)`, `request_revision_summary(p_summary_id, p_teacher_user_id, p_revision_notes)`, `update_student_summary(p_summary_id, p_student_user_id, p_student_edited_summary)`
 - `get_or_create_chat_channel(p_student_id, p_teacher_id)`, `create_notification_secure(p_user_id, p_type, p_title, p_message, p_link)`
 - `get_all_assessment_templates()`, `update_assessment_template(...)`, `upsert_media_source(...)` — admin ops
 
@@ -307,7 +314,7 @@ students + teachers → chat_channels →1:N→ chat_messages
 | `speechToTextService.ts` | `transcribe()`, `transcribeAutoDetect()`, `transcribeLongRunningByUri()` |
 | `sarvamStreamingService.ts` | `connect()`, `sendAudioChunk()`, `disconnect()` |
 | `assessmentService.ts` | `getAssessmentTemplate()`, `getMediaSources()`, `getHollandCodeData()` |
-| `summaryDatabaseService.ts` | `createAISummary()`, `approveSummary()`, `rejectSummary()`, `updateTeacherSummary()` |
+| `summaryDatabaseService.ts` | `createAISummary()`, `approveSummary()`, `rejectSummary()`, `updateTeacherSummary()`, `requestRevision()`, `updateStudentSummary()`, `getPendingSummariesForTeacher()`, `getTeacherSummaryOverview()` |
 | `notificationService.ts` | `getUnreadCount()`, `list()`, `markRead()`, `create()` |
 | `audioResponseManager.ts` | `processAudioResponse()`, `syncOfflineQueue()` |
 | `supabaseUploadService.ts` | `uploadFile()`, `queueUpload()`, `processQueue()` |
@@ -379,7 +386,8 @@ Three scenarios require OTP verification before account creation or password set
 
 - **Forms**: React Hook Form + Zod + `@hookform/resolvers`
 - **Logging**: `src/lib/logger.ts` — silent in production (`import.meta.env.DEV` gate)
-- **Assessment pairs**: `*Assessment.tsx` (UI+logic) + `*AssessmentDB.tsx` (DB ops)
+- **Assessment components**: `*Assessment.tsx` — UI + logic + DB ops (DB companion files deleted May 2026)
+- **Auto-save hardening**: All assessments use `isDirtyRef` (no spurious save on initial load) + `readOnlyView` guard (no DB writes in teacher read-only mode)
 - **SQL Unicode**: Kannada/Tamil/Hindi in migrations → `$$...$$` dollar-quoting
 - **assessment_responses writes**: ALWAYS `.upsert({ onConflict: 'student_id,assessment_type' })` — NEVER bare `.insert()`
 - **Bug fixes**: documented in git commit messages only, not in this file
@@ -388,7 +396,7 @@ Three scenarios require OTP verification before account creation or password set
 
 ## 12. Current Implementation Status
 
-**Last verified build:** 2026-05-08
+**Last verified build:** 2026-05-09
 
 ### Assessment Module Status
 | Assessment | UI | DB | AI Summary | Approval | Wired |
@@ -525,3 +533,7 @@ Three scenarios require OTP verification before account creation or password set
 | **auth-sec** | Auth & authorization security hardening (19-point audit, May 2026): `initialLoadDone` closure flag prevents duplicate profile fetch from `onAuthStateChange` SIGNED_IN on session restore; `TOKEN_REFRESHED` and `USER_UPDATED` events handled; `isValidE164` gate on sign-in prevents malformed phone submission; password confirm field with Zod validation added to sign-up form; states-load error state with Retry button (replaces fake UUID fallbacks); unknown/unrecognized roles redirect to `/auth` instead of infinite role-dashboard loop; test routes (`/audio-test`, `/assessment-test`, `/database-test`) restricted to admin role; CORS origin-locked via `ALLOWED_ORIGIN` Supabase secret on all browser-facing EFs; `verify-msg91-token` made internal-only (no CORS, service-role auth required, non-empty mobile enforced); sign-in rate-limiting (5 failures → 60s lockout with countdown); password strength indicator on sign-up; `OTP_EXPIRY_SECONDS` module constant (900s) syncs expiry timer to MSG91 config; `signUpAccessTokenRef`/`firstLoginAccessTokenRef` split to prevent cross-flow token contamination; `ProtectedRoute` 10s load timeout with Reload prompt; role-mismatch redirects include `?lang=` and `state={{ from: location }}`; `refreshingProfile` boolean wired in `useAuth` (`setRefreshingProfile` in `refreshUserProfile` try/finally); dead `signUp` function removed from `useAuth` (−135 lines). All 5 affected EFs redeployed; `ALLOWED_ORIGIN` secret set in Supabase. |
 | **otp-audit** | MSG91 OTP 29-point security audit + full fix pass (May 2026): High — `verify-msg91-token` rewritten as internal-only EF (service-role gate, no CORS, non-empty mobile guard, 10 s AbortController timeout); `set-first-password` gains server-side password length (≥6), student-only role gate, PGRST116 → 409 duplicate handling, OTP dev-bypass parity, mobile cross-check unconditional; Medium — OTP digit count via `VITE_MSG91_OTP_LENGTH`; `sendOtpWithTimeout` wrapper (15 s); resend uses `retryOtp` not `sendOtp`; async verifyOtp callback wrapped in try/catch/finally; pre-OTP anon RLS duplicate check removed (unreliable); token key extracted from multiple MSG91 response shapes; G17 OTP-session expiry warning on password-set screen; tab-switch countdown accuracy via `otpSentAtRef`; Low — MSG91 window globals deleted on unmount; G12 token + password cleared after use in all three flows (student, teacher, First Login); `normalizedPhone` declaration restored in `handleSignUp` (latent ReferenceError bug). All 4 EFs redeployed and API smoke-tested on production. |
 | **ai-summary-audit** | AI Summary System 22-point gap analysis + full fix pass (May 2026): High — `validateSummary` rewritten to correctly detect Dreams (JSON array with `.dream`), Hobbies (JSON arrays in `question1`+`question6`), Role Models (plain text ≥50 chars) formats; `parseDreamsResponse` accepts any non-empty entry array (not hard-coded 3); Medium — `detectLanguage` uses plurality vote at ≥20% threshold (handles Tanglish/mixed-script); template cache gains 30-min TTL; Hindi instruction branches added to all 4 prompt builders; Role Models detector counts `questionN` regex keys (not just `!question2`); profile card `generateAndCacheProfileCardKeywords` routes raw responses via `assessmentResponses` param; `callGeminiProxy` surfaces user-friendly error message; Low — dead Dreams `entries` branch removed from `parseGeminiResponse`; orphaned `languageRule` variable cleaned from `buildSchoolLearningPrompt`; `simpleWordsRule` added to Role Models prompts; `getSummaryWordCount` extracts text from JSON portfolios; `generationConfig: { temperature: 0.4, maxOutputTokens: 1024 }` on all 6 request bodies; Tanglish/Kanglish/Hinglish note in `BASE_SYSTEM_PROMPT`; `SummaryQuestions` JSDoc documents all 6 assessment field formats. |
+| **14A** | Assessment auto-save hardening (all 8 assessments): `isDirtyRef` pattern prevents spurious auto-save on initial DB load; `readOnlyView` guard blocks DB writes when teacher opens student assessment in read-only mode; lang variable fixes in `AboutMeAssessmentDB`, `MyDreamsAssessmentDB`, `MyRoleModelsAssessmentDB`; `MySchoolLearningAssessment` gains try/catch + `autoSaveErrorRef` + `isDirtyRef`. Migration `20260506000001` adds NOT VALID CHECK on `assessment_responses.responses`. |
+| **14B** | Background AI summary generation on student submit (all 6 assessed modules): fire-and-forget `generate*Summary` + `createAISummary` called in `submitAssessment`; 5 s retry on failure. `MyHobbiesAssessment` upsert fixed to use `.select().single()` to obtain `assessmentData.id`. |
+| **14C** | Delete 6 unused `*DB.tsx` assessment companion files (dead code — logic already inlined in `*Assessment.tsx`). |
+| **approval-workflow** | Full approval workflow fix pass (May 2026): Migration `20260506000002` adds `revision_requested`/`summary_rejected` to `notification_type` enum, adds `already_approved` guard to `approve_summary`/`reject_summary`, extends `update_student_summary` to accept `revision_requested`→`pending_approval` resubmit, adds new `request_revision_summary` RPC. `SummaryApprovalCard`: "Request Revision" button+dialog, save-edits-before-approve guard, `already_approved` race toast, removed debug "Check DB" button, dead code purge. `SummaryViewDialog`: `isEditing` reset on close, removed 3 local duplicate parsers (uses shared `summaryParsers`), role_models title fix, Hindi for all button labels/toasts. `AISummaryReview`: `selectedStudentId` race condition fixed, 4-column stats with orange `revision_requested` card. `summaryDatabaseService` gains `requestRevision()`. Language-aware fire-and-forget notifications for all 3 teacher actions. Smoke tested: `scripts/smoke_approval_workflow.ts` 5/5 T1–T5 pass. |
