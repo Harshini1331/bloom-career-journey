@@ -1270,6 +1270,25 @@ export default function MyInspirationAssessment() {
         description: lang === 'kn' ? 'ನಿಮ್ಮ ಉತ್ತರಗಳನ್ನು ಉಳಿಸಲಾಗಿದೆ.' : lang === 'ta' ? 'உங்கள் பதில்கள் சேமிக்கப்பட்டன.' : lang === 'hi' ? 'आपके उत्तर सहेजे गए।' : "Your responses have been saved.",
       });
 
+      if (aiSummaryService.isConfigured() && assessmentData?.id) {
+        void (async () => {
+          try {
+            const summaryResult = await aiSummaryService.generateInspirationSummary(responses, lang);
+            if (summaryResult.success && summaryResult.summary) {
+              await summaryDatabaseService.createAISummary(assessmentData.id, summaryResult.summary, userProfile.id);
+            } else if (!summaryResult.success) {
+              setTimeout(async () => {
+                try {
+                  const retryResult = await aiSummaryService.generateInspirationSummary(responses, lang);
+                  if (retryResult.success && retryResult.summary) {
+                    await summaryDatabaseService.createAISummary(assessmentData.id, retryResult.summary, userProfile.id);
+                  }
+                } catch (e) { logger.warn('Summary retry failed (inspiration):', e); }
+              }, 5000);
+            }
+          } catch (e) { logger.warn('Summary generation failed (inspiration):', e); }
+        })();
+      }
       aiSummaryService.generateAndCacheProfileCardKeywords('inspiration', responses, userProfile.id, lang);
       setIsCompleted(true);
       setTimeout(() => navigate('/student/things-interest-me?from=inspiration'), 2000);

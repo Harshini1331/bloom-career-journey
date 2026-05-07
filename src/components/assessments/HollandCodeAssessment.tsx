@@ -1,5 +1,5 @@
 ﻿import { logger } from '@/lib/logger';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -222,6 +222,7 @@ export default function HollandCodeAssessment() {
 
   const handleToggle = (questionNum: number, value: boolean) => {
     if (isCompleted) return;
+    isDirtyRef.current = true;
     setAnswers(prev => ({ ...prev, [questionNum]: value }));
   };
 
@@ -276,43 +277,22 @@ export default function HollandCodeAssessment() {
       currentResponses.topTwoTypes = topTwoTypes;
       currentResponses.reflection = reflection;
 
-      // Fetch latest existing data to merge
-      const { data: existingRecords } = await supabase
-        .from('assessment_responses')
-        .select('responses')
-        .eq('student_id', studentId)
-        .eq('assessment_type', 'personality')
-        .eq('assessment_title', 'Holland Code (RIASEC) Test')
-        .order('updated_at', { ascending: false })
-        .limit(1);
-
-      const existing = existingRecords && existingRecords.length > 0 ? existingRecords[0] : null;
-
-      const combinedResponses = {
-        ...(existing?.responses as any || {}),
-        ...currentResponses
-      };
-
-      const { data: upsertData, error } = await supabase
+      const { error } = await supabase
         .from('assessment_responses')
         .upsert({
           student_id: studentId,
           assessment_type: 'personality',
           assessment_title: 'Holland Code (RIASEC) Test',
-          responses: combinedResponses,
+          responses: currentResponses,
           completed_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        }, { onConflict: 'student_id,assessment_type' })
-        .select()
-        .single();
-
-      const assessmentData = upsertData;
+        }, { onConflict: 'student_id,assessment_type' });
 
       if (error) throw error;
 
       toast({
-        title: "Holland Code Assessment Completed! 🧭",
-        description: "Your personality type has been identified successfully!",
+        title: lang === 'kn' ? 'Holland Code ಮೌಲ್ಯಮಾಪನ ಪೂರ್ಣಗೊಂಡಿದೆ! 🧭' : lang === 'ta' ? 'Holland Code மதிப்பீடு முடிந்தது! 🧭' : lang === 'hi' ? 'Holland Code मूल्यांकन पूर्ण! 🧭' : 'Holland Code Assessment Completed! 🧭',
+        description: lang === 'kn' ? 'ನಿಮ್ಮ ವ್ಯಕ್ತಿತ್ವ ಪ್ರಕಾರ ಯಶಸ್ವಿಯಾಗಿ ಗುರುತಿಸಲಾಗಿದೆ!' : lang === 'ta' ? 'உங்கள் ஆளுமை வகை வெற்றிகரமாக அடையாளம் காணப்பட்டுள்ளது!' : lang === 'hi' ? 'आपका व्यक्तित्व प्रकार सफलतापूर्वक पहचाना गया!' : 'Your personality type has been identified successfully!',
       });
 
       setIsCompleted(true);
@@ -327,8 +307,8 @@ export default function HollandCodeAssessment() {
     } catch (error) {
       logger.error('Error submitting assessment:', error);
       toast({
-        title: "Error",
-        description: "Failed to submit assessment. Please try again.",
+        title: lang === 'kn' ? 'ದೋಷ' : lang === 'ta' ? 'பிழை' : lang === 'hi' ? 'त्रुटि' : 'Error',
+        description: lang === 'kn' ? 'ಮೌಲ್ಯಮಾಪನ ಸಲ್ಲಿಸಲು ವಿಫಲವಾಗಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.' : lang === 'ta' ? 'மதிப்பீடு சமர்ப்பிக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.' : lang === 'hi' ? 'मूल्यांकन जमा करने में विफल। कृपया पुनः प्रयास करें।' : 'Failed to submit assessment. Please try again.',
         variant: "destructive",
       });
     } finally {
@@ -336,9 +316,12 @@ export default function HollandCodeAssessment() {
     }
   };
 
+  const autoSaveErrorRef = useRef(false);
+  const isDirtyRef = useRef(false);
+
   // Auto-save drafts when answers change (debounced)
   useEffect(() => {
-    if (loading || isCompleted || questions.length === 0) return;
+    if (loading || isCompleted || readOnlyView || questions.length === 0 || !isDirtyRef.current) return;
     const timer = setTimeout(async () => {
       try {
         if (!userProfile?.id) return;
@@ -349,18 +332,6 @@ export default function HollandCodeAssessment() {
         }
         if (!studentId) return;
 
-        // Fetch latest data to avoid race conditions
-        const { data: existingRecords } = await supabase
-          .from('assessment_responses')
-          .select('responses')
-          .eq('student_id', studentId)
-          .eq('assessment_type', 'personality')
-          .eq('assessment_title', 'Holland Code (RIASEC) Test')
-          .order('updated_at', { ascending: false })
-          .limit(1);
-
-        const existing = existingRecords && existingRecords.length > 0 ? existingRecords[0] : null;
-
         const currentResponses: any = {};
         questions.forEach((q, index) => {
           const questionNum = index + 1;
@@ -370,24 +341,30 @@ export default function HollandCodeAssessment() {
         currentResponses.topTwoTypes = topTwoTypes;
         currentResponses.reflection = reflection;
 
-        const combinedResponses = {
-          ...(existing?.responses as any || {}),
-          ...currentResponses
-        };
-
         const { error } = await supabase
           .from('assessment_responses')
           .upsert({
             student_id: studentId,
             assessment_type: 'personality',
             assessment_title: 'Holland Code (RIASEC) Test',
-            responses: combinedResponses,
+            responses: currentResponses,
             updated_at: new Date().toISOString(),
             completed_at: null
           }, { onConflict: 'student_id,assessment_type' });
 
         if (error) throw error;
-      } catch { }
+        autoSaveErrorRef.current = false;
+      } catch (e) {
+        logger.warn('Auto-save failed (personality):', e);
+        if (!autoSaveErrorRef.current) {
+          autoSaveErrorRef.current = true;
+          toast({
+            title: lang === 'kn' ? 'ಸ್ವಯಂ-ಉಳಿಕೆ ವಿಫಲ' : lang === 'ta' ? 'தானியங்கி சேமிப்பு தோல்வி' : lang === 'hi' ? 'स्वतः-सहेजना विफल' : 'Auto-save failed',
+            description: lang === 'kn' ? 'ನಿಮ್ಮ ಡ್ರಾಫ್ಟ್ ಉಳಿಸಲಾಗುತ್ತಿಲ್ಲ. ದಯವಿಟ್ಟು ನಿಮ್ಮ ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ.' : lang === 'ta' ? 'உங்கள் வரைவு சேமிக்கப்படவில்லை. உங்கள் இணைப்பை சரிபார்க்கவும்.' : lang === 'hi' ? 'आपका ड्राफ़्ट सहेजा नहीं जा रहा। कृपया अपना कनेक्शन जांचें।' : 'Your draft is not being saved. Please check your connection.',
+            variant: 'destructive',
+          });
+        }
+      }
     }, 800);
     return () => clearTimeout(timer);
   }, [answers, scores, topTwoTypes, reflection, loading, isCompleted, userProfile, questions]);
@@ -610,7 +587,7 @@ export default function HollandCodeAssessment() {
               <Input
                 type="text"
                 value={topTwoTypes}
-                onChange={(e) => setTopTwoTypes(e.target.value.toUpperCase())}
+                onChange={(e) => { isDirtyRef.current = true; setTopTwoTypes(e.target.value.toUpperCase()); }}
                 disabled={isCompleted}
                 placeholder="e.g., R, E"
                 maxLength={2}
@@ -630,7 +607,7 @@ export default function HollandCodeAssessment() {
               </label>
               <Textarea
                 value={reflection}
-                onChange={(e) => setReflection(e.target.value)}
+                onChange={(e) => { isDirtyRef.current = true; setReflection(e.target.value); }}
                 disabled={isCompleted}
                 placeholder="Write your reflection here..."
                 rows={4}

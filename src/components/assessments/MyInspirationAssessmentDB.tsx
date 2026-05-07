@@ -1,5 +1,5 @@
 ﻿import { logger } from '@/lib/logger';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -206,9 +206,12 @@ export default function MyInspirationAssessmentDB() {
     ensureAssessmentRecord();
   }, [userProfile, loading, responses]);
 
+  const autoSaveErrorRef = useRef(false);
+  const isDirtyRef = useRef(false);
+
   // Auto-save draft on changes (debounced)
   useEffect(() => {
-    if (loading || isCompleted) return;
+    if (loading || isCompleted || readOnlyView || !isDirtyRef.current) return;
     const t = setTimeout(async () => {
       try {
         if (!userProfile?.id) return;
@@ -222,7 +225,7 @@ export default function MyInspirationAssessmentDB() {
           studentId = studentRow?.id;
         }
         if (!studentId) return;
-        await supabase.from('assessment_responses').upsert({
+        const { error: autoSaveErr } = await supabase.from('assessment_responses').upsert({
           student_id: studentId,
           assessment_type: 'inspiration',
           assessment_title: 'My Inspiration',
@@ -230,7 +233,19 @@ export default function MyInspirationAssessmentDB() {
           updated_at: new Date().toISOString(),
           completed_at: null
         }, { onConflict: 'student_id,assessment_type' });
-      } catch { }
+        if (autoSaveErr) throw autoSaveErr;
+        autoSaveErrorRef.current = false;
+      } catch (e) {
+        logger.warn('Auto-save failed (inspiration):', e);
+        if (!autoSaveErrorRef.current) {
+          autoSaveErrorRef.current = true;
+          toast({
+            title: lang === 'kn' ? 'ಸ್ವಯಂ-ಉಳಿಕೆ ವಿಫಲ' : lang === 'ta' ? 'தானியங்கி சேமிப்பு தோல்வி' : lang === 'hi' ? 'स्वतः-सहेजना विफल' : 'Auto-save failed',
+            description: lang === 'kn' ? 'ನಿಮ್ಮ ಡ್ರಾಫ್ಟ್ ಉಳಿಸಲಾಗುತ್ತಿಲ್ಲ. ದಯವಿಟ್ಟು ನಿಮ್ಮ ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ.' : lang === 'ta' ? 'உங்கள் வரைவு சேமிக்கப்படவில்லை. உங்கள் இணைப்பை சரிபார்க்கவும்.' : lang === 'hi' ? 'आपका ड्राफ़्ट सहेजा नहीं जा रहा। कृपया अपना कनेक्शन जांचें।' : 'Your draft is not being saved. Please check your connection.',
+            variant: 'destructive',
+          });
+        }
+      }
     }, 800);
     return () => clearTimeout(t);
   }, [responses, loading, isCompleted, userProfile]);
@@ -278,6 +293,7 @@ export default function MyInspirationAssessmentDB() {
   }, [userProfile, loading]);
 
   const handleResponseChange = (videoKey: string, questionKey: string, value: string) => {
+    isDirtyRef.current = true;
     setResponses(prev => ({
       ...prev,
       [videoKey]: {
@@ -312,7 +328,7 @@ export default function MyInspirationAssessmentDB() {
         .from('audio-responses')
         .getPublicUrl(filePath);
 
-      // Store audio response metadata
+      // Store audio response metadata; if this fails, remove the orphaned storage file
       const { error: insertError } = await supabase
         .from('audio_files')
         .upsert({
@@ -322,12 +338,15 @@ export default function MyInspirationAssessmentDB() {
           file_path: filePath,
           file_url: urlData.publicUrl,
           file_size: audioBlob.size,
-          duration_ms: 0, // Will be updated after transcription
+          duration_ms: 0,
           mime_type: 'audio/webm',
           upload_status: 'completed'
         });
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        await supabase.storage.from('audio-responses').remove([filePath]);
+        throw insertError;
+      }
 
       setAudioAnswered(prev => ({ ...prev, [audioKey]: true }));
 
@@ -403,13 +422,13 @@ export default function MyInspirationAssessmentDB() {
                     ? 'à²¸à²¾à²°à²¾à²‚à²¶ à²¸à²¿à²¦à³à²§à²µà²¾à²—à²¿à²¦à³†! ðŸ“'
                     : lang === 'ta'
                       ? 'à®šà¯à®°à¯à®•à¯à®•à®®à¯ à®‰à®°à¯à®µà®¾à®•à¯à®•à®ªà¯à®ªà®Ÿà¯à®Ÿà®¤à¯! ðŸ“'
-                      : 'Summary Generated! ðŸ“',
+                      : lang === 'hi' ? 'सारांश तैयार! 📝' : 'Summary Generated! ðŸ“',
                 description:
                   lang === 'kn'
                     ? 'à²¨à³€à²µà³ à²¬à²°à³†à²¦ à²šà²¿à²‚à²¤à²¨à³†à²—à²³ à²¸à²¾à²°à²¾à²‚à²¶à²µà²¨à³à²¨à³ à²¨à²¿à²®à³à²® à²¶à²¿à²•à³à²·à²•à²°à³ à²ªà²°à²¿à²¶à³€à²²à²¿à²¸à²²à²¿à²¦à³à²¦à²¾à²°à³†.'
                     : lang === 'ta'
                       ? 'à®¨à¯€à®™à¯à®•à®³à¯ à®Žà®´à¯à®¤à®¿à®¯ à®šà®¿à®¨à¯à®¤à®©à¯ˆà®šà¯ à®šà¯à®°à¯à®•à¯à®•à®¤à¯à®¤à¯ˆ à®‰à®™à¯à®•à®³à¯ à®†à®šà®¿à®°à®¿à®¯à®¾à¯ à®µà®¿à®°à¯ˆà®µà®¿à®²à¯ à®ªà®¾à®°à¯à®µà¯ˆà®¯à®¿à®Ÿà¯à®µà®¾à®°à¯.'
-                      : 'Your teacher will review your reflection summary.',
+                      : lang === 'hi' ? 'आपका शिक्षक आपके प्रतिबिंब सारांश की समीक्षा करेगा।' : 'Your teacher will review your reflection summary.',
               });
             } else {
               logger.error('Failed to save summary:', saveResult.error);
@@ -426,6 +445,16 @@ export default function MyInspirationAssessmentDB() {
               description: "Your assessment is saved. Summary will be generated later.",
               variant: "destructive",
             });
+            setTimeout(async () => {
+              try {
+                const retryResult = await aiSummaryService.generateInspirationSummary(responses, lang);
+                if (retryResult.success && retryResult.summary) {
+                  await summaryDatabaseService.createAISummary(assessmentData.id, retryResult.summary, userProfile.id);
+                }
+              } catch (e) {
+                logger.warn('Summary retry failed (inspiration):', e);
+              }
+            }, 5000);
           }
         } else {
           logger.warn('Gemini API not configured, skipping summary generation');

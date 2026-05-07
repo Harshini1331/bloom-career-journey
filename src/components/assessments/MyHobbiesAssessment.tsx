@@ -1,9 +1,10 @@
 import { logger } from '@/lib/logger';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { aiSummaryService } from '@/services/aiSummaryService';
+import { summaryDatabaseService } from '@/services/summaryDatabaseService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -64,6 +65,8 @@ export default function MyHobbiesAssessment() {
   const [currentSection, setCurrentSection] = useState<string>('section1');
   const [helpOpen, setHelpOpen] = useState<Record<string, boolean>>({});
   const [savingSection, setSavingSection] = useState<string | null>(null);
+  const autoSaveErrorRef = useRef(false);
+  const isDirtyRef = useRef(false);
   const toggleHelp = (k: string) => setHelpOpen(prev => ({ ...prev, [k]: !prev[k] }));
   const [searchParams] = useSearchParams();
   const viewParam = (searchParams.get('readonly') || searchParams.get('view') || '').toLowerCase();
@@ -276,17 +279,31 @@ export default function MyHobbiesAssessment() {
 
   // Auto-save drafts on changes (debounced)
   useEffect(() => {
-    if (loading || isCompleted || readOnlyView || Object.keys(responses).length === 0) return;
+    if (loading || isCompleted || readOnlyView || !isDirtyRef.current || Object.keys(responses).length === 0) return;
     const timer = setTimeout(async () => {
-      const studentId = await getStudentId();
-      if (!studentId) return;
-      await supabase.from('assessment_responses').upsert({
-        student_id: studentId,
-        assessment_type: 'hobbies',
-        responses,
-        completed_at: null,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'student_id,assessment_type' });
+      try {
+        const studentId = await getStudentId();
+        if (!studentId) return;
+        const { error: autoSaveErr } = await supabase.from('assessment_responses').upsert({
+          student_id: studentId,
+          assessment_type: 'hobbies',
+          responses,
+          completed_at: null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'student_id,assessment_type' });
+        if (autoSaveErr) throw autoSaveErr;
+        autoSaveErrorRef.current = false;
+      } catch (e) {
+        logger.warn('Auto-save failed (hobbies):', e);
+        if (!autoSaveErrorRef.current) {
+          autoSaveErrorRef.current = true;
+          toast({
+            title: lang === 'kn' ? 'ಸ್ವಯಂ-ಉಳಿಕೆ ವಿಫಲ' : lang === 'ta' ? 'தானியங்கி சேமிப்பு தோல்வி' : lang === 'hi' ? 'स्वतः-सहेजना विफल' : 'Auto-save failed',
+            description: lang === 'kn' ? 'ನಿಮ್ಮ ಡ್ರಾಫ್ಟ್ ಉಳಿಸಲಾಗುತ್ತಿಲ್ಲ. ದಯವಿಟ್ಟು ನಿಮ್ಮ ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ.' : lang === 'ta' ? 'உங்கள் வரைவு சேமிக்கப்படவில்லை. உங்கள் இணைப்பை சரிபார்க்கவும்.' : lang === 'hi' ? 'आपका ड्राफ़्ट सहेजा नहीं जा रहा। कृपया अपना कनेक्शन जांचें।' : 'Your draft is not being saved. Please check your connection.',
+            variant: 'destructive',
+          });
+        }
+      }
     }, 800);
     return () => clearTimeout(timer);
   }, [responses, loading, isCompleted, readOnlyView]);
@@ -307,68 +324,20 @@ export default function MyHobbiesAssessment() {
 
     setSavingSection(section);
     try {
-      logger.log('💾 Saving section:', section, 'with responses:', responses);
+      logger.log('💾 Saving section:', section);
 
-      // First, check if a record exists - get the most recent one
-      const { data: existingRecords, error: fetchError } = await supabase
+      const { error } = await supabase
         .from('assessment_responses')
-        .select('id, responses')
-        .eq('student_id', studentId)
-        .eq('assessment_type', 'hobbies')
-                .order('updated_at', { ascending: false })
-        .limit(1);
+        .upsert({
+          student_id: studentId,
+          assessment_type: 'hobbies',
+          assessment_title: 'My Talents and Hobbies',
+          responses,
+          updated_at: new Date().toISOString(),
+          completed_at: null,
+        }, { onConflict: 'student_id,assessment_type' });
 
-      if (fetchError) {
-        logger.error('❌ Error fetching existing record:', fetchError);
-        throw fetchError;
-      }
-
-      const existing = existingRecords && existingRecords.length > 0 ? existingRecords[0] : null;
-      logger.log('📋 Existing record:', existing);
-
-      if (existing) {
-        // Update existing record, merge responses
-        const existingResponses = existing.responses as any || {};
-        const mergedResponses = {
-          ...existingResponses,
-          ...responses
-        };
-
-        logger.log('🔄 Merging responses:', { existing: existingResponses, current: responses, merged: mergedResponses });
-
-        const { error } = await supabase
-          .from('assessment_responses')
-          .update({
-            responses: mergedResponses,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existing.id);
-
-        if (error) {
-          logger.error('❌ Error updating record:', error);
-          throw error;
-        }
-        logger.log('✅ Successfully updated existing record');
-      } else {
-        // Create new record
-        logger.log('📝 Creating new record with responses:', responses);
-        const { error } = await supabase
-          .from('assessment_responses')
-          .upsert({
-            student_id: studentId,
-            assessment_type: 'hobbies',
-            assessment_title: 'My Talents and Hobbies',
-            responses,
-            updated_at: new Date().toISOString(),
-            completed_at: null
-          }, { onConflict: 'student_id,assessment_type' });
-
-        if (error) {
-          logger.error('❌ Error inserting new record:', error);
-          throw error;
-        }
-        logger.log('✅ Successfully created new record');
-      }
+      if (error) throw error;
 
       const sectionNumber = section.replace('section', '');
       const sectionNamesEn: Record<string, string> = {
@@ -503,6 +472,7 @@ export default function MyHobbiesAssessment() {
   };
 
   const handleResponseChange = (questionId: string, value: string) => {
+    isDirtyRef.current = true;
     setResponses(prev => ({
       ...prev,
       [questionId]: value
@@ -579,56 +549,20 @@ export default function MyHobbiesAssessment() {
 
     setSubmitting(true);
     try {
-      // Find existing record first (same approach as saveSection)
-      const { data: existingRecords, error: fetchError } = await supabase
+      const { data: assessmentData, error } = await supabase
         .from('assessment_responses')
-        .select('*')
-        .eq('student_id', studentId)
-        .eq('assessment_type', 'hobbies')
-                .order('updated_at', { ascending: false })
-        .limit(1);
+        .upsert({
+          student_id: studentId,
+          assessment_type: 'hobbies',
+          assessment_title: 'My Talents and Hobbies',
+          responses: responses,
+          completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'student_id,assessment_type' })
+        .select()
+        .single();
 
-      if (fetchError) {
-        logger.error('❌ Error fetching existing record:', fetchError);
-        throw fetchError;
-      }
-
-      const existing = existingRecords && existingRecords.length > 0 ? existingRecords[0] : null;
-      let assessmentData;
-
-      if (existing) {
-        // Update existing record
-        const { data, error } = await supabase
-          .from('assessment_responses')
-          .update({
-            responses: responses,
-            completed_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existing.id)
-          .select()
-          .single();
-
-        if (error) throw error;
-        assessmentData = data;
-      } else {
-        // Create new record if none exists
-        const { data, error } = await supabase
-          .from('assessment_responses')
-          .upsert({
-            student_id: studentId,
-            assessment_type: 'hobbies',
-            assessment_title: 'My Talents and Hobbies',
-            responses: responses,
-            completed_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }, { onConflict: 'student_id,assessment_type' })
-          .select()
-          .single();
-
-        if (error) throw error;
-        assessmentData = data;
-      }
+      if (error) throw error;
 
       toast({
         title:
@@ -649,6 +583,25 @@ export default function MyHobbiesAssessment() {
                 : 'Your hobbies and talents have been captured successfully!',
       });
 
+      if (aiSummaryService.isConfigured() && assessmentData?.id) {
+        void (async () => {
+          try {
+            const summaryResult = await aiSummaryService.generateHobbiesSummary(responses, lang);
+            if (summaryResult.success && summaryResult.summary) {
+              await summaryDatabaseService.createAISummary(assessmentData.id, summaryResult.summary, userProfile.id);
+            } else if (!summaryResult.success) {
+              setTimeout(async () => {
+                try {
+                  const retryResult = await aiSummaryService.generateHobbiesSummary(responses, lang);
+                  if (retryResult.success && retryResult.summary) {
+                    await summaryDatabaseService.createAISummary(assessmentData.id, retryResult.summary, userProfile.id);
+                  }
+                } catch (e) { logger.warn('Summary retry failed (hobbies):', e); }
+              }, 5000);
+            }
+          } catch (e) { logger.warn('Summary generation failed (hobbies):', e); }
+        })();
+      }
       aiSummaryService.generateAndCacheProfileCardKeywords('hobbies', responses, userProfile.id, lang);
       setIsCompleted(true);
       setTimeout(() => navigate('/student/things-interest-me?from=hobbies'), 2000);

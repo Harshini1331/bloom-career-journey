@@ -547,6 +547,25 @@ export default function AboutMeAssessment() {
       });
 
       if (complete) {
+        if (aiSummaryService.isConfigured() && assessmentData?.id) {
+          void (async () => {
+            try {
+              const summaryResult = await aiSummaryService.generateAboutMeSummary(responses, lang);
+              if (summaryResult.success && summaryResult.summary) {
+                await summaryDatabaseService.createAISummary(assessmentData.id, summaryResult.summary, userProfile.id);
+              } else if (!summaryResult.success) {
+                setTimeout(async () => {
+                  try {
+                    const retryResult = await aiSummaryService.generateAboutMeSummary(responses, lang);
+                    if (retryResult.success && retryResult.summary) {
+                      await summaryDatabaseService.createAISummary(assessmentData.id, retryResult.summary, userProfile.id);
+                    }
+                  } catch (e) { logger.warn('Summary retry failed (about_me):', e); }
+                }, 5000);
+              }
+            } catch (e) { logger.warn('Summary generation failed (about_me):', e); }
+          })();
+        }
         aiSummaryService.generateAndCacheProfileCardKeywords('about_me', responses, userProfile.id, lang);
         setIsCompleted(true);
         setTimeout(() => navigate('/student/things-interest-me?from=about_me'), 2000);

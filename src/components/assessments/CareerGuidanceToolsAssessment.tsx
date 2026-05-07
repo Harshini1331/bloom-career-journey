@@ -1,5 +1,5 @@
 ﻿import { logger } from '@/lib/logger';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -249,49 +249,30 @@ export default function CareerGuidanceToolsAssessment() {
 
     setSubmitting(true);
     try {
-      // Fetch latest existing data to merge
-      const { data: existingRecords } = await supabase
-        .from('assessment_responses')
-        .select('responses')
-        .eq('student_id', studentId)
-        .eq('assessment_type', 'career_guidance_tools')
-        .eq('assessment_title', 'Exploring Career Guidance Tools')
-        .order('updated_at', { ascending: false })
-        .limit(1);
-
-      const existing = existingRecords && existingRecords.length > 0 ? existingRecords[0] : null;
-
-      const combinedResponses = {
-        ...(existing?.responses as any || {}),
-        ...responses
-      };
-
-      const { data: assessmentData, error } = await supabase
+      const { error } = await supabase
         .from('assessment_responses')
         .upsert({
           student_id: studentId,
           assessment_type: 'career_guidance_tools',
           assessment_title: 'Exploring Career Guidance Tools',
-          responses: combinedResponses,
+          responses,
           completed_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        }, { onConflict: 'student_id,assessment_type' })
-        .select()
-        .single();
+        }, { onConflict: 'student_id,assessment_type' });
 
       if (error) throw error;
 
       toast({
-        title: "Career Guidance Tools Assessment Completed! 🌐",
-        description: "Your responses have been captured successfully!",
+        title: lang === 'kn' ? 'ವೃತ್ತಿ ಮಾರ್ಗದರ್ಶನ ಪರಿಕರಗಳ ಮೌಲ್ಯಮಾಪನ ಪೂರ್ಣ! 🌐' : lang === 'ta' ? 'தொழில் வழிகாட்டி கருவிகள் மதிப்பீடு முடிந்தது! 🌐' : lang === 'hi' ? 'करियर मार्गदर्शन उपकरण मूल्यांकन पूर्ण! 🌐' : 'Career Guidance Tools Assessment Completed! 🌐',
+        description: lang === 'kn' ? 'ನಿಮ್ಮ ಉತ್ತರಗಳನ್ನು ಯಶಸ್ವಿಯಾಗಿ ದಾಖಲಿಸಲಾಗಿದೆ!' : lang === 'ta' ? 'உங்கள் பதில்கள் வெற்றிகரமாக பதிவு செய்யப்பட்டுள்ளன!' : lang === 'hi' ? 'आपकी प्रतिक्रियाएँ सफलतापूर्वक दर्ज की गई हैं!' : 'Your responses have been captured successfully!',
       });
 
       setIsCompleted(true);
     } catch (error) {
       logger.error('Error submitting assessment:', error);
       toast({
-        title: "Error",
-        description: "Failed to submit assessment. Please try again.",
+        title: lang === 'kn' ? 'ದೋಷ' : lang === 'ta' ? 'பிழை' : lang === 'hi' ? 'त्रुटि' : 'Error',
+        description: lang === 'kn' ? 'ಮೌಲ್ಯಮಾಪನ ಸಲ್ಲಿಸಲು ವಿಫಲವಾಗಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.' : lang === 'ta' ? 'மதிப்பீடு சமர்ப்பிக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.' : lang === 'hi' ? 'मूल्यांकन जमा करने में विफल। कृपया पुनः प्रयास करें।' : 'Failed to submit assessment. Please try again.',
         variant: "destructive",
       });
     } finally {
@@ -299,9 +280,11 @@ export default function CareerGuidanceToolsAssessment() {
     }
   };
 
+  const autoSaveErrorRef = useRef(false);
+
   // Auto-save drafts when answers change (debounced)
   useEffect(() => {
-    if (loading || isCompleted || questions.length === 0 || !isDirty) return;
+    if (loading || isCompleted || readOnlyView || questions.length === 0 || !isDirty) return;
     const timer = setTimeout(async () => {
       try {
         if (!userProfile?.id) return;
@@ -312,36 +295,30 @@ export default function CareerGuidanceToolsAssessment() {
         }
         if (!studentId) return;
 
-        // Fetch latest data to avoid race conditions
-        const { data: existingRecords } = await supabase
-          .from('assessment_responses')
-          .select('responses')
-          .eq('student_id', studentId)
-          .eq('assessment_type', 'career_guidance_tools')
-          .eq('assessment_title', 'Exploring Career Guidance Tools')
-          .order('updated_at', { ascending: false })
-          .limit(1);
-
-        const existing = existingRecords && existingRecords.length > 0 ? existingRecords[0] : null;
-
-        const combinedResponses = {
-          ...(existing?.responses as any || {}),
-          ...responses
-        };
-
         const { error } = await supabase
           .from('assessment_responses')
           .upsert({
             student_id: studentId,
             assessment_type: 'career_guidance_tools',
             assessment_title: 'Exploring Career Guidance Tools',
-            responses: combinedResponses,
+            responses,
             updated_at: new Date().toISOString(),
             completed_at: null
           }, { onConflict: 'student_id,assessment_type' });
 
         if (error) throw error;
-      } catch { }
+        autoSaveErrorRef.current = false;
+      } catch (e) {
+        logger.warn('Auto-save failed (career_guidance_tools):', e);
+        if (!autoSaveErrorRef.current) {
+          autoSaveErrorRef.current = true;
+          toast({
+            title: lang === 'kn' ? 'ಸ್ವಯಂ-ಉಳಿಕೆ ವಿಫಲ' : lang === 'ta' ? 'தானியங்கி சேமிப்பு தோல்வி' : lang === 'hi' ? 'स्वतः-सहेजना विफल' : 'Auto-save failed',
+            description: lang === 'kn' ? 'ನಿಮ್ಮ ಡ್ರಾಫ್ಟ್ ಉಳಿಸಲಾಗುತ್ತಿಲ್ಲ. ದಯವಿಟ್ಟು ನಿಮ್ಮ ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ.' : lang === 'ta' ? 'உங்கள் வரைவு சேமிக்கப்படவில்லை. உங்கள் இணைப்பை சரிபார்க்கவும்.' : lang === 'hi' ? 'आपका ड्राफ़्ट सहेजा नहीं जा रहा। कृपया अपना कनेक्शन जांचें।' : 'Your draft is not being saved. Please check your connection.',
+            variant: 'destructive',
+          });
+        }
+      }
     }, 800);
     return () => clearTimeout(timer);
   }, [responses, loading, isCompleted, userProfile, questions, isDirty]);

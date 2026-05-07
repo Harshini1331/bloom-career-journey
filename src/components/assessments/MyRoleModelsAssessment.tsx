@@ -4,6 +4,7 @@ import { fetchTranslations } from '@/services/translationService';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { aiSummaryService } from '@/services/aiSummaryService';
+import { summaryDatabaseService } from '@/services/summaryDatabaseService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -520,6 +521,25 @@ export default function MyRoleModelsAssessment() {
         description: lang === 'kn' ? 'ನಿಮ್ಮ ಆದರ್ಶ ವ್ಯಕ್ತಿಗಳು ಮತ್ತು ಪ್ರೇರಣೆಗಳನ್ನು ಯಶಸ್ವಿಯಾಗಿ ಸೆರೆಹಿಡಿಯಲಾಗಿದೆ!' : lang === 'ta' ? 'உங்கள் முன்மாதிரிகள் மற்றும் உத்வேகங்கள் வெற்றிகரமாக பதிவு செய்யப்பட்டன!' : lang === 'hi' ? 'आपके आदर्श और प्रेरणाएं सफलतापूर्वक दर्ज की गईं!' : 'Your role models and inspirations have been captured successfully!',
       });
 
+      if (aiSummaryService.isConfigured() && assessmentData?.id) {
+        void (async () => {
+          try {
+            const summaryResult = await aiSummaryService.generateRoleModelsSummary(responses, lang);
+            if (summaryResult.success && summaryResult.summary) {
+              await summaryDatabaseService.createAISummary(assessmentData.id, summaryResult.summary, userProfile.id);
+            } else if (!summaryResult.success) {
+              setTimeout(async () => {
+                try {
+                  const retryResult = await aiSummaryService.generateRoleModelsSummary(responses, lang);
+                  if (retryResult.success && retryResult.summary) {
+                    await summaryDatabaseService.createAISummary(assessmentData.id, retryResult.summary, userProfile.id);
+                  }
+                } catch (e) { logger.warn('Summary retry failed (role_models):', e); }
+              }, 5000);
+            }
+          } catch (e) { logger.warn('Summary generation failed (role_models):', e); }
+        })();
+      }
       aiSummaryService.generateAndCacheProfileCardKeywords('role_models', responses, userProfile.id, lang);
       setIsCompleted(true);
       setTimeout(() => navigate('/student/things-interest-me?from=role_models'), 2000);

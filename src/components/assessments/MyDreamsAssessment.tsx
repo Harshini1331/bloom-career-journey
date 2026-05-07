@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { aiSummaryService } from '@/services/aiSummaryService';
+import { summaryDatabaseService } from '@/services/summaryDatabaseService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -587,6 +588,25 @@ export default function MyDreamsAssessment() {
                 : 'Your dreams and aspirations have been captured successfully!',
       });
 
+      if (aiSummaryService.isConfigured() && assessmentData?.id) {
+        void (async () => {
+          try {
+            const summaryResult = await aiSummaryService.generateDreamsSummary(responses, lang);
+            if (summaryResult.success && summaryResult.summary) {
+              await summaryDatabaseService.createAISummary(assessmentData.id, summaryResult.summary, userProfile.id);
+            } else if (!summaryResult.success) {
+              setTimeout(async () => {
+                try {
+                  const retryResult = await aiSummaryService.generateDreamsSummary(responses, lang);
+                  if (retryResult.success && retryResult.summary) {
+                    await summaryDatabaseService.createAISummary(assessmentData.id, retryResult.summary, userProfile.id);
+                  }
+                } catch (e) { logger.warn('Summary retry failed (dreams):', e); }
+              }, 5000);
+            }
+          } catch (e) { logger.warn('Summary generation failed (dreams):', e); }
+        })();
+      }
       aiSummaryService.generateAndCacheProfileCardKeywords('dreams', responses, userProfile.id, lang);
       setIsCompleted(true);
       setTimeout(() => navigate('/student/things-interest-me?from=dreams'), 2000);

@@ -1,6 +1,7 @@
 import { logger } from '@/lib/logger';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useLang } from '@/hooks/useLang';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -40,6 +41,7 @@ interface RoleModelsAssessmentResponse {
 
 export default function MyRoleModelsAssessmentDB() {
   const { userProfile } = useAuth();
+  const { lang } = useLang();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const readOnlyView = ['1','true'].includes((searchParams.get('readonly')||searchParams.get('view')||'').toLowerCase());
@@ -136,9 +138,12 @@ export default function MyRoleModelsAssessmentDB() {
     checkExistingResponse();
   }, [userProfile, loading]);
 
+  const autoSaveErrorRef = useRef(false);
+  const isDirtyRef = useRef(false);
+
   // Auto-save draft on changes (debounced)
   useEffect(() => {
-    if (loading || isCompleted) return;
+    if (loading || isCompleted || readOnlyView || !isDirtyRef.current) return;
     const t = setTimeout(async () => {
       try {
         if (!userProfile?.id) return;
@@ -152,7 +157,7 @@ export default function MyRoleModelsAssessmentDB() {
           studentId = studentRow?.id;
         }
         if (!studentId) return;
-        await supabase.from('assessment_responses').upsert({
+        const { error: autoSaveErr } = await supabase.from('assessment_responses').upsert({
           student_id: studentId,
           assessment_type: 'role_models',
           assessment_title: 'My Role Models',
@@ -160,16 +165,29 @@ export default function MyRoleModelsAssessmentDB() {
           updated_at: new Date().toISOString(),
           completed_at: null
         }, { onConflict: 'student_id,assessment_type' });
-      } catch {}
+        if (autoSaveErr) throw autoSaveErr;
+        autoSaveErrorRef.current = false;
+      } catch (e) {
+        logger.warn('Auto-save failed (role_models):', e);
+        if (!autoSaveErrorRef.current) {
+          autoSaveErrorRef.current = true;
+          toast({
+            title: lang === 'kn' ? 'ಸ್ವಯಂ-ಉಳಿಕೆ ವಿಫಲ' : lang === 'ta' ? 'தானியங்கி சேமிப்பு தோல்வி' : lang === 'hi' ? 'स्वतः-सहेजना विफल' : 'Auto-save failed',
+            description: lang === 'kn' ? 'ನಿಮ್ಮ ಡ್ರಾಫ್ಟ್ ಉಳಿಸಲಾಗುತ್ತಿಲ್ಲ. ದಯವಿಟ್ಟು ನಿಮ್ಮ ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ.' : lang === 'ta' ? 'உங்கள் வரைவு சேமிக்கப்படவில்லை. உங்கள் இணைப்பை சரிபார்க்கவும்.' : lang === 'hi' ? 'आपका ड्राफ़्ट सहेजा नहीं जा रहा। कृपया अपना कनेक्शन जांचें।' : 'Your draft is not being saved. Please check your connection.',
+            variant: 'destructive',
+          });
+        }
+      }
     }, 800);
     return () => clearTimeout(t);
   }, [responses, loading, isCompleted, userProfile]);
 
   const handleRoleModelChange = (index: number, field: keyof RoleModel, value: string) => {
     if (readOnlyView) return;
+    isDirtyRef.current = true;
     setResponses(prev => ({
       ...prev,
-      roleModels: prev.roleModels.map((rm, i) => 
+      roleModels: prev.roleModels.map((rm, i) =>
         i === index ? { ...rm, [field]: value } : rm
       )
     }));
@@ -177,6 +195,7 @@ export default function MyRoleModelsAssessmentDB() {
 
   const addRoleModel = () => {
     if (readOnlyView) return;
+    isDirtyRef.current = true;
     setResponses(prev => ({
       ...prev,
       roleModels: [...prev.roleModels, {
@@ -192,6 +211,7 @@ export default function MyRoleModelsAssessmentDB() {
 
   const removeRoleModel = (index: number) => {
     if (readOnlyView) return;
+    isDirtyRef.current = true;
     if (responses.roleModels.length > 1) {
       setResponses(prev => ({
         ...prev,

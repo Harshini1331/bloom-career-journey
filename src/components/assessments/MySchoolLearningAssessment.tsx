@@ -1,9 +1,10 @@
 import { logger } from '@/lib/logger';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { aiSummaryService } from '@/services/aiSummaryService';
+import { summaryDatabaseService } from '@/services/summaryDatabaseService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -408,24 +409,52 @@ export default function MySchoolLearningAssessment() {
     }
   };
 
+  const autoSaveErrorRef = useRef(false);
+  const isDirtyRef = useRef(false);
+
   // Auto-save drafts on changes (debounced)
   useEffect(() => {
-    if (loading || isCompleted || readOnlyView) return;
-    const studentId = userProfile?.studentProfile?.id;
-    if (!studentId) return;
+    if (loading || isCompleted || readOnlyView || !isDirtyRef.current) return;
     const timer = setTimeout(async () => {
-      await supabase.from('assessment_responses').upsert({
-        student_id: studentId,
-        assessment_type: 'school_learning',
-        responses,
-        completed_at: null,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'student_id,assessment_type' });
+      try {
+        if (!userProfile?.id) return;
+        let studentId = userProfile.studentProfile?.id as string | undefined;
+        if (!studentId) {
+          const { data: studentRow } = await supabase
+            .from('students')
+            .select('id')
+            .eq('user_id', userProfile.id)
+            .maybeSingle();
+          studentId = studentRow?.id;
+        }
+        if (!studentId) return;
+        const { error: autoSaveErr } = await supabase.from('assessment_responses').upsert({
+          student_id: studentId,
+          assessment_type: 'school_learning',
+          assessment_title: 'My School, My Learning and I',
+          responses,
+          completed_at: null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'student_id,assessment_type' });
+        if (autoSaveErr) throw autoSaveErr;
+        autoSaveErrorRef.current = false;
+      } catch (e) {
+        logger.warn('Auto-save failed (school_learning):', e);
+        if (!autoSaveErrorRef.current) {
+          autoSaveErrorRef.current = true;
+          toast({
+            title: lang === 'kn' ? 'ಸ್ವಯಂ-ಉಳಿಕೆ ವಿಫಲ' : lang === 'ta' ? 'தானியங்கி சேமிப்பு தோல்வி' : lang === 'hi' ? 'स्वतः-सहेजना विफल' : 'Auto-save failed',
+            description: lang === 'kn' ? 'ನಿಮ್ಮ ಡ್ರಾಫ್ಟ್ ಉಳಿಸಲಾಗುತ್ತಿಲ್ಲ. ದಯವಿಟ್ಟು ನಿಮ್ಮ ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ.' : lang === 'ta' ? 'உங்கள் வரைவு சேமிக்கப்படவில்லை. உங்கள் இணைப்பை சரிபார்க்கவும்.' : lang === 'hi' ? 'आपका ड्राफ़्ट सहेजा नहीं जा रहा। कृपया अपना कनेक्शन जांचें।' : 'Your draft is not being saved. Please check your connection.',
+            variant: 'destructive',
+          });
+        }
+      }
     }, 800);
     return () => clearTimeout(timer);
-  }, [responses, loading, isCompleted, readOnlyView]);
+  }, [responses, loading, isCompleted, readOnlyView, userProfile]);
 
   const handleResponseChange = (section: keyof SchoolLearningAssessmentResponse, questionKey: string, value: string) => {
+    isDirtyRef.current = true;
     setResponses(prev => ({
       ...prev,
       [section]: {
@@ -437,6 +466,7 @@ export default function MySchoolLearningAssessment() {
 
   const handleLearningMethodChange = (method: string, value: boolean | string) => {
     if (isReadOnly) return;
+    isDirtyRef.current = true;
     setResponses(prev => ({
       ...prev,
       section3: {
@@ -464,44 +494,18 @@ export default function MySchoolLearningAssessment() {
 
     setSavingSection(section);
     try {
-      logger.log('💾 Saving section:', section, 'with responses:', responses);
-
-      // Fetch existing record to merge responses
-      const { data: existingRecords, error: fetchError } = await supabase
-        .from('assessment_responses')
-        .select('id, responses')
-        .eq('student_id', studentId)
-        .eq('assessment_type', 'school_learning')
-        .order('updated_at', { ascending: false })
-        .limit(1);
-
-      if (fetchError) {
-        logger.error('❌ Error fetching existing record:', fetchError);
-        throw fetchError;
-      }
-
-      const existing = existingRecords && existingRecords.length > 0 ? existingRecords[0] : null;
-      const existingResponses = (existing?.responses as any) || {};
-      const mergedResponses = { ...existingResponses, ...responses };
-
-      logger.log('🔄 Merging responses:', { existing: existingResponses, current: responses, merged: mergedResponses });
-
       const { error } = await supabase
         .from('assessment_responses')
         .upsert({
           student_id: studentId,
           assessment_type: 'school_learning',
           assessment_title: 'My School, My Learning and I',
-          responses: mergedResponses,
+          responses,
           updated_at: new Date().toISOString(),
           completed_at: null
         }, { onConflict: 'student_id,assessment_type' });
 
-      if (error) {
-        logger.error('❌ Error saving record:', error);
-        throw error;
-      }
-      logger.log('✅ Successfully saved record');
+      if (error) throw error;
 
       toast({
         title:
@@ -771,6 +775,25 @@ export default function MySchoolLearningAssessment() {
                 : 'Your responses have been saved successfully!',
       });
 
+      if (aiSummaryService.isConfigured() && assessmentData?.id) {
+        void (async () => {
+          try {
+            const summaryResult = await aiSummaryService.generateSchoolLearningSummary(responses, lang);
+            if (summaryResult.success && summaryResult.summary) {
+              await summaryDatabaseService.createAISummary(assessmentData.id, summaryResult.summary, userProfile.id);
+            } else if (!summaryResult.success) {
+              setTimeout(async () => {
+                try {
+                  const retryResult = await aiSummaryService.generateSchoolLearningSummary(responses, lang);
+                  if (retryResult.success && retryResult.summary) {
+                    await summaryDatabaseService.createAISummary(assessmentData.id, retryResult.summary, userProfile.id);
+                  }
+                } catch (e) { logger.warn('Summary retry failed (school_learning):', e); }
+              }, 5000);
+            }
+          } catch (e) { logger.warn('Summary generation failed (school_learning):', e); }
+        })();
+      }
       aiSummaryService.generateAndCacheProfileCardKeywords('school_learning', responses, userProfile.id, lang);
       setIsCompleted(true);
       setTimeout(() => navigate('/student/things-interest-me?from=school_learning'), 2000);
