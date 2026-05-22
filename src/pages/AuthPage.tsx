@@ -1,4 +1,4 @@
-﻿import { logger } from '@/lib/logger';
+import { logger } from '@/lib/logger';
 import { useState, useEffect, useRef } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -591,19 +591,22 @@ export default function AuthPage() {
         // G9: wrap the entire async callback in try/catch/finally so setLoading(false)
         // is always called and unexpected throws surface as a toast rather than a frozen UI.
         try {
+          logger.log('MSG91 sign up verifyOtp success raw data:', JSON.stringify(data));
           // MSG91 may return the token under different key names depending on the plan/version
           signUpAccessTokenRef.current = (
             (data?.['access-token'] as string) ||
             (data?.['access_token'] as string) ||
             (data?.['accessToken'] as string) ||
             (data?.['token'] as string) ||
+            (typeof data?.['message'] === 'string' && data['message'].startsWith('eyJ') ? data['message'] : '') ||
             ''
           );
 
           if (!signUpAccessTokenRef.current) {
+            logger.error('No token in MSG91 sign up verifyOtp data:', JSON.stringify(data));
             toast({
               title: 'Verification Error',
-              description: 'OTP verified but no access token was returned. Please try again.',
+              description: `OTP verified but no access token was returned (keys: ${Object.keys(data || {}).join(', ')}). Please try again.`,
               variant: 'destructive',
             });
             return;
@@ -641,7 +644,7 @@ export default function AuthPage() {
             }
             return;
           }
-
+  console.log("before create teacher")
           // Teacher self-registration via create-teacher Edge Function
           const { data: fnData, error } = await supabase.functions.invoke('create-teacher', {
             body: {
@@ -654,7 +657,10 @@ export default function AuthPage() {
             },
           });
 
+          console.log("create teacher")
+
           if (error || fnData?.error) {
+            console.log("error is ",error,fnData)
             const msg = fnData?.error || error?.message || 'Could not create account. Please try again.';
             logger.error('Teacher sign up error:', msg);
             toast({ title: 'Sign Up Failed', description: msg, variant: 'destructive' });
@@ -739,18 +745,21 @@ export default function AuthPage() {
     window.verifyOtp(
       firstLoginOtp,
       (data: Record<string, unknown>) => {
+        logger.log('MSG91 first login verifyOtp success raw data:', JSON.stringify(data));
         firstLoginAccessTokenRef.current = (
           (data?.['access-token'] as string) ||
           (data?.['access_token'] as string) ||
           (data?.['accessToken'] as string) ||
           (data?.['token'] as string) ||
+          (typeof data?.['message'] === 'string' && data['message'].startsWith('eyJ') ? data['message'] : '') ||
           ''
         );
 
         if (!firstLoginAccessTokenRef.current) {
+          logger.error('No token in MSG91 first login verifyOtp data:', JSON.stringify(data));
           toast({
             title: 'Verification Error',
-            description: 'OTP verified but no access token was returned. Please try again.',
+            description: `OTP verified but no access token was returned (keys: ${Object.keys(data || {}).join(', ')}). Please try again.`,
             variant: 'destructive',
           });
           setLoading(false);
